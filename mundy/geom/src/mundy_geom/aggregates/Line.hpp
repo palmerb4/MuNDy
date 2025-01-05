@@ -44,9 +44,8 @@ namespace geom {
 /// \brief A struct to hold the data for a collection of infinite lines
 template <typename Scalar, typename CenterDataType = stk::mesh::Field<Scalar>, typename DirectionDataType = stk::mesh::Field<Scalar>>
 struct LineData {
-  static_assert(is_point_v<std::decay_t<CenterDataType>> ||
-                    std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>>,
-                "CenterDataType must be either a point or a field of scalars");
+  static_assert(std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>>,
+                "CenterDataType must be either a const or non-const field of scalars");
   static_assert(mundy::math::is_vector3_v<std::decay_t<DirectionDataType>> ||
                     std::is_same_v<std::decay_t<DirectionDataType>, stk::mesh::Field<Scalar>>,
                 "DirectionDataType must be either a vector3 or a field of scalars");
@@ -64,9 +63,8 @@ struct LineData {
 /// See the discussion for LineData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar, typename CenterDataType = stk::mesh::NgpField<Scalar>, typename DirectionDataType = stk::mesh::NgpField<Scalar>>
 struct NgpLineData {
-  static_assert(is_point_v<std::decay_t<CenterDataType>> ||
-                    std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::NgpField<Scalar>>,
-                "CenterDataType must be either a scalar or a field of scalars");
+  static_assert(std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::NgpField<Scalar>>,
+                "CenterDataType must be either a const or non-const field of scalars");
   static_assert(mundy::math::is_vector3_v<std::decay_t<DirectionDataType>> ||
                     std::is_same_v<std::decay_t<DirectionDataType>, stk::mesh::NgpField<Scalar>>,
                 "DirectionDataType must be either a vector3 or a field of scalars");
@@ -86,12 +84,9 @@ struct NgpLineData {
 /// and is used to automatically deduce the template parameters.
 template <typename Scalar, typename CenterDataType, typename DirectionDataType>
 auto create_line_data(stk::topology::rank_t line_rank, CenterDataType& center_data, DirectionDataType& direction_data) {
-  constexpr bool is_center_a_field = std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>>;
   constexpr bool is_direction_a_field = std::is_same_v<std::decay_t<DirectionDataType>, stk::mesh::Field<Scalar>>;
-  if constexpr (is_center_a_field) {
-    MUNDY_THROW_ASSERT(center_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
-                       "The center data must be a field of NODE_RANK");
-  }
+  MUNDY_THROW_ASSERT(center_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
+                      "The center data must be a field of NODE_RANK");
   if constexpr (is_direction_a_field) {
     MUNDY_THROW_ASSERT(direction_data.entity_rank() == line_rank, std::invalid_argument,
                        "The direction data must have the same rank as the line rank.");
@@ -103,12 +98,9 @@ auto create_line_data(stk::topology::rank_t line_rank, CenterDataType& center_da
 /// See the discussion for create_line_data for more information. Only difference is NgpFields over Fields.
 template <typename Scalar, typename CenterDataType, typename DirectionDataType>
 auto create_ngp_line_data(stk::topology::rank_t line_rank, CenterDataType& center_data, DirectionDataType& direction_data) {
-  constexpr bool is_center_a_field = std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::NgpField<Scalar>>;
   constexpr bool is_direction_a_field = std::is_same_v<std::decay_t<DirectionDataType>, stk::mesh::NgpField<Scalar>>;
-  if constexpr (is_center_a_field) {
-    MUNDY_THROW_ASSERT(center_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
-                       "The center data must be a field of NODE_RANK");
-  }
+  MUNDY_THROW_ASSERT(center_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
+                      "The center data must be a field of NODE_RANK");
   if constexpr (is_direction_a_field) {
     MUNDY_THROW_ASSERT(direction_data.get_rank() == line_rank, std::invalid_argument,
                         "The direction data must have the same rank as the line rank.");
@@ -122,8 +114,7 @@ concept ValidDefaultLineDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::center_data_t;
   typename Agg::direction_data_t;
-  is_point_v<std::decay_t<typename Agg::center_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
+  std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
   mundy::math::is_vector3_v<std::decay_t<typename Agg::direction_data_t>> ||
       std::is_same_v<std::decay_t<typename Agg::direction_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
   { agg.line_rank } -> std::convertible_to<stk::topology::rank_t>;
@@ -137,8 +128,7 @@ concept ValidDefaultNgpLineDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::center_data_t;
   typename Agg::direction_data_t;
-  is_point_v<std::decay_t<typename Agg::center_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
+  std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
   mundy::math::is_vector3_v<std::decay_t<typename Agg::direction_data_t>> ||
       std::is_same_v<std::decay_t<typename Agg::direction_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
   { agg.line_rank } -> std::convertible_to<stk::topology::rank_t>;
@@ -146,13 +136,11 @@ concept ValidDefaultNgpLineDataType = requires(Agg agg) {
   { agg.direction_data } -> std::convertible_to<typename Agg::direction_data_t&>;
 };  // ValidDefaultNgpLineDataType
 
-static_assert(ValidDefaultLineDataType<LineData<float, Point<float>, Point<float>>> &&
-                  ValidDefaultLineDataType<LineData<float, Point<float>, stk::mesh::Field<float>>> &&
+static_assert(ValidDefaultLineDataType<LineData<float, stk::mesh::Field<float>, Point<float>>> &&
                   ValidDefaultLineDataType<LineData<float, stk::mesh::Field<float>, stk::mesh::Field<float>>>,
               "LineData must satisfy the ValidDefaultLineDataType concept");
 
-static_assert(ValidDefaultNgpLineDataType<NgpLineData<float, Point<float>, Point<float>>> &&
-                  ValidDefaultNgpLineDataType<NgpLineData<float, Point<float>, stk::mesh::NgpField<float>>> &&
+static_assert(ValidDefaultNgpLineDataType<NgpLineData<float, stk::mesh::NgpField<float>, Point<float>>> &&
                   ValidDefaultNgpLineDataType<NgpLineData<float, stk::mesh::NgpField<float>, stk::mesh::NgpField<float>>>,
               "NgpLineData must satisfy the ValidDefaultNgpLineDataType concept");
 
@@ -164,22 +152,14 @@ auto get_updated_ngp_data(LineDataType data) {
   using center_data_t = typename LineDataType::center_data_t;
   using direction_data_t = typename LineDataType::direction_data_t;
 
-  constexpr bool is_center_a_field = std::is_same_v<std::decay_t<center_data_t>, stk::mesh::Field<scalar_t>>;
   constexpr bool is_direction_a_field = std::is_same_v<std::decay_t<direction_data_t>, stk::mesh::Field<scalar_t>>;
-  if constexpr (is_center_a_field && is_direction_a_field) {
+  if constexpr (is_direction_a_field) {
     return create_ngp_line_data<scalar_t>(data.line_rank,  //
                                           stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data),
                                           stk::mesh::get_updated_ngp_field<scalar_t>(data.direction_data));
-  } else if constexpr (is_center_a_field && !is_direction_a_field) {
-    return create_ngp_line_data<scalar_t>(data.line_rank,  //
-                                          stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data),  //
-                                          data.direction_data);
-  } else if constexpr (!is_center_a_field && is_direction_a_field) {
-    return create_ngp_line_data<scalar_t>(data.line_rank,                                              //
-                                          data.center_data,  //
-                                          stk::mesh::get_updated_ngp_field<scalar_t>(data.direction_data));
   } else {
-    return create_ngp_line_data<scalar_t>(data.line_rank, data.center_data, data.direction_data);
+    return create_ngp_line_data<scalar_t>(data.line_rank, stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data),
+                                          data.direction_data);
   }
 }
 
@@ -199,20 +179,12 @@ struct NodeLineDataTraits {
   using center_data_t = typename Agg::center_data_t;
   using direction_data_t = typename Agg::direction_data_t;
 
-  static constexpr bool has_shared_center() {
-    return is_point_v<center_data_t>;
-  }
-
   static constexpr bool has_shared_direction() {
     return mundy::math::is_vector3_v<direction_data_t>;
   }
 
   static decltype(auto) center(Agg agg, stk::mesh::Entity line_node) {
-    if constexpr (has_shared_center()) {
-      return agg.center_data;
-    } else {
-      return mundy::mesh::vector3_field_data(agg.center_data, line_node);
-    }
+    return mundy::mesh::vector3_field_data(agg.center_data, line_node);
   }
 
   static decltype(auto) direction(Agg agg, stk::mesh::Entity line_node) {
@@ -237,20 +209,12 @@ struct LineDataTraits {
   using center_data_t = typename Agg::center_data_t;
   using direction_data_t = typename Agg::direction_data_t;
 
-  static constexpr bool has_shared_center() {
-    return is_point_v<center_data_t>;
-  }
-
   static constexpr bool has_shared_direction() {
     return mundy::math::is_vector3_v<direction_data_t>;
   }
 
   static decltype(auto) center(Agg agg, stk::mesh::Entity line_node) {
-    if constexpr (has_shared_center()) {
-      return agg.center_data;
-    } else {
-      return mundy::mesh::vector3_field_data(agg.center_data, line_node);
-    }
+    return mundy::mesh::vector3_field_data(agg.center_data, line_node);
   }
 
   static decltype(auto) direction(Agg agg, stk::mesh::Entity line_entity) {
@@ -277,22 +241,13 @@ struct NgpLineDataTraits {
   using direction_data_t = typename Agg::direction_data_t;
 
   KOKKOS_INLINE_FUNCTION
-  static constexpr bool has_shared_center() {
-    return is_point_v<center_data_t>;
-  }
-
-  KOKKOS_INLINE_FUNCTION
   static constexpr bool has_shared_direction() {
     return mundy::math::is_vector3_v<direction_data_t>;
   }
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) center(Agg agg, stk::mesh::FastMeshIndex line_index) {
-    if constexpr (has_shared_center()) {
-      return agg.center_data;
-    } else {
-      return mundy::mesh::vector3_field_data(agg.center_data, line_index);
-    }
+    return mundy::mesh::vector3_field_data(agg.center_data, line_index);
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -474,20 +429,18 @@ class NgpNodeLineView {
   stk::mesh::FastMeshIndex line_index_;
 };  // NgpNodeLineView
 
-static_assert(ValidLineType<ElemLineView<LineData<float, Point<float>, mundy::math::Vector3<float>>>> &&
-              ValidLineType<ElemLineView<LineData<float, Point<float>, stk::mesh::Field<float>>>> &&
+static_assert(ValidLineType<ElemLineView<LineData<float, stk::mesh::Field<float>, mundy::math::Vector3<float>>>> &&
+              ValidLineType<ElemLineView<LineData<float, stk::mesh::Field<float>, stk::mesh::Field<float>>>> &&
               ValidLineType<ElemLineView<LineData<float, stk::mesh::Field<float>, mundy::math::Vector3<float>>>> &&
-              ValidLineType<NgpElemLineView<NgpLineData<float, Point<float>, mundy::math::Vector3<float>>>> &&
-              ValidLineType<NgpElemLineView<NgpLineData<float, Point<float>, stk::mesh::NgpField<float>>>> &&
-              ValidLineType<NgpElemLineView<NgpLineData<float, stk::mesh::NgpField<float>, mundy::math::Vector3<float>>>>,
+              ValidLineType<NgpElemLineView<NgpLineData<float, stk::mesh::NgpField<float>, mundy::math::Vector3<float>>>> &&
+              ValidLineType<NgpElemLineView<NgpLineData<float, stk::mesh::NgpField<float>, stk::mesh::NgpField<float>>>>,
               "ElemLineView and NgpElemLineView must be valid Line types");
 
-static_assert(ValidLineType<NodeLineView<LineData<float, Point<float>, mundy::math::Vector3<float>>>> &&
-              ValidLineType<NodeLineView<LineData<float, Point<float>, stk::mesh::Field<float>>>> &&
+static_assert(ValidLineType<NodeLineView<LineData<float, stk::mesh::Field<float>, mundy::math::Vector3<float>>>> &&
+              ValidLineType<NodeLineView<LineData<float, stk::mesh::Field<float>, stk::mesh::Field<float>>>> &&
               ValidLineType<NodeLineView<LineData<float, stk::mesh::Field<float>, mundy::math::Vector3<float>>>> &&
-              ValidLineType<NgpNodeLineView<NgpLineData<float, Point<float>, mundy::math::Vector3<float>>>> &&
-              ValidLineType<NgpNodeLineView<NgpLineData<float, Point<float>, stk::mesh::NgpField<float>>>> &&
-              ValidLineType<NgpNodeLineView<NgpLineData<float, stk::mesh::NgpField<float>, mundy::math::Vector3<float>>>>,
+              ValidLineType<NgpNodeLineView<NgpLineData<float, stk::mesh::NgpField<float>, mundy::math::Vector3<float>>>> &&
+              ValidLineType<NgpNodeLineView<NgpLineData<float, stk::mesh::NgpField<float>, stk::mesh::NgpField<float>>>>,
               "NodeLineView and NgpNodeLineView must be valid Line types");
 
 /// \brief A helper function to create a ElemLineView object with type deduction

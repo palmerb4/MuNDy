@@ -48,7 +48,7 @@ decltype(auto) get_first_or_second(auto& first, auto& second) {
   }
 }
 
-template <bool is_center_shared, bool is_radius_shared>
+template <bool is_radius_shared>
 void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
                       stk::topology::rank_t sphere_rank,       //
                       stk::mesh::Entity sphere,                //
@@ -60,17 +60,12 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
 
   // The shared data for the sphere
   double radius = 1.0;
-  Point<double> center{1.1, 2.2, 3.3};
 
   // Test the regular sphere data to ensure that the stored shared data/fields are as expected
   auto sphere_data =
-      create_sphere_data<double>(sphere_rank, get_first_or_second<is_center_shared>(center, center_field),
+      create_sphere_data<double>(sphere_rank, center_field,
                                  get_first_or_second<is_radius_shared>(radius, radius_field));
-  if constexpr (is_center_shared) {
-    ASSERT_EQ(&sphere_data.center_data, &center);
-  } else {
-    ASSERT_EQ(&sphere_data.center_data, &center_field);
-  }
+  ASSERT_EQ(&sphere_data.center_data, &center_field);
   if constexpr (is_radius_shared) {
     ASSERT_EQ(&sphere_data.radius_data, &radius);
   } else {
@@ -82,14 +77,10 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
   stk::mesh::NgpField<double>& ngp_center_field = stk::mesh::get_updated_ngp_field<double>(center_field);
   stk::mesh::NgpField<double>& ngp_radius_field = stk::mesh::get_updated_ngp_field<double>(radius_field);
   auto ngp_sphere_data =
-      create_ngp_sphere_data<double>(sphere_rank, get_first_or_second<is_center_shared>(center, ngp_center_field),
+      create_ngp_sphere_data<double>(sphere_rank, ngp_center_field,
                                      get_first_or_second<is_radius_shared>(radius, ngp_radius_field));
 
-  if constexpr (is_center_shared) {
-    ASSERT_EQ(&ngp_sphere_data.center_data, &center);
-  } else {
-    ASSERT_EQ(&ngp_sphere_data.center_data, &ngp_center_field);
-  }
+  ASSERT_EQ(&ngp_sphere_data.center_data, &ngp_center_field);
   if constexpr (is_radius_shared) {
     ASSERT_EQ(&ngp_sphere_data.radius_data, &radius);
   } else {
@@ -98,18 +89,14 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
 
   // Set the center and radius data for the sphere directly via their fields
   const double non_shared_radius = 2.0;
-  const Point<double> non_shared_center{7.7, 8.8, 9.9};
-
-  Point<double> old_center = center;
-  Point<double> old_non_shared_center = non_shared_center;
+  const Point<double> non_shared_center{1.0, 2.0, 3.0};
   double old_radius = radius;
   double old_non_shared_radius = non_shared_radius;
+  Point<double> old_non_shared_center = non_shared_center;
   if (sphere_rank == stk::topology::NODE_RANK) {
-    if constexpr (!is_center_shared) {
-      stk::mesh::field_data(center_field, sphere)[0] = non_shared_center[0];
-      stk::mesh::field_data(center_field, sphere)[1] = non_shared_center[1];
-      stk::mesh::field_data(center_field, sphere)[2] = non_shared_center[2];
-    }
+    stk::mesh::field_data(center_field, sphere)[0] = non_shared_center[0];
+    stk::mesh::field_data(center_field, sphere)[1] = non_shared_center[1];
+    stk::mesh::field_data(center_field, sphere)[2] = non_shared_center[2];
     if constexpr (!is_radius_shared) {
       stk::mesh::field_data(radius_field, sphere)[0] = non_shared_radius;
     }
@@ -117,11 +104,9 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
     ASSERT_EQ(bulk_data.num_nodes(sphere), 1);
     stk::mesh::Entity node = bulk_data.begin_nodes(sphere)[0];
     ASSERT_TRUE(bulk_data.is_valid(node));
-    if constexpr (!is_center_shared) {
-      stk::mesh::field_data(center_field, node)[0] = non_shared_center[0];
-      stk::mesh::field_data(center_field, node)[1] = non_shared_center[1];
-      stk::mesh::field_data(center_field, node)[2] = non_shared_center[2];
-    }
+    stk::mesh::field_data(center_field, node)[0] = non_shared_center[0];
+    stk::mesh::field_data(center_field, node)[1] = non_shared_center[1];
+    stk::mesh::field_data(center_field, node)[2] = non_shared_center[2];
     if constexpr (!is_radius_shared) {
       stk::mesh::field_data(radius_field, sphere)[0] = non_shared_radius;
     }
@@ -134,15 +119,9 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
   const double add_value = 1.1;
   if (sphere_rank == stk::topology::NODE_RANK) {
     auto sphere_view = create_node_sphere_view(bulk_data, sphere_data, sphere);
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(sphere_view.center()[0], center[0]);
-      ASSERT_DOUBLE_EQ(sphere_view.center()[1], center[1]);
-      ASSERT_DOUBLE_EQ(sphere_view.center()[2], center[2]);
-    } else {
-      ASSERT_DOUBLE_EQ(sphere_view.center()[0], non_shared_center[0]);
-      ASSERT_DOUBLE_EQ(sphere_view.center()[1], non_shared_center[1]);
-      ASSERT_DOUBLE_EQ(sphere_view.center()[2], non_shared_center[2]);
-    }
+    ASSERT_DOUBLE_EQ(sphere_view.center()[0], non_shared_center[0]);
+    ASSERT_DOUBLE_EQ(sphere_view.center()[1], non_shared_center[1]);
+    ASSERT_DOUBLE_EQ(sphere_view.center()[2], non_shared_center[2]);
     if constexpr (is_radius_shared) {
       ASSERT_DOUBLE_EQ(sphere_view.radius(), radius);
     } else {
@@ -153,15 +132,9 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
     sphere_view.center()[2] *= add_value;
     sphere_view.radius() += 2 * add_value;
 
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(center[0], old_center[0] + add_value);
-      ASSERT_DOUBLE_EQ(center[1], old_center[1] - add_value);
-      ASSERT_DOUBLE_EQ(center[2], old_center[2] * add_value);
-    } else {
-      ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, sphere)[0], old_non_shared_center[0] + add_value);
-      ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, sphere)[1], old_non_shared_center[1] - add_value);
-      ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, sphere)[2], old_non_shared_center[2] * add_value);
-    }
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, sphere)[0], old_non_shared_center[0] + add_value);
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, sphere)[1], old_non_shared_center[1] - add_value);
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, sphere)[2], old_non_shared_center[2] * add_value);
     if constexpr (is_radius_shared) {
       ASSERT_DOUBLE_EQ(radius, old_radius + 2 * add_value);
     } else {
@@ -175,15 +148,9 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
     sphere_view.radius() -= 2 * add_value;
   } else {
     auto sphere_view = create_elem_sphere_view(bulk_data, sphere_data, sphere);
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(sphere_view.center()[0], center[0]);
-      ASSERT_DOUBLE_EQ(sphere_view.center()[1], center[1]);
-      ASSERT_DOUBLE_EQ(sphere_view.center()[2], center[2]);
-    } else {
-      ASSERT_DOUBLE_EQ(sphere_view.center()[0], non_shared_center[0]);
-      ASSERT_DOUBLE_EQ(sphere_view.center()[1], non_shared_center[1]);
-      ASSERT_DOUBLE_EQ(sphere_view.center()[2], non_shared_center[2]);
-    }
+    ASSERT_DOUBLE_EQ(sphere_view.center()[0], non_shared_center[0]);
+    ASSERT_DOUBLE_EQ(sphere_view.center()[1], non_shared_center[1]);
+    ASSERT_DOUBLE_EQ(sphere_view.center()[2], non_shared_center[2]);
     if constexpr (is_radius_shared) {
       ASSERT_DOUBLE_EQ(sphere_view.radius(), radius);
     } else {
@@ -197,15 +164,9 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
     ASSERT_EQ(bulk_data.num_nodes(sphere), 1);
     stk::mesh::Entity node = bulk_data.begin_nodes(sphere)[0];
     ASSERT_TRUE(bulk_data.is_valid(node));
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(center[0], old_center[0] + add_value);
-      ASSERT_DOUBLE_EQ(center[1], old_center[1] - add_value);
-      ASSERT_DOUBLE_EQ(center[2], old_center[2] * add_value);
-    } else {
-      ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[0], old_non_shared_center[0] + add_value);
-      ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[1], old_non_shared_center[1] - add_value);
-      ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[2], old_non_shared_center[2] * add_value);
-    }
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[0], old_non_shared_center[0] + add_value);
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[1], old_non_shared_center[1] - add_value);
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[2], old_non_shared_center[2] * add_value);
     if constexpr (is_radius_shared) {
       ASSERT_DOUBLE_EQ(radius, old_radius + 2 * add_value);
     } else {
@@ -223,15 +184,9 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
   stk::mesh::FastMeshIndex sphere_index = ngp_mesh.fast_mesh_index(sphere);
   if (sphere_rank == stk::topology::NODE_RANK) {
     auto ngp_sphere_view = create_ngp_node_sphere_view(ngp_mesh, ngp_sphere_data, sphere_index);
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[0], center[0]);
-      ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[1], center[1]);
-      ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[2], center[2]);
-    } else {
-      ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[0], non_shared_center[0]);
-      ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[1], non_shared_center[1]);
-      ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[2], non_shared_center[2]);
-    }
+    ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[0], non_shared_center[0]);
+    ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[1], non_shared_center[1]);
+    ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[2], non_shared_center[2]);
     if constexpr (is_radius_shared) {
       ASSERT_DOUBLE_EQ(ngp_sphere_view.radius(), radius);
     } else {
@@ -243,15 +198,10 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
     ngp_sphere_view.center()[1] -= add_value;
     ngp_sphere_view.center()[2] *= add_value;
     ngp_sphere_view.radius() += 2 * add_value;
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(center[0], old_center[0] + add_value);
-      ASSERT_DOUBLE_EQ(center[1], old_center[1] - add_value);
-      ASSERT_DOUBLE_EQ(center[2], old_center[2] * add_value);
-    } else {
-      ASSERT_DOUBLE_EQ(ngp_center_field(sphere_index, 0), old_non_shared_center[0] + add_value);
-      ASSERT_DOUBLE_EQ(ngp_center_field(sphere_index, 1), old_non_shared_center[1] - add_value);
-      ASSERT_DOUBLE_EQ(ngp_center_field(sphere_index, 2), old_non_shared_center[2] * add_value);
-    }
+
+    ASSERT_DOUBLE_EQ(ngp_center_field(sphere_index, 0), old_non_shared_center[0] + add_value);
+    ASSERT_DOUBLE_EQ(ngp_center_field(sphere_index, 1), old_non_shared_center[1] - add_value);
+    ASSERT_DOUBLE_EQ(ngp_center_field(sphere_index, 2), old_non_shared_center[2] * add_value);
     if constexpr (is_radius_shared) {
       ASSERT_DOUBLE_EQ(radius, old_radius + 2 * add_value);
     } else {
@@ -259,15 +209,9 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
     }
   } else {
     auto ngp_sphere_view = create_ngp_elem_sphere_view(ngp_mesh, ngp_sphere_data, sphere_index);
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[0], center[0]);
-      ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[1], center[1]);
-      ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[2], center[2]);
-    } else {
-      ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[0], non_shared_center[0]);
-      ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[1], non_shared_center[1]);
-      ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[2], non_shared_center[2]);
-    }
+    ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[0], non_shared_center[0]);
+    ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[1], non_shared_center[1]);
+    ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[2], non_shared_center[2]);
     if constexpr (is_radius_shared) {
       ASSERT_DOUBLE_EQ(ngp_sphere_view.radius(), radius);
     } else {
@@ -281,15 +225,10 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
     ngp_sphere_view.radius() += 2 * add_value;
     stk::mesh::Entity node = bulk_data.begin_nodes(sphere)[0];
     stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
-    if constexpr (is_center_shared) {
-      ASSERT_EQ(center[0], old_center[0] + add_value);
-      ASSERT_EQ(center[1], old_center[1] - add_value);
-      ASSERT_EQ(center[2], old_center[2] * add_value);
-    } else {
-      ASSERT_EQ(ngp_center_field(node_index, 0), old_non_shared_center[0] + add_value);
-      ASSERT_EQ(ngp_center_field(node_index, 1), old_non_shared_center[1] - add_value);
-      ASSERT_EQ(ngp_center_field(node_index, 2), old_non_shared_center[2] * add_value);
-    }
+
+    ASSERT_EQ(ngp_center_field(node_index, 0), old_non_shared_center[0] + add_value);
+    ASSERT_EQ(ngp_center_field(node_index, 1), old_non_shared_center[1] - add_value);
+    ASSERT_EQ(ngp_center_field(node_index, 2), old_non_shared_center[2] * add_value);
     if constexpr (is_radius_shared) {
       ASSERT_EQ(radius, old_radius + 2 * add_value);
     } else {
@@ -298,7 +237,7 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
   }
 }
 
-template <bool is_center_shared, bool is_orientation_shared, bool is_axis_lengths_shared>
+template <bool is_orientation_shared, bool is_axis_lengths_shared>
 void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
                          stk::topology::rank_t ellipsoid_rank,         //
                          stk::mesh::Entity ellipsoid,                  //
@@ -310,21 +249,16 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
   ASSERT_TRUE(ellipsoid_rank == stk::topology::ELEMENT_RANK || ellipsoid_rank == stk::topology::NODE_RANK);
 
   // The shared data for the ellipsoid
-  Point<double> center{1.1, 2.2, 3.3};
   mundy::math::Quaternion<double> orientation{0.1, 0.2, 0.3,
                                               0.4};  // Not a valid unit quaternion but that's fine for this test.
   mundy::math::Vector3<double> axis_lengths{1.01, 2.02, 3.03};
 
   // Test the regular ellipsoid data to ensure that the stored shared data/fields are as expected
   auto ellipsoid_data =
-      create_ellipsoid_data<double>(ellipsoid_rank, get_first_or_second<is_center_shared>(center, center_field),
+      create_ellipsoid_data<double>(ellipsoid_rank, center_field,
                                     get_first_or_second<is_orientation_shared>(orientation, orientation_field),
                                     get_first_or_second<is_axis_lengths_shared>(axis_lengths, axis_lengths_field));
-  if constexpr (is_center_shared) {
-    ASSERT_EQ(&ellipsoid_data.center_data, &center);
-  } else {
-    ASSERT_EQ(&ellipsoid_data.center_data, &center_field);
-  }
+  ASSERT_EQ(&ellipsoid_data.center_data, &center_field);
   if constexpr (is_orientation_shared) {
     ASSERT_EQ(&ellipsoid_data.orientation_data, &orientation);
   } else {
@@ -342,15 +276,11 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
   stk::mesh::NgpField<double>& ngp_orientation_field = stk::mesh::get_updated_ngp_field<double>(orientation_field);
   stk::mesh::NgpField<double>& ngp_axis_lengths_field = stk::mesh::get_updated_ngp_field<double>(axis_lengths_field);
   auto ngp_ellipsoid_data = create_ngp_ellipsoid_data<double>(
-      ellipsoid_rank, get_first_or_second<is_center_shared>(center, ngp_center_field),
+      ellipsoid_rank, ngp_center_field,
       get_first_or_second<is_orientation_shared>(orientation, ngp_orientation_field),
       get_first_or_second<is_axis_lengths_shared>(axis_lengths, ngp_axis_lengths_field));
 
-  if constexpr (is_center_shared) {
-    ASSERT_EQ(&ngp_ellipsoid_data.center_data, &center);
-  } else {
-    ASSERT_EQ(&ngp_ellipsoid_data.center_data, &ngp_center_field);
-  }
+  ASSERT_EQ(&ngp_ellipsoid_data.center_data, &ngp_center_field);
   if constexpr (is_orientation_shared) {
     ASSERT_EQ(&ngp_ellipsoid_data.orientation_data, &orientation);
   } else {
@@ -367,7 +297,6 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
   const mundy::math::Quaternion<double> non_shared_orientation{0.5, 0.6, 0.7, 0.8};
   const mundy::math::Vector3<double> non_shared_axis_lengths{4.04, 5.05, 6.06};
 
-  Point<double> old_center = center;
   Point<double> old_non_shared_center = non_shared_center;
   mundy::math::Quaternion<double> old_orientation = orientation;
   mundy::math::Quaternion<double> old_non_shared_orientation = non_shared_orientation;
@@ -375,11 +304,9 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
   mundy::math::Vector3<double> old_non_shared_axis_lengths = non_shared_axis_lengths;
 
   if (ellipsoid_rank == stk::topology::NODE_RANK) {
-    if constexpr (!is_center_shared) {
-      stk::mesh::field_data(center_field, ellipsoid)[0] = non_shared_center[0];
-      stk::mesh::field_data(center_field, ellipsoid)[1] = non_shared_center[1];
-      stk::mesh::field_data(center_field, ellipsoid)[2] = non_shared_center[2];
-    }
+    stk::mesh::field_data(center_field, ellipsoid)[0] = non_shared_center[0];
+    stk::mesh::field_data(center_field, ellipsoid)[1] = non_shared_center[1];
+    stk::mesh::field_data(center_field, ellipsoid)[2] = non_shared_center[2];
     if constexpr (!is_orientation_shared) {
       stk::mesh::field_data(orientation_field, ellipsoid)[0] = non_shared_orientation[0];
       stk::mesh::field_data(orientation_field, ellipsoid)[1] = non_shared_orientation[1];
@@ -395,11 +322,9 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
     ASSERT_EQ(bulk_data.num_nodes(ellipsoid), 1);
     stk::mesh::Entity node = bulk_data.begin_nodes(ellipsoid)[0];
     ASSERT_TRUE(bulk_data.is_valid(node));
-    if constexpr (!is_center_shared) {
-      stk::mesh::field_data(center_field, node)[0] = non_shared_center[0];
-      stk::mesh::field_data(center_field, node)[1] = non_shared_center[1];
-      stk::mesh::field_data(center_field, node)[2] = non_shared_center[2];
-    }
+    stk::mesh::field_data(center_field, node)[0] = non_shared_center[0];
+    stk::mesh::field_data(center_field, node)[1] = non_shared_center[1];
+    stk::mesh::field_data(center_field, node)[2] = non_shared_center[2];
     if constexpr (!is_orientation_shared) {
       stk::mesh::field_data(orientation_field, ellipsoid)[0] = non_shared_orientation[0];
       stk::mesh::field_data(orientation_field, ellipsoid)[1] = non_shared_orientation[1];
@@ -419,15 +344,9 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
   const double add_value = 1.1;
   if (ellipsoid_rank == stk::topology::NODE_RANK) {
     auto ellipsoid_view = create_node_ellipsoid_view(bulk_data, ellipsoid_data, ellipsoid);
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(ellipsoid_view.center()[0], center[0]);
-      ASSERT_DOUBLE_EQ(ellipsoid_view.center()[1], center[1]);
-      ASSERT_DOUBLE_EQ(ellipsoid_view.center()[2], center[2]);
-    } else {
-      ASSERT_DOUBLE_EQ(ellipsoid_view.center()[0], non_shared_center[0]);
-      ASSERT_DOUBLE_EQ(ellipsoid_view.center()[1], non_shared_center[1]);
-      ASSERT_DOUBLE_EQ(ellipsoid_view.center()[2], non_shared_center[2]);
-    }
+    ASSERT_DOUBLE_EQ(ellipsoid_view.center()[0], non_shared_center[0]);
+    ASSERT_DOUBLE_EQ(ellipsoid_view.center()[1], non_shared_center[1]);
+    ASSERT_DOUBLE_EQ(ellipsoid_view.center()[2], non_shared_center[2]);
     if constexpr (is_orientation_shared) {
       ASSERT_DOUBLE_EQ(ellipsoid_view.orientation()[0], orientation[0]);
       ASSERT_DOUBLE_EQ(ellipsoid_view.orientation()[1], orientation[1]);
@@ -459,15 +378,9 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
     ellipsoid_view.axis_lengths()[1] -= 4 * add_value;
     ellipsoid_view.axis_lengths()[2] *= 5 * add_value;
 
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(center[0], old_center[0] + add_value);
-      ASSERT_DOUBLE_EQ(center[1], old_center[1] - add_value);
-      ASSERT_DOUBLE_EQ(center[2], old_center[2] * add_value);
-    } else {
-      ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, ellipsoid)[0], old_non_shared_center[0] + add_value);
-      ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, ellipsoid)[1], old_non_shared_center[1] - add_value);
-      ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, ellipsoid)[2], old_non_shared_center[2] * add_value);
-    }
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, ellipsoid)[0], old_non_shared_center[0] + add_value);
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, ellipsoid)[1], old_non_shared_center[1] - add_value);
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, ellipsoid)[2], old_non_shared_center[2] * add_value);
     if constexpr (is_orientation_shared) {
       ASSERT_DOUBLE_EQ(orientation[0], old_orientation[0] + add_value);
       ASSERT_DOUBLE_EQ(orientation[1], old_orientation[1] - add_value);
@@ -509,15 +422,9 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
     ellipsoid_view.axis_lengths()[2] /= 5 * add_value;
   } else {
     auto ellipsoid_view = create_elem_ellipsoid_view(bulk_data, ellipsoid_data, ellipsoid);
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(ellipsoid_view.center()[0], center[0]);
-      ASSERT_DOUBLE_EQ(ellipsoid_view.center()[1], center[1]);
-      ASSERT_DOUBLE_EQ(ellipsoid_view.center()[2], center[2]);
-    } else {
-      ASSERT_DOUBLE_EQ(ellipsoid_view.center()[0], non_shared_center[0]);
-      ASSERT_DOUBLE_EQ(ellipsoid_view.center()[1], non_shared_center[1]);
-      ASSERT_DOUBLE_EQ(ellipsoid_view.center()[2], non_shared_center[2]);
-    }
+    ASSERT_DOUBLE_EQ(ellipsoid_view.center()[0], non_shared_center[0]);
+    ASSERT_DOUBLE_EQ(ellipsoid_view.center()[1], non_shared_center[1]);
+    ASSERT_DOUBLE_EQ(ellipsoid_view.center()[2], non_shared_center[2]);
     if constexpr (is_orientation_shared) {
       ASSERT_DOUBLE_EQ(ellipsoid_view.orientation()[0], orientation[0]);
       ASSERT_DOUBLE_EQ(ellipsoid_view.orientation()[1], orientation[1]);
@@ -552,15 +459,9 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
     ASSERT_EQ(bulk_data.num_nodes(ellipsoid), 1);
     stk::mesh::Entity node = bulk_data.begin_nodes(ellipsoid)[0];
     ASSERT_TRUE(bulk_data.is_valid(node));
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(center[0], old_center[0] + add_value);
-      ASSERT_DOUBLE_EQ(center[1], old_center[1] - add_value);
-      ASSERT_DOUBLE_EQ(center[2], old_center[2] * add_value);
-    } else {
-      ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[0], old_non_shared_center[0] + add_value);
-      ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[1], old_non_shared_center[1] - add_value);
-      ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[2], old_non_shared_center[2] * add_value);
-    }
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[0], old_non_shared_center[0] + add_value);
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[1], old_non_shared_center[1] - add_value);
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[2], old_non_shared_center[2] * add_value);
     if constexpr (is_orientation_shared) {
       ASSERT_DOUBLE_EQ(orientation[0], old_orientation[0] + add_value);
       ASSERT_DOUBLE_EQ(orientation[1], old_orientation[1] - add_value);
@@ -606,15 +507,9 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
   stk::mesh::FastMeshIndex ellipsoid_index = ngp_mesh.fast_mesh_index(ellipsoid);
   if (ellipsoid_rank == stk::topology::NODE_RANK) {
     auto ngp_ellipsoid_view = create_ngp_node_ellipsoid_view(ngp_mesh, ngp_ellipsoid_data, ellipsoid_index);
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[0], center[0]);
-      ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[1], center[1]);
-      ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[2], center[2]);
-    } else {
-      ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[0], non_shared_center[0]);
-      ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[1], non_shared_center[1]);
-      ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[2], non_shared_center[2]);
-    }
+    ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[0], non_shared_center[0]);
+    ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[1], non_shared_center[1]);
+    ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[2], non_shared_center[2]);
     if constexpr (is_orientation_shared) {
       ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.orientation()[0], orientation[0]);
       ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.orientation()[1], orientation[1]);
@@ -648,15 +543,9 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
     ngp_ellipsoid_view.axis_lengths()[0] += 3 * add_value;
     ngp_ellipsoid_view.axis_lengths()[1] -= 4 * add_value;
     ngp_ellipsoid_view.axis_lengths()[2] *= 5 * add_value;
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(center[0], old_center[0] + add_value);
-      ASSERT_DOUBLE_EQ(center[1], old_center[1] - add_value);
-      ASSERT_DOUBLE_EQ(center[2], old_center[2] * add_value);
-    } else {
-      ASSERT_DOUBLE_EQ(ngp_center_field(ellipsoid_index, 0), old_non_shared_center[0] + add_value);
-      ASSERT_DOUBLE_EQ(ngp_center_field(ellipsoid_index, 1), old_non_shared_center[1] - add_value);
-      ASSERT_DOUBLE_EQ(ngp_center_field(ellipsoid_index, 2), old_non_shared_center[2] * add_value);
-    }
+    ASSERT_DOUBLE_EQ(ngp_center_field(ellipsoid_index, 0), old_non_shared_center[0] + add_value);
+    ASSERT_DOUBLE_EQ(ngp_center_field(ellipsoid_index, 1), old_non_shared_center[1] - add_value);
+    ASSERT_DOUBLE_EQ(ngp_center_field(ellipsoid_index, 2), old_non_shared_center[2] * add_value);
     if constexpr (is_orientation_shared) {
       ASSERT_DOUBLE_EQ(orientation[0], old_orientation[0] + add_value);
       ASSERT_DOUBLE_EQ(orientation[1], old_orientation[1] - add_value);
@@ -679,15 +568,9 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
     }
   } else {
     auto ngp_ellipsoid_view = create_ngp_elem_ellipsoid_view(ngp_mesh, ngp_ellipsoid_data, ellipsoid_index);
-    if constexpr (is_center_shared) {
-      ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[0], center[0]);
-      ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[1], center[1]);
-      ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[2], center[2]);
-    } else {
-      ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[0], non_shared_center[0]);
-      ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[1], non_shared_center[1]);
-      ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[2], non_shared_center[2]);
-    }
+    ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[0], non_shared_center[0]);
+    ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[1], non_shared_center[1]);
+    ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[2], non_shared_center[2]);
     if constexpr (is_orientation_shared) {
       ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.orientation()[0], orientation[0]);
       ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.orientation()[1], orientation[1]);
@@ -723,15 +606,10 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
     ngp_ellipsoid_view.axis_lengths()[2] *= 5 * add_value;
     stk::mesh::Entity node = bulk_data.begin_nodes(ellipsoid)[0];
     stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
-    if constexpr (is_center_shared) {
-      ASSERT_EQ(center[0], old_center[0] + add_value);
-      ASSERT_EQ(center[1], old_center[1] - add_value);
-      ASSERT_EQ(center[2], old_center[2] * add_value);
-    } else {
-      ASSERT_EQ(ngp_center_field(node_index, 0), old_non_shared_center[0] + add_value);
-      ASSERT_EQ(ngp_center_field(node_index, 1), old_non_shared_center[1] - add_value);
-      ASSERT_EQ(ngp_center_field(node_index, 2), old_non_shared_center[2] * add_value);
-    }
+
+    ASSERT_EQ(ngp_center_field(node_index, 0), old_non_shared_center[0] + add_value);
+    ASSERT_EQ(ngp_center_field(node_index, 1), old_non_shared_center[1] - add_value);
+    ASSERT_EQ(ngp_center_field(node_index, 2), old_non_shared_center[2] * add_value);
     if constexpr (is_orientation_shared) {
       ASSERT_EQ(orientation[0], old_orientation[0] + add_value);
       ASSERT_EQ(orientation[1], old_orientation[1] - add_value);
@@ -755,7 +633,6 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
   }
 }
 
-template <bool is_aabb_shared>
 void test_aabb_data(stk::mesh::BulkData& bulk_data,   //
                     stk::topology::rank_t aabb_rank,  //
                     stk::mesh::Entity aabb_entity,    //
@@ -766,60 +643,39 @@ void test_aabb_data(stk::mesh::BulkData& bulk_data,   //
   AABB<double> aabb{Point<double>{1.1, 2.2, 3.3}, Point<double>{4.4, 5.5, 6.6}};
 
   // Test the regular aabb data to ensure that the stored shared data/fields are as expected
-  auto aabb_data = create_aabb_data<double>(aabb_rank, get_first_or_second<is_aabb_shared>(aabb, aabb_field));
-  if constexpr (is_aabb_shared) {
-    ASSERT_EQ(&aabb_data.aabb_data, &aabb);
-  } else {
-    ASSERT_EQ(&aabb_data.aabb_data, &aabb_field);
-  }
+  auto aabb_data = create_aabb_data<double>(aabb_rank, aabb_field);
+  ASSERT_EQ(&aabb_data.aabb_data, &aabb_field);
 
   // Same test for the NGP aabb data
   stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
   stk::mesh::NgpField<double>& ngp_aabb_field = stk::mesh::get_updated_ngp_field<double>(aabb_field);
   auto ngp_aabb_data =
-      create_ngp_aabb_data<double>(aabb_rank, get_first_or_second<is_aabb_shared>(aabb, ngp_aabb_field));
-
-  if constexpr (is_aabb_shared) {
-    ASSERT_EQ(&ngp_aabb_data.aabb_data, &aabb);
-  } else {
-    ASSERT_EQ(&ngp_aabb_data.aabb_data, &ngp_aabb_field);
-  }
+      create_ngp_aabb_data<double>(aabb_rank, ngp_aabb_field);
+  ASSERT_EQ(&ngp_aabb_data.aabb_data, &ngp_aabb_field);
 
   // Set the center and radius data for the aabb directly via their fields
   const AABB<double> non_shared_aabb{Point<double>{0.1, 0.2, 0.3}, Point<double>{0.4, 0.5, 0.6}};
 
   AABB<double> old_aabb = aabb;
   AABB<double> old_non_shared_aabb = non_shared_aabb;
-
-  if constexpr (!is_aabb_shared) {
-    stk::mesh::field_data(aabb_field, aabb_entity)[0] = non_shared_aabb.min_corner()[0];
-    stk::mesh::field_data(aabb_field, aabb_entity)[1] = non_shared_aabb.min_corner()[1];
-    stk::mesh::field_data(aabb_field, aabb_entity)[2] = non_shared_aabb.min_corner()[2];
-    stk::mesh::field_data(aabb_field, aabb_entity)[3] = non_shared_aabb.max_corner()[0];
-    stk::mesh::field_data(aabb_field, aabb_entity)[4] = non_shared_aabb.max_corner()[1];
-    stk::mesh::field_data(aabb_field, aabb_entity)[5] = non_shared_aabb.max_corner()[2];
-  }
+  stk::mesh::field_data(aabb_field, aabb_entity)[0] = non_shared_aabb.min_corner()[0];
+  stk::mesh::field_data(aabb_field, aabb_entity)[1] = non_shared_aabb.min_corner()[1];
+  stk::mesh::field_data(aabb_field, aabb_entity)[2] = non_shared_aabb.min_corner()[2];
+  stk::mesh::field_data(aabb_field, aabb_entity)[3] = non_shared_aabb.max_corner()[0];
+  stk::mesh::field_data(aabb_field, aabb_entity)[4] = non_shared_aabb.max_corner()[1];
+  stk::mesh::field_data(aabb_field, aabb_entity)[5] = non_shared_aabb.max_corner()[2];
 
   // Test that the aabb data properly views the updated fields
 
   // Test that the data is modifiable
   const double add_value = 1.1;
   auto aabb_view = create_aabb_entity_view(bulk_data, aabb_data, aabb_entity);
-  if constexpr (is_aabb_shared) {
-    ASSERT_NEAR(aabb_view.min_corner()[0], aabb.min_corner()[0], 1e-12);
-    ASSERT_NEAR(aabb_view.min_corner()[1], aabb.min_corner()[1], 1e-12);
-    ASSERT_NEAR(aabb_view.min_corner()[2], aabb.min_corner()[2], 1e-12);
-    ASSERT_NEAR(aabb_view.max_corner()[0], aabb.max_corner()[0], 1e-12);
-    ASSERT_NEAR(aabb_view.max_corner()[1], aabb.max_corner()[1], 1e-12);
-    ASSERT_NEAR(aabb_view.max_corner()[2], aabb.max_corner()[2], 1e-12);
-  } else {
-    ASSERT_NEAR(aabb_view.min_corner()[0], non_shared_aabb.min_corner()[0], 1e-12);
-    ASSERT_NEAR(aabb_view.min_corner()[1], non_shared_aabb.min_corner()[1], 1e-12);
-    ASSERT_NEAR(aabb_view.min_corner()[2], non_shared_aabb.min_corner()[2], 1e-12);
-    ASSERT_NEAR(aabb_view.max_corner()[0], non_shared_aabb.max_corner()[0], 1e-12);
-    ASSERT_NEAR(aabb_view.max_corner()[1], non_shared_aabb.max_corner()[1], 1e-12);
-    ASSERT_NEAR(aabb_view.max_corner()[2], non_shared_aabb.max_corner()[2], 1e-12);
-  }
+  ASSERT_NEAR(aabb_view.min_corner()[0], non_shared_aabb.min_corner()[0], 1e-12);
+  ASSERT_NEAR(aabb_view.min_corner()[1], non_shared_aabb.min_corner()[1], 1e-12);
+  ASSERT_NEAR(aabb_view.min_corner()[2], non_shared_aabb.min_corner()[2], 1e-12);
+  ASSERT_NEAR(aabb_view.max_corner()[0], non_shared_aabb.max_corner()[0], 1e-12);
+  ASSERT_NEAR(aabb_view.max_corner()[1], non_shared_aabb.max_corner()[1], 1e-12);
+  ASSERT_NEAR(aabb_view.max_corner()[2], non_shared_aabb.max_corner()[2], 1e-12);
 
   aabb_view.min_corner()[0] += add_value;
   aabb_view.min_corner()[1] -= add_value;
@@ -828,27 +684,18 @@ void test_aabb_data(stk::mesh::BulkData& bulk_data,   //
   aabb_view.max_corner()[1] -= 2.0 * add_value;
   aabb_view.max_corner()[2] *= 2.0 * add_value;
 
-  if constexpr (is_aabb_shared) {
-    ASSERT_NEAR(aabb.min_corner()[0], old_aabb.min_corner()[0] + add_value, 1e-12);
-    ASSERT_NEAR(aabb.min_corner()[1], old_aabb.min_corner()[1] - add_value, 1e-12);
-    ASSERT_NEAR(aabb.min_corner()[2], old_aabb.min_corner()[2] * add_value, 1e-12);
-    ASSERT_NEAR(aabb.max_corner()[0], old_aabb.max_corner()[0] + 2.0 * add_value, 1e-12);
-    ASSERT_NEAR(aabb.max_corner()[1], old_aabb.max_corner()[1] - 2.0 * add_value, 1e-12);
-    ASSERT_NEAR(aabb.max_corner()[2], old_aabb.max_corner()[2] * 2.0 * add_value, 1e-12);
-  } else {
-    ASSERT_NEAR(stk::mesh::field_data(aabb_field, aabb_entity)[0],
-                     old_non_shared_aabb.min_corner()[0] + add_value, 1e-12);
-    ASSERT_NEAR(stk::mesh::field_data(aabb_field, aabb_entity)[1],
-                     old_non_shared_aabb.min_corner()[1] - add_value, 1e-12);
-    ASSERT_NEAR(stk::mesh::field_data(aabb_field, aabb_entity)[2],
-                     old_non_shared_aabb.min_corner()[2] * add_value, 1e-12);
-    ASSERT_NEAR(stk::mesh::field_data(aabb_field, aabb_entity)[3],
-                     old_non_shared_aabb.max_corner()[0] + 2.0 * add_value, 1e-12);
-    ASSERT_NEAR(stk::mesh::field_data(aabb_field, aabb_entity)[4],
-                     old_non_shared_aabb.max_corner()[1] - 2.0 * add_value, 1e-12);
-    ASSERT_NEAR(stk::mesh::field_data(aabb_field, aabb_entity)[5],
-                     old_non_shared_aabb.max_corner()[2] * 2.0 * add_value, 1e-12);
-  }
+  ASSERT_NEAR(stk::mesh::field_data(aabb_field, aabb_entity)[0],
+                    old_non_shared_aabb.min_corner()[0] + add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(aabb_field, aabb_entity)[1],
+                    old_non_shared_aabb.min_corner()[1] - add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(aabb_field, aabb_entity)[2],
+                    old_non_shared_aabb.min_corner()[2] * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(aabb_field, aabb_entity)[3],
+                    old_non_shared_aabb.max_corner()[0] + 2.0 * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(aabb_field, aabb_entity)[4],
+                    old_non_shared_aabb.max_corner()[1] - 2.0 * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(aabb_field, aabb_entity)[5],
+                    old_non_shared_aabb.max_corner()[2] * 2.0 * add_value, 1e-12);
 
   // Remove the added value
   aabb_view.min_corner()[0] -= add_value;
@@ -861,21 +708,12 @@ void test_aabb_data(stk::mesh::BulkData& bulk_data,   //
   // Test that the NGP aabb data properly views the updated fields
   stk::mesh::FastMeshIndex aabb_index = ngp_mesh.fast_mesh_index(aabb_entity);
   auto ngp_aabb_view = create_ngp_aabb_entity_view(ngp_mesh, ngp_aabb_data, aabb_index);
-  if constexpr (is_aabb_shared) {
-    ASSERT_NEAR(ngp_aabb_view.min_corner()[0], aabb.min_corner()[0], 1e-12);
-    ASSERT_NEAR(ngp_aabb_view.min_corner()[1], aabb.min_corner()[1], 1e-12);
-    ASSERT_NEAR(ngp_aabb_view.min_corner()[2], aabb.min_corner()[2], 1e-12);
-    ASSERT_NEAR(ngp_aabb_view.max_corner()[0], aabb.max_corner()[0], 1e-12);
-    ASSERT_NEAR(ngp_aabb_view.max_corner()[1], aabb.max_corner()[1], 1e-12);
-    ASSERT_NEAR(ngp_aabb_view.max_corner()[2], aabb.max_corner()[2], 1e-12);
-  } else {
-    ASSERT_NEAR(ngp_aabb_view.min_corner()[0], non_shared_aabb.min_corner()[0], 1e-12);
-    ASSERT_NEAR(ngp_aabb_view.min_corner()[1], non_shared_aabb.min_corner()[1], 1e-12);
-    ASSERT_NEAR(ngp_aabb_view.min_corner()[2], non_shared_aabb.min_corner()[2], 1e-12);
-    ASSERT_NEAR(ngp_aabb_view.max_corner()[0], non_shared_aabb.max_corner()[0], 1e-12);
-    ASSERT_NEAR(ngp_aabb_view.max_corner()[1], non_shared_aabb.max_corner()[1], 1e-12);
-    ASSERT_NEAR(ngp_aabb_view.max_corner()[2], non_shared_aabb.max_corner()[2], 1e-12);
-  }
+  ASSERT_NEAR(ngp_aabb_view.min_corner()[0], non_shared_aabb.min_corner()[0], 1e-12);
+  ASSERT_NEAR(ngp_aabb_view.min_corner()[1], non_shared_aabb.min_corner()[1], 1e-12);
+  ASSERT_NEAR(ngp_aabb_view.min_corner()[2], non_shared_aabb.min_corner()[2], 1e-12);
+  ASSERT_NEAR(ngp_aabb_view.max_corner()[0], non_shared_aabb.max_corner()[0], 1e-12);
+  ASSERT_NEAR(ngp_aabb_view.max_corner()[1], non_shared_aabb.max_corner()[1], 1e-12);
+  ASSERT_NEAR(ngp_aabb_view.max_corner()[2], non_shared_aabb.max_corner()[2], 1e-12);
 
   // Test that the data is modifiable
   // Add a constant value to the center and radius
@@ -885,24 +723,14 @@ void test_aabb_data(stk::mesh::BulkData& bulk_data,   //
   ngp_aabb_view.max_corner()[0] += 2.0 * add_value;
   ngp_aabb_view.max_corner()[1] -= 2.0 * add_value;
   ngp_aabb_view.max_corner()[2] *= 2.0 * add_value;
-  if constexpr (is_aabb_shared) {
-    ASSERT_NEAR(aabb.min_corner()[0], old_aabb.min_corner()[0] + add_value, 1e-12);
-    ASSERT_NEAR(aabb.min_corner()[1], old_aabb.min_corner()[1] - add_value, 1e-12);
-    ASSERT_NEAR(aabb.min_corner()[2], old_aabb.min_corner()[2] * add_value, 1e-12);
-    ASSERT_NEAR(aabb.max_corner()[0], old_aabb.max_corner()[0] + 2.0 * add_value, 1e-12);
-    ASSERT_NEAR(aabb.max_corner()[1], old_aabb.max_corner()[1] - 2.0 * add_value, 1e-12);
-    ASSERT_NEAR(aabb.max_corner()[2], old_aabb.max_corner()[2] * 2.0 * add_value, 1e-12);
-  } else {
-    ASSERT_NEAR(ngp_aabb_field(aabb_index, 0), old_non_shared_aabb.min_corner()[0] + add_value, 1e-12);
-    ASSERT_NEAR(ngp_aabb_field(aabb_index, 1), old_non_shared_aabb.min_corner()[1] - add_value, 1e-12);
-    ASSERT_NEAR(ngp_aabb_field(aabb_index, 2), old_non_shared_aabb.min_corner()[2] * add_value, 1e-12);
-    ASSERT_NEAR(ngp_aabb_field(aabb_index, 3), old_non_shared_aabb.max_corner()[0] + 2.0 * add_value, 1e-12);
-    ASSERT_NEAR(ngp_aabb_field(aabb_index, 4), old_non_shared_aabb.max_corner()[1] - 2.0 * add_value, 1e-12);
-    ASSERT_NEAR(ngp_aabb_field(aabb_index, 5), old_non_shared_aabb.max_corner()[2] * 2.0 * add_value, 1e-12);
-  }
+  ASSERT_NEAR(ngp_aabb_field(aabb_index, 0), old_non_shared_aabb.min_corner()[0] + add_value, 1e-12);
+  ASSERT_NEAR(ngp_aabb_field(aabb_index, 1), old_non_shared_aabb.min_corner()[1] - add_value, 1e-12);
+  ASSERT_NEAR(ngp_aabb_field(aabb_index, 2), old_non_shared_aabb.min_corner()[2] * add_value, 1e-12);
+  ASSERT_NEAR(ngp_aabb_field(aabb_index, 3), old_non_shared_aabb.max_corner()[0] + 2.0 * add_value, 1e-12);
+  ASSERT_NEAR(ngp_aabb_field(aabb_index, 4), old_non_shared_aabb.max_corner()[1] - 2.0 * add_value, 1e-12);
+  ASSERT_NEAR(ngp_aabb_field(aabb_index, 5), old_non_shared_aabb.max_corner()[2] * 2.0 * add_value, 1e-12);
 }
 
-template <bool is_center_shared>
 void test_point_data(stk::mesh::BulkData& bulk_data,   //
                     stk::topology::rank_t point_rank,  //
                     stk::mesh::Entity point_entity,    //
@@ -913,44 +741,34 @@ void test_point_data(stk::mesh::BulkData& bulk_data,   //
   Point<double> center{1.1, 2.2, 3.3};
 
   // Test the regular point data to ensure that the stored shared data/fields are as expected
-  auto point_data = create_point_data<double>(point_rank, get_first_or_second<is_center_shared>(center, center_field));
-  if constexpr (is_center_shared) {
-    ASSERT_EQ(&point_data.center_data, &center);
-  } else {
-    ASSERT_EQ(&point_data.center_data, &center_field);
-  }
+  auto point_data = create_point_data<double>(point_rank, center_field);
+  ASSERT_EQ(&point_data.center_data, &center_field);
 
   // Same test for the NGP point data
   stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
   stk::mesh::NgpField<double>& ngp_center_field = stk::mesh::get_updated_ngp_field<double>(center_field);
   auto ngp_point_data =
-      create_ngp_point_data<double>(point_rank, get_first_or_second<is_center_shared>(center, ngp_center_field));
+      create_ngp_point_data<double>(point_rank, ngp_center_field);
 
-  if constexpr (is_center_shared) {
-    ASSERT_EQ(&ngp_point_data.center_data, &center);
-  } else {
-    ASSERT_EQ(&ngp_point_data.center_data, &ngp_center_field);
-  }
+  ASSERT_EQ(&ngp_point_data.center_data, &ngp_center_field);
 
   // Set the center and radius data for the point directly via their fields
   const Point<double> non_shared_center{0.1, 0.2, 0.3};
 
   Point<double> old_center = center;
   Point<double> old_non_shared_center = non_shared_center;
-
-  if constexpr (!is_center_shared) {
-    if (point_rank == stk::topology::NODE_RANK) {
-      stk::mesh::field_data(center_field, point_entity)[0] = non_shared_center[0];
-      stk::mesh::field_data(center_field, point_entity)[1] = non_shared_center[1];
-      stk::mesh::field_data(center_field, point_entity)[2] = non_shared_center[2];
-    } else {
-      ASSERT_EQ(bulk_data.num_nodes(point_entity), 1u);
-      stk::mesh::Entity node = bulk_data.begin_nodes(point_entity)[0];
-      stk::mesh::field_data(center_field, node)[0] = non_shared_center[0];
-      stk::mesh::field_data(center_field, node)[1] = non_shared_center[1];
-      stk::mesh::field_data(center_field, node)[2] = non_shared_center[2];
-    }
+  if (point_rank == stk::topology::NODE_RANK) {
+    stk::mesh::field_data(center_field, point_entity)[0] = non_shared_center[0];
+    stk::mesh::field_data(center_field, point_entity)[1] = non_shared_center[1];
+    stk::mesh::field_data(center_field, point_entity)[2] = non_shared_center[2];
+  } else {
+    ASSERT_EQ(bulk_data.num_nodes(point_entity), 1u);
+    stk::mesh::Entity node = bulk_data.begin_nodes(point_entity)[0];
+    stk::mesh::field_data(center_field, node)[0] = non_shared_center[0];
+    stk::mesh::field_data(center_field, node)[1] = non_shared_center[1];
+    stk::mesh::field_data(center_field, node)[2] = non_shared_center[2];
   }
+  
 
   // Test that the point data properly views the updated fields
 
@@ -958,32 +776,20 @@ void test_point_data(stk::mesh::BulkData& bulk_data,   //
   if (point_rank == stk::topology::NODE_RANK) {
     // Test that the data is modifiable
     auto point_view = create_node_point_view(bulk_data, point_data, point_entity);
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(point_view[0], center[0], 1e-12);
-      ASSERT_NEAR(point_view[1], center[1], 1e-12);
-      ASSERT_NEAR(point_view[2], center[2], 1e-12);
-    } else {
-      ASSERT_NEAR(point_view[0], non_shared_center[0], 1e-12);
-      ASSERT_NEAR(point_view[1], non_shared_center[1], 1e-12);
-      ASSERT_NEAR(point_view[2], non_shared_center[2], 1e-12);
-    }
+    ASSERT_NEAR(point_view[0], non_shared_center[0], 1e-12);
+    ASSERT_NEAR(point_view[1], non_shared_center[1], 1e-12);
+    ASSERT_NEAR(point_view[2], non_shared_center[2], 1e-12);
 
     point_view[0] += add_value;
     point_view[1] -= add_value;
     point_view[2] *= add_value;
 
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(center[0], old_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(center[1], old_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(center[2], old_center[2] * add_value, 1e-12);
-    } else {
-      ASSERT_NEAR(stk::mesh::field_data(center_field, point_entity)[0],
-                      old_non_shared_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(stk::mesh::field_data(center_field, point_entity)[1],
-                      old_non_shared_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(stk::mesh::field_data(center_field, point_entity)[2],
-                      old_non_shared_center[2] * add_value, 1e-12);
-    }
+    ASSERT_NEAR(stk::mesh::field_data(center_field, point_entity)[0],
+                    old_non_shared_center[0] + add_value, 1e-12);
+    ASSERT_NEAR(stk::mesh::field_data(center_field, point_entity)[1],
+                    old_non_shared_center[1] - add_value, 1e-12);
+    ASSERT_NEAR(stk::mesh::field_data(center_field, point_entity)[2],
+                    old_non_shared_center[2] * add_value, 1e-12);
 
     // Remove the added value
     point_view[0] -= add_value;
@@ -992,34 +798,22 @@ void test_point_data(stk::mesh::BulkData& bulk_data,   //
   } else {
   // Test that the data is modifiable
     auto point_view = create_elem_point_view(bulk_data, point_data, point_entity);
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(point_view[0], center[0], 1e-12);
-      ASSERT_NEAR(point_view[1], center[1], 1e-12);
-      ASSERT_NEAR(point_view[2], center[2], 1e-12);
-    } else {
-      ASSERT_NEAR(point_view[0], non_shared_center[0], 1e-12);
-      ASSERT_NEAR(point_view[1], non_shared_center[1], 1e-12);
-      ASSERT_NEAR(point_view[2], non_shared_center[2], 1e-12);
-    }
+    ASSERT_NEAR(point_view[0], non_shared_center[0], 1e-12);
+    ASSERT_NEAR(point_view[1], non_shared_center[1], 1e-12);
+    ASSERT_NEAR(point_view[2], non_shared_center[2], 1e-12);
 
     point_view[0] += add_value;
     point_view[1] -= add_value;
     point_view[2] *= add_value;
 
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(center[0], old_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(center[1], old_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(center[2], old_center[2] * add_value, 1e-12);
-    } else {
-      ASSERT_EQ(bulk_data.num_nodes(point_entity), 1u);
-      stk::mesh::Entity node = bulk_data.begin_nodes(point_entity)[0];
-      ASSERT_NEAR(stk::mesh::field_data(center_field, node)[0],
-                      old_non_shared_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(stk::mesh::field_data(center_field, node)[1],
-                      old_non_shared_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(stk::mesh::field_data(center_field, node)[2],
-                      old_non_shared_center[2] * add_value, 1e-12);
-    }
+    ASSERT_EQ(bulk_data.num_nodes(point_entity), 1u);
+    stk::mesh::Entity node = bulk_data.begin_nodes(point_entity)[0];
+    ASSERT_NEAR(stk::mesh::field_data(center_field, node)[0],
+                    old_non_shared_center[0] + add_value, 1e-12);
+    ASSERT_NEAR(stk::mesh::field_data(center_field, node)[1],
+                    old_non_shared_center[1] - add_value, 1e-12);
+    ASSERT_NEAR(stk::mesh::field_data(center_field, node)[2],
+                    old_non_shared_center[2] * add_value, 1e-12);
 
     // Remove the added value
     point_view[0] -= add_value;
@@ -1031,64 +825,40 @@ void test_point_data(stk::mesh::BulkData& bulk_data,   //
     // Test that the NGP point data properly views the updated fields
     stk::mesh::FastMeshIndex point_index = ngp_mesh.fast_mesh_index(point_entity);
     auto ngp_point_view = create_ngp_node_point_view(ngp_mesh, ngp_point_data, point_index);
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(ngp_point_view[0], center[0], 1e-12);
-      ASSERT_NEAR(ngp_point_view[1], center[1], 1e-12);
-      ASSERT_NEAR(ngp_point_view[2], center[2], 1e-12);
-    } else {
-      ASSERT_NEAR(ngp_point_view[0], non_shared_center[0], 1e-12);
-      ASSERT_NEAR(ngp_point_view[1], non_shared_center[1], 1e-12);
-      ASSERT_NEAR(ngp_point_view[2], non_shared_center[2], 1e-12);
-    }
+    ASSERT_NEAR(ngp_point_view[0], non_shared_center[0], 1e-12);
+    ASSERT_NEAR(ngp_point_view[1], non_shared_center[1], 1e-12);
+    ASSERT_NEAR(ngp_point_view[2], non_shared_center[2], 1e-12);
 
     // Test that the data is modifiable
     // Add a constant value to the center and radius
     ngp_point_view[0] += add_value;
     ngp_point_view[1] -= add_value;
     ngp_point_view[2] *= add_value;
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(center[0], old_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(center[1], old_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(center[2], old_center[2] * add_value, 1e-12);
-    } else {
-      ASSERT_NEAR(ngp_center_field(point_index, 0), old_non_shared_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(ngp_center_field(point_index, 1), old_non_shared_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(ngp_center_field(point_index, 2), old_non_shared_center[2] * add_value, 1e-12);
-    }
+    ASSERT_NEAR(ngp_center_field(point_index, 0), old_non_shared_center[0] + add_value, 1e-12);
+    ASSERT_NEAR(ngp_center_field(point_index, 1), old_non_shared_center[1] - add_value, 1e-12);
+    ASSERT_NEAR(ngp_center_field(point_index, 2), old_non_shared_center[2] * add_value, 1e-12);
   } else {
     // Test that the NGP point data properly views the updated fields
     stk::mesh::FastMeshIndex point_index = ngp_mesh.fast_mesh_index(point_entity);
     stk::mesh::Entity node = bulk_data.begin_nodes(point_entity)[0];
     stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
     auto ngp_point_view = create_ngp_elem_point_view(ngp_mesh, ngp_point_data, point_index);
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(ngp_point_view[0], center[0], 1e-12);
-      ASSERT_NEAR(ngp_point_view[1], center[1], 1e-12);
-      ASSERT_NEAR(ngp_point_view[2], center[2], 1e-12);
-    } else {
-      ASSERT_NEAR(ngp_point_view[0], non_shared_center[0], 1e-12);
-      ASSERT_NEAR(ngp_point_view[1], non_shared_center[1], 1e-12);
-      ASSERT_NEAR(ngp_point_view[2], non_shared_center[2], 1e-12);
-    }
+    ASSERT_NEAR(ngp_point_view[0], non_shared_center[0], 1e-12);
+    ASSERT_NEAR(ngp_point_view[1], non_shared_center[1], 1e-12);
+    ASSERT_NEAR(ngp_point_view[2], non_shared_center[2], 1e-12);
 
     // Test that the data is modifiable
     // Add a constant value to the center and radius
     ngp_point_view[0] += add_value;
     ngp_point_view[1] -= add_value;
     ngp_point_view[2] *= add_value;
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(center[0], old_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(center[1], old_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(center[2], old_center[2] * add_value, 1e-12);
-    } else {
-      ASSERT_NEAR(ngp_center_field(point_index, 0), old_non_shared_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(ngp_center_field(point_index, 1), old_non_shared_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(ngp_center_field(point_index, 2), old_non_shared_center[2] * add_value, 1e-12);
-    }
+    ASSERT_NEAR(ngp_center_field(point_index, 0), old_non_shared_center[0] + add_value, 1e-12);
+    ASSERT_NEAR(ngp_center_field(point_index, 1), old_non_shared_center[1] - add_value, 1e-12);
+    ASSERT_NEAR(ngp_center_field(point_index, 2), old_non_shared_center[2] * add_value, 1e-12);
   }
 }
 
-template <bool is_center_shared, bool is_direction_shared>
+template <bool is_direction_shared>
 void test_line_data(stk::mesh::BulkData& bulk_data,          //
                       stk::topology::rank_t line_rank,       //
                       stk::mesh::Entity line,                //
@@ -1104,13 +874,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
 
   // Test the regular line data to ensure that the stored shared data/fields are as expected
   auto line_data =
-      create_line_data<double>(line_rank, get_first_or_second<is_center_shared>(center, center_field),
+      create_line_data<double>(line_rank, center_field,
                                  get_first_or_second<is_direction_shared>(direction, direction_field));
-  if constexpr (is_center_shared) {
-    ASSERT_EQ(&line_data.center_data, &center);
-  } else {
-    ASSERT_EQ(&line_data.center_data, &center_field);
-  }
+  ASSERT_EQ(&line_data.center_data, &center_field);
   if constexpr (is_direction_shared) {
     ASSERT_EQ(&line_data.direction_data, &direction);
   } else {
@@ -1122,14 +888,10 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
   stk::mesh::NgpField<double>& ngp_center_field = stk::mesh::get_updated_ngp_field<double>(center_field);
   stk::mesh::NgpField<double>& ngp_direction_field = stk::mesh::get_updated_ngp_field<double>(direction_field);
   auto ngp_line_data =
-      create_ngp_line_data<double>(line_rank, get_first_or_second<is_center_shared>(center, ngp_center_field),
+      create_ngp_line_data<double>(line_rank, ngp_center_field,
                                      get_first_or_second<is_direction_shared>(direction, ngp_direction_field));
 
-  if constexpr (is_center_shared) {
-    ASSERT_EQ(&ngp_line_data.center_data, &center);
-  } else {
-    ASSERT_EQ(&ngp_line_data.center_data, &ngp_center_field);
-  }
+  ASSERT_EQ(&ngp_line_data.center_data, &ngp_center_field);
   if constexpr (is_direction_shared) {
     ASSERT_EQ(&ngp_line_data.direction_data, &direction);
   } else {
@@ -1145,11 +907,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
   Point<double> old_direction = direction;
   Point<double> old_non_shared_direction = non_shared_direction;
   if (line_rank == stk::topology::NODE_RANK) {
-    if constexpr (!is_center_shared) {
-      stk::mesh::field_data(center_field, line)[0] = non_shared_center[0];
-      stk::mesh::field_data(center_field, line)[1] = non_shared_center[1];
-      stk::mesh::field_data(center_field, line)[2] = non_shared_center[2];
-    }
+    stk::mesh::field_data(center_field, line)[0] = non_shared_center[0];
+    stk::mesh::field_data(center_field, line)[1] = non_shared_center[1];
+    stk::mesh::field_data(center_field, line)[2] = non_shared_center[2];
     if constexpr (!is_direction_shared) {
       stk::mesh::field_data(direction_field, line)[0] = non_shared_direction[0];
       stk::mesh::field_data(direction_field, line)[1] = non_shared_direction[1];
@@ -1159,11 +919,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     ASSERT_EQ(bulk_data.num_nodes(line), 1);
     stk::mesh::Entity node = bulk_data.begin_nodes(line)[0];
     ASSERT_TRUE(bulk_data.is_valid(node));
-    if constexpr (!is_center_shared) {
-      stk::mesh::field_data(center_field, node)[0] = non_shared_center[0];
-      stk::mesh::field_data(center_field, node)[1] = non_shared_center[1];
-      stk::mesh::field_data(center_field, node)[2] = non_shared_center[2];
-    }
+    stk::mesh::field_data(center_field, node)[0] = non_shared_center[0];
+    stk::mesh::field_data(center_field, node)[1] = non_shared_center[1];
+    stk::mesh::field_data(center_field, node)[2] = non_shared_center[2];
     if constexpr (!is_direction_shared) {
       stk::mesh::field_data(direction_field, line)[0] = non_shared_direction[0];
       stk::mesh::field_data(direction_field, line)[1] = non_shared_direction[1];
@@ -1178,15 +936,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
   const double add_value = 1.1;
   if (line_rank == stk::topology::NODE_RANK) {
     auto line_view = create_node_line_view(bulk_data, line_data, line);
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(line_view.center()[0], center[0], 1e-12);
-      ASSERT_NEAR(line_view.center()[1], center[1], 1e-12);
-      ASSERT_NEAR(line_view.center()[2], center[2], 1e-12);
-    } else {
-      ASSERT_NEAR(line_view.center()[0], non_shared_center[0], 1e-12);
-      ASSERT_NEAR(line_view.center()[1], non_shared_center[1], 1e-12);
-      ASSERT_NEAR(line_view.center()[2], non_shared_center[2], 1e-12);
-    }
+    ASSERT_NEAR(line_view.center()[0], non_shared_center[0], 1e-12);
+    ASSERT_NEAR(line_view.center()[1], non_shared_center[1], 1e-12);
+    ASSERT_NEAR(line_view.center()[2], non_shared_center[2], 1e-12);
     if constexpr (is_direction_shared) {
       ASSERT_NEAR(line_view.direction()[0], direction[0], 1e-12);
       ASSERT_NEAR(line_view.direction()[1], direction[1], 1e-12);
@@ -1203,15 +955,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     line_view.direction()[1] -= 2 * add_value;
     line_view.direction()[2] *= 2 * add_value;
 
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(center[0], old_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(center[1], old_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(center[2], old_center[2] * add_value, 1e-12);
-    } else {
-      ASSERT_NEAR(stk::mesh::field_data(center_field, line)[0], old_non_shared_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(stk::mesh::field_data(center_field, line)[1], old_non_shared_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(stk::mesh::field_data(center_field, line)[2], old_non_shared_center[2] * add_value, 1e-12);
-    }
+    ASSERT_NEAR(stk::mesh::field_data(center_field, line)[0], old_non_shared_center[0] + add_value, 1e-12);
+    ASSERT_NEAR(stk::mesh::field_data(center_field, line)[1], old_non_shared_center[1] - add_value, 1e-12);
+    ASSERT_NEAR(stk::mesh::field_data(center_field, line)[2], old_non_shared_center[2] * add_value, 1e-12);
     if constexpr (is_direction_shared) {
       ASSERT_NEAR(direction[0], old_direction[0] + 2 * add_value, 1e-12);
       ASSERT_NEAR(direction[1], old_direction[1] - 2 * add_value, 1e-12);
@@ -1231,15 +977,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     line_view.direction()[2] /= 2 * add_value;
   } else {
     auto line_view = create_elem_line_view(bulk_data, line_data, line);
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(line_view.center()[0], center[0], 1e-12);
-      ASSERT_NEAR(line_view.center()[1], center[1], 1e-12);
-      ASSERT_NEAR(line_view.center()[2], center[2], 1e-12);
-    } else {
-      ASSERT_NEAR(line_view.center()[0], non_shared_center[0], 1e-12);
-      ASSERT_NEAR(line_view.center()[1], non_shared_center[1], 1e-12);
-      ASSERT_NEAR(line_view.center()[2], non_shared_center[2], 1e-12);
-    }
+    ASSERT_NEAR(line_view.center()[0], non_shared_center[0], 1e-12);
+    ASSERT_NEAR(line_view.center()[1], non_shared_center[1], 1e-12);
+    ASSERT_NEAR(line_view.center()[2], non_shared_center[2], 1e-12);
     if constexpr (is_direction_shared) {
       ASSERT_NEAR(line_view.direction()[0], direction[0], 1e-12);
       ASSERT_NEAR(line_view.direction()[1], direction[1], 1e-12);
@@ -1259,15 +999,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     ASSERT_EQ(bulk_data.num_nodes(line), 1);
     stk::mesh::Entity node = bulk_data.begin_nodes(line)[0];
     ASSERT_TRUE(bulk_data.is_valid(node));
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(center[0], old_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(center[1], old_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(center[2], old_center[2] * add_value, 1e-12);
-    } else {
-      ASSERT_NEAR(stk::mesh::field_data(center_field, node)[0], old_non_shared_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(stk::mesh::field_data(center_field, node)[1], old_non_shared_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(stk::mesh::field_data(center_field, node)[2], old_non_shared_center[2] * add_value, 1e-12);
-    }
+    ASSERT_NEAR(stk::mesh::field_data(center_field, node)[0], old_non_shared_center[0] + add_value, 1e-12);
+    ASSERT_NEAR(stk::mesh::field_data(center_field, node)[1], old_non_shared_center[1] - add_value, 1e-12);
+    ASSERT_NEAR(stk::mesh::field_data(center_field, node)[2], old_non_shared_center[2] * add_value, 1e-12);
     if constexpr (is_direction_shared) {
       ASSERT_NEAR(direction[0], old_direction[0] + 2 * add_value, 1e-12);
       ASSERT_NEAR(direction[1], old_direction[1] - 2 * add_value, 1e-12);
@@ -1291,15 +1025,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
   stk::mesh::FastMeshIndex line_index = ngp_mesh.fast_mesh_index(line);
   if (line_rank == stk::topology::NODE_RANK) {
     auto ngp_line_view = create_ngp_node_line_view(ngp_mesh, ngp_line_data, line_index);
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(ngp_line_view.center()[0], center[0], 1e-12);
-      ASSERT_NEAR(ngp_line_view.center()[1], center[1], 1e-12);
-      ASSERT_NEAR(ngp_line_view.center()[2], center[2], 1e-12);
-    } else {
-      ASSERT_NEAR(ngp_line_view.center()[0], non_shared_center[0], 1e-12);
-      ASSERT_NEAR(ngp_line_view.center()[1], non_shared_center[1], 1e-12);
-      ASSERT_NEAR(ngp_line_view.center()[2], non_shared_center[2], 1e-12);
-    }
+    ASSERT_NEAR(ngp_line_view.center()[0], non_shared_center[0], 1e-12);
+    ASSERT_NEAR(ngp_line_view.center()[1], non_shared_center[1], 1e-12);
+    ASSERT_NEAR(ngp_line_view.center()[2], non_shared_center[2], 1e-12);
     if constexpr (is_direction_shared) {
       ASSERT_NEAR(ngp_line_view.direction()[0], direction[0], 1e-12);
       ASSERT_NEAR(ngp_line_view.direction()[1], direction[1], 1e-12);
@@ -1317,15 +1045,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     ngp_line_view.direction()[0] += 2 * add_value;
     ngp_line_view.direction()[1] -= 2 * add_value;
     ngp_line_view.direction()[2] *= 2 * add_value;
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(center[0], old_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(center[1], old_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(center[2], old_center[2] * add_value, 1e-12);
-    } else {
-      ASSERT_NEAR(ngp_center_field(line_index, 0), old_non_shared_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(ngp_center_field(line_index, 1), old_non_shared_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(ngp_center_field(line_index, 2), old_non_shared_center[2] * add_value, 1e-12);
-    }
+    ASSERT_NEAR(ngp_center_field(line_index, 0), old_non_shared_center[0] + add_value, 1e-12);
+    ASSERT_NEAR(ngp_center_field(line_index, 1), old_non_shared_center[1] - add_value, 1e-12);
+    ASSERT_NEAR(ngp_center_field(line_index, 2), old_non_shared_center[2] * add_value, 1e-12);
     if constexpr (is_direction_shared) {
       ASSERT_NEAR(direction[0], old_direction[0] + 2 * add_value, 1e-12);
       ASSERT_NEAR(direction[1], old_direction[1] - 2 * add_value, 1e-12);
@@ -1337,15 +1059,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     }
   } else {
     auto ngp_line_view = create_ngp_elem_line_view(ngp_mesh, ngp_line_data, line_index);
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(ngp_line_view.center()[0], center[0], 1e-12);
-      ASSERT_NEAR(ngp_line_view.center()[1], center[1], 1e-12);
-      ASSERT_NEAR(ngp_line_view.center()[2], center[2], 1e-12);
-    } else {
-      ASSERT_NEAR(ngp_line_view.center()[0], non_shared_center[0], 1e-12);
-      ASSERT_NEAR(ngp_line_view.center()[1], non_shared_center[1], 1e-12);
-      ASSERT_NEAR(ngp_line_view.center()[2], non_shared_center[2], 1e-12);
-    }
+    ASSERT_NEAR(ngp_line_view.center()[0], non_shared_center[0], 1e-12);
+    ASSERT_NEAR(ngp_line_view.center()[1], non_shared_center[1], 1e-12);
+    ASSERT_NEAR(ngp_line_view.center()[2], non_shared_center[2], 1e-12);
     if constexpr (is_direction_shared) {
       ASSERT_NEAR(ngp_line_view.direction()[0], direction[0], 1e-12);
       ASSERT_NEAR(ngp_line_view.direction()[1], direction[1], 1e-12);
@@ -1365,15 +1081,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     ngp_line_view.direction()[2] *= 2 * add_value;
     stk::mesh::Entity node = bulk_data.begin_nodes(line)[0];
     stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
-    if constexpr (is_center_shared) {
-      ASSERT_NEAR(center[0], old_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(center[1], old_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(center[2], old_center[2] * add_value, 1e-12);
-    } else {
-      ASSERT_NEAR(ngp_center_field(node_index, 0), old_non_shared_center[0] + add_value, 1e-12);
-      ASSERT_NEAR(ngp_center_field(node_index, 1), old_non_shared_center[1] - add_value, 1e-12);
-      ASSERT_NEAR(ngp_center_field(node_index, 2), old_non_shared_center[2] * add_value, 1e-12);
-    }
+    ASSERT_NEAR(ngp_center_field(node_index, 0), old_non_shared_center[0] + add_value, 1e-12);
+    ASSERT_NEAR(ngp_center_field(node_index, 1), old_non_shared_center[1] - add_value, 1e-12);
+    ASSERT_NEAR(ngp_center_field(node_index, 2), old_non_shared_center[2] * add_value, 1e-12);
     if constexpr (is_direction_shared) {
       ASSERT_NEAR(direction[0], old_direction[0] + 2 * add_value, 1e-12);
       ASSERT_NEAR(direction[1], old_direction[1] - 2 * add_value, 1e-12);
@@ -1417,16 +1127,10 @@ TEST(Aggregates, SphereData) {
   bulk_data.declare_relation(sphere, node, 0);
   bulk_data.modification_end();
 
-  test_sphere_data<true, true>(bulk_data, stk::topology::NODE_RANK, node_sphere, node_coords_field, node_radius_field);
-  test_sphere_data<false, true>(bulk_data, stk::topology::NODE_RANK, node_sphere, node_coords_field, node_radius_field);
-  test_sphere_data<true, false>(bulk_data, stk::topology::NODE_RANK, node_sphere, node_coords_field, node_radius_field);
-  test_sphere_data<false, false>(bulk_data, stk::topology::NODE_RANK, node_sphere, node_coords_field,
-                                 node_radius_field);
-
-  test_sphere_data<true, true>(bulk_data, stk::topology::ELEM_RANK, sphere, node_coords_field, elem_radius_field);
-  test_sphere_data<false, true>(bulk_data, stk::topology::ELEM_RANK, sphere, node_coords_field, elem_radius_field);
-  test_sphere_data<true, false>(bulk_data, stk::topology::ELEM_RANK, sphere, node_coords_field, elem_radius_field);
-  test_sphere_data<false, false>(bulk_data, stk::topology::ELEM_RANK, sphere, node_coords_field, elem_radius_field);
+  test_sphere_data<true>(bulk_data, stk::topology::NODE_RANK, node_sphere, node_coords_field, node_radius_field);
+  test_sphere_data<false>(bulk_data, stk::topology::NODE_RANK, node_sphere, node_coords_field, node_radius_field);
+  test_sphere_data<true>(bulk_data, stk::topology::ELEM_RANK, sphere, node_coords_field, elem_radius_field);
+  test_sphere_data<false>(bulk_data, stk::topology::ELEM_RANK, sphere, node_coords_field, elem_radius_field);
 }
 
 TEST(Aggregates, EllipsoidData) {
@@ -1469,31 +1173,23 @@ TEST(Aggregates, EllipsoidData) {
   bulk_data.declare_relation(ellipsoid, node, 0);
   bulk_data.modification_end();
 
-  test_ellipsoid_data<true, true, true>(bulk_data, stk::topology::NODE_RANK, node_ellipsoid, node_coords_field,
+  test_ellipsoid_data<true, true>(bulk_data, stk::topology::NODE_RANK, node_ellipsoid, node_coords_field,
                                         node_orientation_field, node_axis_lengths_field);
-  test_ellipsoid_data<false, true, true>(bulk_data, stk::topology::NODE_RANK, node_ellipsoid, node_coords_field,
+  test_ellipsoid_data<false, true>(bulk_data, stk::topology::NODE_RANK, node_ellipsoid, node_coords_field,
                                          node_orientation_field, node_axis_lengths_field);
-  test_ellipsoid_data<true, false, true>(bulk_data, stk::topology::NODE_RANK, node_ellipsoid, node_coords_field,
+  test_ellipsoid_data<true, false>(bulk_data, stk::topology::NODE_RANK, node_ellipsoid, node_coords_field,
                                          node_orientation_field, node_axis_lengths_field);
-  test_ellipsoid_data<true, false, false>(bulk_data, stk::topology::NODE_RANK, node_ellipsoid, node_coords_field,
+  test_ellipsoid_data<false, false>(bulk_data, stk::topology::NODE_RANK, node_ellipsoid, node_coords_field,
                                           node_orientation_field, node_axis_lengths_field);
-  test_ellipsoid_data<false, false, true>(bulk_data, stk::topology::NODE_RANK, node_ellipsoid, node_coords_field,
-                                          node_orientation_field, node_axis_lengths_field);
-  test_ellipsoid_data<false, false, false>(bulk_data, stk::topology::NODE_RANK, node_ellipsoid, node_coords_field,
-                                           node_orientation_field, node_axis_lengths_field);
 
-  test_ellipsoid_data<true, true, true>(bulk_data, stk::topology::ELEM_RANK, ellipsoid, node_coords_field,
+  test_ellipsoid_data<true, true>(bulk_data, stk::topology::ELEM_RANK, ellipsoid, node_coords_field,
                                         elem_orientation_field, elem_axis_lengths_field);
-  test_ellipsoid_data<false, true, true>(bulk_data, stk::topology::ELEM_RANK, ellipsoid, node_coords_field,
-                                         elem_orientation_field, elem_axis_lengths_field);
-  test_ellipsoid_data<true, false, true>(bulk_data, stk::topology::ELEM_RANK, ellipsoid, node_coords_field,
-                                         elem_orientation_field, elem_axis_lengths_field);
-  test_ellipsoid_data<true, false, false>(bulk_data, stk::topology::ELEM_RANK, ellipsoid, node_coords_field,
+  test_ellipsoid_data<false, true>(bulk_data, stk::topology::ELEM_RANK, ellipsoid, node_coords_field,
                                           elem_orientation_field, elem_axis_lengths_field);
-  test_ellipsoid_data<false, false, true>(bulk_data, stk::topology::ELEM_RANK, ellipsoid, node_coords_field,
+  test_ellipsoid_data<true, false>(bulk_data, stk::topology::ELEM_RANK, ellipsoid, node_coords_field,
                                           elem_orientation_field, elem_axis_lengths_field);
-  test_ellipsoid_data<false, false, false>(bulk_data, stk::topology::ELEM_RANK, ellipsoid, node_coords_field,
-                                           elem_orientation_field, elem_axis_lengths_field);
+  test_ellipsoid_data<false, false>(bulk_data, stk::topology::ELEM_RANK, ellipsoid, node_coords_field,
+                                          elem_orientation_field, elem_axis_lengths_field);
 }
 
 TEST(Aggregates, AABBData) {
@@ -1520,10 +1216,8 @@ TEST(Aggregates, AABBData) {
   stk::mesh::Entity elem = bulk_data.declare_element(1, stk::mesh::PartVector{&elem_part});
   bulk_data.modification_end();
 
-  test_aabb_data<true>(bulk_data, stk::topology::NODE_RANK, node, node_aabb_field);
-  test_aabb_data<true>(bulk_data, stk::topology::ELEMENT_RANK, elem, elem_aabb_field);
-  test_aabb_data<false>(bulk_data, stk::topology::NODE_RANK, node, node_aabb_field);
-  test_aabb_data<false>(bulk_data, stk::topology::ELEMENT_RANK, elem, elem_aabb_field);
+  test_aabb_data(bulk_data, stk::topology::NODE_RANK, node, node_aabb_field);
+  test_aabb_data(bulk_data, stk::topology::ELEMENT_RANK, elem, elem_aabb_field);
 }
 
 TEST(Aggregates, PointData) {
@@ -1551,10 +1245,8 @@ TEST(Aggregates, PointData) {
   bulk_data.declare_relation(point_elem, node, 0);
   bulk_data.modification_end();
 
-  test_point_data<true>(bulk_data, stk::topology::NODE_RANK, point_node, node_center_field);
-  test_point_data<true>(bulk_data, stk::topology::ELEM_RANK, point_elem, node_center_field);
-  test_point_data<false>(bulk_data, stk::topology::NODE_RANK, point_node, node_center_field);
-  test_point_data<false>(bulk_data, stk::topology::ELEM_RANK, point_elem, node_center_field);
+  test_point_data(bulk_data, stk::topology::NODE_RANK, point_node, node_center_field);
+  test_point_data(bulk_data, stk::topology::ELEM_RANK, point_elem, node_center_field);
 }
 
 TEST(Aggregates, LineData) {
@@ -1586,15 +1278,11 @@ TEST(Aggregates, LineData) {
   bulk_data.declare_relation(line_elem, node, 0);
   bulk_data.modification_end();
 
-  test_line_data<true, true>(bulk_data, stk::topology::NODE_RANK, line_node, node_center_field, node_direction_field);
-  test_line_data<true, false>(bulk_data, stk::topology::NODE_RANK, line_node, node_center_field, node_direction_field);
-  test_line_data<false, true>(bulk_data, stk::topology::NODE_RANK, line_node, node_center_field, node_direction_field);
-  test_line_data<false, false>(bulk_data, stk::topology::NODE_RANK, line_node, node_center_field, node_direction_field);
+  test_line_data<true>(bulk_data, stk::topology::NODE_RANK, line_node, node_center_field, node_direction_field);
+  test_line_data<false>(bulk_data, stk::topology::NODE_RANK, line_node, node_center_field, node_direction_field);
 
-  test_line_data<true, true>(bulk_data, stk::topology::ELEM_RANK, line_elem, node_center_field, elem_direction_field);
-  test_line_data<true, false>(bulk_data, stk::topology::ELEM_RANK, line_elem, node_center_field, elem_direction_field);
-  test_line_data<false, true>(bulk_data, stk::topology::ELEM_RANK, line_elem, node_center_field, elem_direction_field);
-  test_line_data<false, false>(bulk_data, stk::topology::ELEM_RANK, line_elem, node_center_field, elem_direction_field);
+  test_line_data<true>(bulk_data, stk::topology::ELEM_RANK, line_elem, node_center_field, elem_direction_field);
+  test_line_data<false>(bulk_data, stk::topology::ELEM_RANK, line_elem, node_center_field, elem_direction_field);
 }
 
 }  // namespace

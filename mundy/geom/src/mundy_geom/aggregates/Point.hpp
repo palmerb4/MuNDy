@@ -47,9 +47,8 @@ namespace geom {
 /// topology aggregate (such as Spheres or Ellipsoids) to be treated as a collection of points.
 template <typename Scalar, typename CenterDataType = stk::mesh::Field<Scalar>>
 struct PointData {
-  static_assert(is_point_v<std::decay_t<CenterDataType>> ||
-                    std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>>,
-                "CenterDataType must be either a scalar or a field of scalars");
+  static_assert(std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>>,
+                "CenterDataType must be either a const or non-const field of scalars");
 
   using scalar_t = Scalar;
   using center_data_t = CenterDataType;
@@ -64,7 +63,7 @@ template <typename Scalar, typename CenterDataType = stk::mesh::NgpField<Scalar>
 struct NgpPointData {
   static_assert(is_point_v<std::decay_t<CenterDataType>> ||
                     std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::NgpField<Scalar>>,
-                "CenterDataType must be either a scalar or a field of scalars");
+                "CenterDataType must be either a const or non-const field of scalars");
 
   using scalar_t = Scalar;
   using center_data_t = CenterDataType;
@@ -75,15 +74,12 @@ struct NgpPointData {
 
 /// \brief A helper function to create a PointData object
 ///
-/// This function creates a PointData object given its rank and data (be they shared or field data)
+/// This function creates a PointData object given its rank and data
 /// and is used to automatically deduce the template parameters.
 template <typename Scalar, typename CenterDataType>
 auto create_point_data(stk::topology::rank_t point_rank, CenterDataType& center_data) {
-  constexpr bool is_center_a_field = std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>>;
-  if constexpr (is_center_a_field) {
-    MUNDY_THROW_ASSERT(center_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
-                       "The center data must be a field of NODE_RANK");
-  }
+  MUNDY_THROW_ASSERT(center_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
+                      "The center data must be a field of NODE_RANK");
   return PointData<Scalar, CenterDataType>{point_rank, center_data};
 }
 
@@ -91,11 +87,8 @@ auto create_point_data(stk::topology::rank_t point_rank, CenterDataType& center_
 /// See the discussion for create_point_data for more information. Only difference is NgpFields over Fields.
 template <typename Scalar, typename CenterDataType>
 auto create_ngp_point_data(stk::topology::rank_t point_rank, CenterDataType& center_data) {
-  constexpr bool is_center_a_field = std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::NgpField<Scalar>>;
-  if constexpr (is_center_a_field) {
-    MUNDY_THROW_ASSERT(center_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
-                       "The center data must be a field of NODE_RANK");
-  }
+  MUNDY_THROW_ASSERT(center_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
+                      "The center data must be a field of NODE_RANK");
   return NgpPointData<Scalar, CenterDataType>{point_rank, center_data};
 }
 
@@ -104,8 +97,7 @@ template <typename Agg>
 concept ValidDefaultPointDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::center_data_t;
-  is_point_v<std::decay_t<typename Agg::center_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
+  std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
   { agg.point_rank } -> std::convertible_to<stk::topology::rank_t>;
   { agg.center_data } -> std::convertible_to<typename Agg::center_data_t&>;
 };  // ValidDefaultPointDataType
@@ -115,18 +107,17 @@ template <typename Agg>
 concept ValidDefaultNgpPointDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::center_data_t;
-  is_point_v<std::decay_t<typename Agg::center_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
+  std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
   { agg.point_rank } -> std::convertible_to<stk::topology::rank_t>;
   { agg.center_data } -> std::convertible_to<typename Agg::center_data_t&>;
 };  // ValidDefaultNgpPointDataType
 
-static_assert(ValidDefaultPointDataType<PointData<float, Point<float>>> &&
-                  ValidDefaultPointDataType<PointData<float, stk::mesh::Field<float>>>,
+static_assert(ValidDefaultPointDataType<PointData<float, stk::mesh::Field<float>>> &&
+                  ValidDefaultPointDataType<PointData<float, const stk::mesh::Field<float>>>,
               "PointData must satisfy the ValidDefaultPointDataType concept");
 
-static_assert(ValidDefaultNgpPointDataType<NgpPointData<float, Point<float>>> &&
-                  ValidDefaultNgpPointDataType<NgpPointData<float, stk::mesh::NgpField<float>>>,
+static_assert(ValidDefaultNgpPointDataType<NgpPointData<float, stk::mesh::NgpField<float>>> &&
+                  ValidDefaultNgpPointDataType<NgpPointData<float, const stk::mesh::NgpField<float>>>,
               "NgpPointData must satisfy the ValidDefaultNgpPointDataType concept");
 
 /// \brief A helper function to get an updated NgpPointData object from a PointData object
@@ -136,13 +127,8 @@ auto get_updated_ngp_data(PointDataType data) {
   using scalar_t = typename PointDataType::scalar_t;
   using center_data_t = typename PointDataType::center_data_t;
 
-  constexpr bool is_center_a_field = std::is_same_v<std::decay_t<center_data_t>, stk::mesh::Field<scalar_t>>;
-  if constexpr (is_center_a_field) {
-    return create_ngp_point_data<scalar_t>(data.point_rank,  //
+  return create_ngp_point_data<scalar_t>(data.point_rank,  //
                                            stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data));
-  } else {
-    return create_ngp_point_data<scalar_t>(data.point_rank, data.center_data);
-  }
 }
 
 /// \brief A traits class to provide abstracted access to a point's data via an aggregate
@@ -160,16 +146,8 @@ struct PointDataTraits {
   using scalar_t = typename Agg::scalar_t;
   using center_data_t = typename Agg::center_data_t;
 
-  static constexpr bool has_shared_center() {
-    return is_point_v<center_data_t>;
-  }
-
   static decltype(auto) center(Agg agg, stk::mesh::Entity point_node) {
-    if constexpr (has_shared_center()) {
-      return agg.center_data;
-    } else {
-      return mundy::mesh::vector3_field_data(agg.center_data, point_node);
-    }
+    return mundy::mesh::vector3_field_data(agg.center_data, point_node);
   }
 };  // PointDataTraits
 
@@ -187,17 +165,8 @@ struct NgpPointDataTraits {
   using center_data_t = typename Agg::center_data_t;
 
   KOKKOS_INLINE_FUNCTION
-  static constexpr bool has_shared_center() {
-    return is_point_v<center_data_t>;
-  }
-
-  KOKKOS_INLINE_FUNCTION
   static decltype(auto) center(Agg agg, stk::mesh::FastMeshIndex point_node_index) {
-    if constexpr (has_shared_center()) {
-      return agg.center_data;
-    } else {
-      return mundy::mesh::vector3_field_data(agg.center_data, point_node_index);
-    }
+    return mundy::mesh::vector3_field_data(agg.center_data, point_node_index);
   }
 };  // NgpPointDataTraits
 
@@ -362,16 +331,16 @@ class NgpNodePointView {
   stk::mesh::FastMeshIndex point_index_;
 };  // NgpNodePointView
 
-static_assert(ValidPointType<ElemPointView<PointData<float, Point<float>>>> &&
-                  ValidPointType<ElemPointView<PointData<float, stk::mesh::Field<float>>>> &&
-                  ValidPointType<NgpElemPointView<NgpPointData<float, Point<float>>>> &&
-                  ValidPointType<NgpElemPointView<NgpPointData<float, stk::mesh::NgpField<float>>>>,
+static_assert(ValidPointType<ElemPointView<PointData<float, stk::mesh::Field<float>>>> &&
+                  ValidPointType<ElemPointView<PointData<float, const stk::mesh::Field<float>>>> &&
+                  ValidPointType<NgpElemPointView<NgpPointData<float, stk::mesh::NgpField<float>>>> &&
+                  ValidPointType<NgpElemPointView<NgpPointData<float, const stk::mesh::NgpField<float>>>>,
               "ElemPointView and NgpElemPointView must be valid Point types");
 
-static_assert(ValidPointType<NodePointView<PointData<float, Point<float>>>> &&
-                  ValidPointType<NodePointView<PointData<float, stk::mesh::Field<float>>>> &&
-                  ValidPointType<NgpNodePointView<NgpPointData<float, Point<float>>>> &&
-                  ValidPointType<NgpNodePointView<NgpPointData<float, stk::mesh::NgpField<float>>>>,
+static_assert(ValidPointType<NodePointView<PointData<float, stk::mesh::Field<float>>>> &&
+                  ValidPointType<NodePointView<PointData<float, const stk::mesh::Field<float>>>> &&
+                  ValidPointType<NgpNodePointView<NgpPointData<float, stk::mesh::NgpField<float>>>> &&
+                  ValidPointType<NgpNodePointView<NgpPointData<float, const stk::mesh::NgpField<float>>>>,
               "NodePointView and NgpNodePointView must be valid Point types");
 
 /// \brief A helper function to create a ElemPointView object with type deduction

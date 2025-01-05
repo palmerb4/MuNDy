@@ -41,12 +41,11 @@ namespace geom {
 //! \name Aggregate traits
 //@{
 
-/// \brief A struct to hold the data for a collection of infinite lines
+/// \brief A struct to hold the data for a collection of line segments
 template <typename Scalar, typename CenterDataType = stk::mesh::Field<Scalar>>
 struct LineSegmentData {
-  static_assert(is_point_v<std::decay_t<CenterDataType>> ||
-                    std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>>,
-                "CenterDataType must be either a point or a field of scalars");
+  static_assert(std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>>,
+                "CenterDataType must be either a const or non-const field of scalars");
 
   using scalar_t = Scalar;
   using node_coords_data_t = CenterDataType;
@@ -55,13 +54,12 @@ struct LineSegmentData {
   node_coords_data_t& node_coords_data;
 };  // LineSegmentData
 
-/// \brief A struct to hold the data for a collection of NGP-compatible lines
+/// \brief A struct to hold the data for a collection of NGP-compatible line segments
 /// See the discussion for LineSegmentData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar, typename CenterDataType = stk::mesh::NgpField<Scalar>>
 struct NgpLineSegmentData {
-  static_assert(is_point_v<std::decay_t<CenterDataType>> ||
-                    std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::NgpField<Scalar>>,
-                "CenterDataType must be either a scalar or a field of scalars");
+  static_assert(std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::NgpField<Scalar>>,
+                "CenterDataType must be either a const or non-const field of scalars");
 
   using scalar_t = Scalar;
   using node_coords_data_t = CenterDataType;
@@ -76,11 +74,8 @@ struct NgpLineSegmentData {
 /// and is used to automatically deduce the template parameters.
 template <typename Scalar, typename CenterDataType>
 auto create_line_data(stk::topology::rank_t line_rank, CenterDataType& node_coords_data) {
-  constexpr bool is_node_coords_a_field = std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>>;
-  if constexpr (is_node_coords_a_field) {
-    MUNDY_THROW_ASSERT(node_coords_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
-                       "The node_coords data must be a field of NODE_RANK");
-  }
+  MUNDY_THROW_ASSERT(node_coords_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
+                      "The node_coords data must be a field of NODE_RANK");
   return LineSegmentData<Scalar, CenterDataType>{line_rank, node_coords_data};
 }
 
@@ -88,11 +83,8 @@ auto create_line_data(stk::topology::rank_t line_rank, CenterDataType& node_coor
 /// See the discussion for create_line_data for more information. Only difference is NgpFields over Fields.
 template <typename Scalar, typename CenterDataType>
 auto create_ngp_line_data(stk::topology::rank_t line_rank, CenterDataType& node_coords_data) {
-  constexpr bool is_node_coords_a_field = std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::NgpField<Scalar>>;
-  if constexpr (is_node_coords_a_field) {
-    MUNDY_THROW_ASSERT(node_coords_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
-                       "The node_coords data must be a field of NODE_RANK");
-  }
+  MUNDY_THROW_ASSERT(node_coords_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
+                      "The node_coords data must be a field of NODE_RANK");
   return NgpLineSegmentData<Scalar, CenterDataType>{line_rank, node_coords_data};
 }
 
@@ -101,8 +93,7 @@ template <typename Agg>
 concept ValidDefaultLineSegmentDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::node_coords_data_t;
-  is_point_v<std::decay_t<typename Agg::node_coords_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
+  std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
   { agg.line_rank } -> std::convertible_to<stk::topology::rank_t>;
   { agg.node_coords_data } -> std::convertible_to<typename Agg::node_coords_data_t&>;
 };  // ValidDefaultLineSegmentDataType
@@ -112,18 +103,17 @@ template <typename Agg>
 concept ValidDefaultNgpLineSegmentDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::node_coords_data_t;
-  is_point_v<std::decay_t<typename Agg::node_coords_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
+  std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
   { agg.line_rank } -> std::convertible_to<stk::topology::rank_t>;
   { agg.node_coords_data } -> std::convertible_to<typename Agg::node_coords_data_t&>;
 };  // ValidDefaultNgpLineSegmentDataType
 
-static_assert(ValidDefaultLineSegmentDataType<LineSegmentData<float, Point<float>>> &&
-                  ValidDefaultLineSegmentDataType<LineSegmentData<float, stk::mesh::Field<float>>>,
+static_assert(ValidDefaultLineSegmentDataType<LineSegmentData<float, stk::mesh::Field<float>>> &&
+                  ValidDefaultLineSegmentDataType<LineSegmentData<float, const stk::mesh::Field<float>>>,
               "LineSegmentData must satisfy the ValidDefaultLineSegmentDataType concept");
 
-static_assert(ValidDefaultNgpLineSegmentDataType<NgpLineSegmentData<float, Point<float>>> &&
-                  ValidDefaultNgpLineSegmentDataType<NgpLineSegmentData<float, stk::mesh::NgpField<float>>>,
+static_assert(ValidDefaultNgpLineSegmentDataType<NgpLineSegmentData<float, stk::mesh::NgpField<float>>> &&
+                  ValidDefaultNgpLineSegmentDataType<NgpLineSegmentData<float, const stk::mesh::NgpField<float>>>,
               "NgpLineSegmentData must satisfy the ValidDefaultNgpLineSegmentDataType concept");
 
 /// \brief A helper function to get an updated NgpLineSegmentData object from a LineSegmentData object
@@ -132,14 +122,8 @@ template <ValidDefaultLineSegmentDataType LineSegmentDataType>
 auto get_updated_ngp_data(LineSegmentDataType data) {
   using scalar_t = typename LineSegmentDataType::scalar_t;
   using node_coords_data_t = typename LineSegmentDataType::node_coords_data_t;
-
-  constexpr bool is_node_coords_a_field = std::is_same_v<std::decay_t<node_coords_data_t>, stk::mesh::Field<scalar_t>>;
-  if constexpr (is_node_coords_a_field) {
-    return create_ngp_line_data<scalar_t>(data.line_rank,  //
-                                          stk::mesh::get_updated_ngp_field<scalar_t>(data.node_coords_data));
-  } else {
-    return create_ngp_line_data<scalar_t>(data.line_rank, data.node_coords_data);
-  }
+  return create_ngp_line_data<scalar_t>(data.line_rank,  //
+                                        stk::mesh::get_updated_ngp_field<scalar_t>(data.node_coords_data));
 }
 
 /// \brief A traits class to provide abstracted access to a NODE_RANK line's data via an aggregate
@@ -157,16 +141,8 @@ struct NodeLineSegmentDataTraits {
   using scalar_t = typename Agg::scalar_t;
   using node_coords_data_t = typename Agg::node_coords_data_t;
 
-  static constexpr bool has_shared_node_coords() {
-    return is_point_v<node_coords_data_t>;
-  }
-
   static decltype(auto) node_coords(Agg agg, stk::mesh::Entity line_node) {
-    if constexpr (has_shared_node_coords()) {
-      return agg.node_coords_data;
-    } else {
-      return mundy::mesh::vector3_field_data(agg.node_coords_data, line_node);
-    }
+    return mundy::mesh::vector3_field_data(agg.node_coords_data, line_node);
   }
 };  // NodeLineSegmentDataTraits
 
@@ -182,16 +158,8 @@ struct LineSegmentDataTraits {
   using scalar_t = typename Agg::scalar_t;
   using node_coords_data_t = typename Agg::node_coords_data_t;
 
-  static constexpr bool has_shared_node_coords() {
-    return is_point_v<node_coords_data_t>;
-  }
-
   static decltype(auto) node_coords(Agg agg, stk::mesh::Entity line_node) {
-    if constexpr (has_shared_node_coords()) {
-      return agg.node_coords_data;
-    } else {
-      return mundy::mesh::vector3_field_data(agg.node_coords_data, line_node);
-    }
+    return mundy::mesh::vector3_field_data(agg.node_coords_data, line_node);
   }
 };  // LineSegmentDataTraits
 
@@ -209,17 +177,8 @@ struct NgpLineSegmentDataTraits {
   using node_coords_data_t = typename Agg::node_coords_data_t;
 
   KOKKOS_INLINE_FUNCTION
-  static constexpr bool has_shared_node_coords() {
-    return is_point_v<node_coords_data_t>;
-  }
-
-  KOKKOS_INLINE_FUNCTION
   static decltype(auto) node_coords(Agg agg, stk::mesh::FastMeshIndex line_index) {
-    if constexpr (has_shared_node_coords()) {
-      return agg.node_coords_data;
-    } else {
-      return mundy::mesh::vector3_field_data(agg.node_coords_data, line_index);
-    }
+    return mundy::mesh::vector3_field_data(agg.node_coords_data, line_index);
   }
 };  // NgpLineSegmentDataTraits
 
@@ -350,16 +309,16 @@ class NgpNodeLineSegmentView {
   stk::mesh::FastMeshIndex line_index_;
 };  // NgpNodeLineSegmentView
 
-static_assert(ValidLineSegmentType<ElemLineSegmentView<LineSegmentData<float, Point<float>>>> &&
-              ValidLineSegmentType<ElemLineSegmentView<LineSegmentData<float, stk::mesh::Field<float>>>> &&
-              ValidLineSegmentType<NgpElemLineSegmentView<NgpLineSegmentData<float, Point<float>>>> &&
-              ValidLineSegmentType<NgpElemLineSegmentView<NgpLineSegmentData<float, stk::mesh::NgpField<float>>>>,
+static_assert(ValidLineSegmentType<ElemLineSegmentView<LineSegmentData<float, stk::mesh::Field<float>>>> &&
+              ValidLineSegmentType<ElemLineSegmentView<LineSegmentData<float, const stk::mesh::Field<float>>>> &&
+              ValidLineSegmentType<NgpElemLineSegmentView<NgpLineSegmentData<float, stk::mesh::NgpField<float>>>> &&
+              ValidLineSegmentType<NgpElemLineSegmentView<NgpLineSegmentData<float, const stk::mesh::NgpField<float>>>>,
               "ElemLineSegmentView and NgpElemLineSegmentView must be valid LineSegment types");
 
-static_assert(ValidLineSegmentType<NodeLineSegmentView<LineSegmentData<float, Point<float>>>> &&
-              ValidLineSegmentType<NodeLineSegmentView<LineSegmentData<float, stk::mesh::Field<float>>>>&&
-              ValidLineSegmentType<NgpNodeLineSegmentView<NgpLineSegmentData<float, Point<float>>>> &&
-              ValidLineSegmentType<NgpNodeLineSegmentView<NgpLineSegmentData<float, stk::mesh::NgpField<float>>>>,
+static_assert(ValidLineSegmentType<NodeLineSegmentView<LineSegmentData<float, stk::mesh::Field<float>>>> &&
+              ValidLineSegmentType<NodeLineSegmentView<LineSegmentData<float, const stk::mesh::Field<float>>>>&&
+              ValidLineSegmentType<NgpNodeLineSegmentView<NgpLineSegmentData<float, stk::mesh::NgpField<float>>>> &&
+              ValidLineSegmentType<NgpNodeLineSegmentView<NgpLineSegmentData<float, const stk::mesh::NgpField<float>>>>,
               "NodeLineSegmentView and NgpNodeLineSegmentView must be valid LineSegment types");
 
 /// \brief A helper function to create a ElemLineSegmentView object with type deduction
