@@ -17,32 +17,16 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_GEOM_PRIMITIVES_HPP_
-#define MUNDY_GEOM_PRIMITIVES_HPP_
+#ifndef MUNDY_MECH_PRIMITIVES_HPP_
+#define MUNDY_MECH_PRIMITIVES_HPP_
 
-// All of our headers for primitive geometric objects
+// All of our headers for primitive mechanical objects
 //
-// The total set of desired shape primatives is:
-//   - Point
-//   - Line
-//   - LineSegment
-//   - VSegment
-//   - Plane
-//   - AABB
-//   - Tri3
-//   - Quad4
-//   - Sphere
-//   - Ellipsoid
-//   - Spherocylinder
-//   - SpherocylinderSegment
-#include <mundy_geom/primitives/AABB.hpp>
-#include <mundy_geom/primitives/Ellipsoid.hpp>
-#include <mundy_geom/primitives/Line.hpp>
-#include <mundy_geom/primitives/LineSegment.hpp>
-#include <mundy_geom/primitives/VSegment.hpp>
-#include <mundy_geom/primitives/Point.hpp>
-#include <mundy_geom/primitives/Sphere.hpp>
-#include <mundy_geom/primitives/Spherocylinder.hpp>
-#include <mundy_geom/primitives/SpherocylinderSegment.hpp>
+// The total set of desired mechanical primatives is:
+//   - BallJoint:       A line segment with a desired length
+//   - HookeanSpring:   A line segment with a rest length and spring constant
+//   - FeneSpring:      A line segment with a maximum length and spring constant
+//   - AngularSpring:   A triangle of points with a rest angle and spring constant
 
-#endif  // MUNDY_GEOM_PRIMITIVES_HPP_
+
+#endif  // MUNDY_MECH_PRIMITIVES_HPP_

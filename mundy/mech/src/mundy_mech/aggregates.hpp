@@ -54,7 +54,6 @@
 #include <mundy_geom/aggregates/Point.hpp>
 #include <mundy_geom/aggregates/Line.hpp>
 #include <mundy_geom/aggregates/LineSegment.hpp>
-#include <mundy_geom/aggregates/VSegment.hpp>
 #include <mundy_geom/aggregates/Sphere.hpp>
 #include <mundy_geom/aggregates/Ellipsoid.hpp>
 #include <mundy_geom/aggregates/AABB.hpp>

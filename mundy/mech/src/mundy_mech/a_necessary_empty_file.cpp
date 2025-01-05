@@ -17,32 +17,5 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_GEOM_PRIMITIVES_HPP_
-#define MUNDY_GEOM_PRIMITIVES_HPP_
-
-// All of our headers for primitive geometric objects
-//
-// The total set of desired shape primatives is:
-//   - Point
-//   - Line
-//   - LineSegment
-//   - VSegment
-//   - Plane
-//   - AABB
-//   - Tri3
-//   - Quad4
-//   - Sphere
-//   - Ellipsoid
-//   - Spherocylinder
-//   - SpherocylinderSegment
-#include <mundy_geom/primitives/AABB.hpp>
-#include <mundy_geom/primitives/Ellipsoid.hpp>
-#include <mundy_geom/primitives/Line.hpp>
-#include <mundy_geom/primitives/LineSegment.hpp>
-#include <mundy_geom/primitives/VSegment.hpp>
-#include <mundy_geom/primitives/Point.hpp>
-#include <mundy_geom/primitives/Sphere.hpp>
-#include <mundy_geom/primitives/Spherocylinder.hpp>
-#include <mundy_geom/primitives/SpherocylinderSegment.hpp>
-
-#endif  // MUNDY_GEOM_PRIMITIVES_HPP_
+/// \file a_necessary_empty_file.cpp
+/// \brief A file used to trick TriBITS into compiling header only packages/subpackages

@@ -226,7 +226,7 @@ class Sphere {
  private:
   point_t center_;
   std::conditional_t<
-    std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>,scalar_t, scalar_t&> radius_;
+    std::is_same_v<ownership_t, mundy::math::Ownership::Owns>,scalar_t, scalar_t&> radius_;
 };
 
 /// @brief Type trait to determine if a type is a Sphere

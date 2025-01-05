@@ -42,13 +42,13 @@ namespace geom {
 //@{
 
 /// \brief A struct to hold the data for a collection of line segments
-template <typename Scalar, typename CenterDataType = stk::mesh::Field<Scalar>>
+template <typename Scalar, typename NodeCoordsDataType = stk::mesh::Field<Scalar>>
 struct LineSegmentData {
-  static_assert(std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>>,
-                "CenterDataType must be either a const or non-const field of scalars");
+  static_assert(std::is_same_v<std::decay_t<NodeCoordsDataType>, stk::mesh::Field<Scalar>>,
+                "NodeCoordsDataType must be either a const or non-const field of scalars");
 
   using scalar_t = Scalar;
-  using node_coords_data_t = CenterDataType;
+  using node_coords_data_t = NodeCoordsDataType;
 
   stk::topology::rank_t line_segment_rank;
   node_coords_data_t& node_coords_data;
@@ -56,13 +56,13 @@ struct LineSegmentData {
 
 /// \brief A struct to hold the data for a collection of NGP-compatible line segments
 /// See the discussion for LineSegmentData for more information. Only difference is NgpFields over Fields.
-template <typename Scalar, typename CenterDataType = stk::mesh::NgpField<Scalar>>
+template <typename Scalar, typename NodeCoordsDataType = stk::mesh::NgpField<Scalar>>
 struct NgpLineSegmentData {
-  static_assert(std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::NgpField<Scalar>>,
-                "CenterDataType must be either a const or non-const field of scalars");
+  static_assert(std::is_same_v<std::decay_t<NodeCoordsDataType>, stk::mesh::NgpField<Scalar>>,
+                "NodeCoordsDataType must be either a const or non-const field of scalars");
 
   using scalar_t = Scalar;
-  using node_coords_data_t = CenterDataType;
+  using node_coords_data_t = NodeCoordsDataType;
 
   stk::topology::rank_t line_segment_rank;
   node_coords_data_t& node_coords_data;
@@ -72,20 +72,20 @@ struct NgpLineSegmentData {
 ///
 /// This function creates a LineSegmentData object given its rank and data (be they shared or field data)
 /// and is used to automatically deduce the template parameters.
-template <typename Scalar, typename CenterDataType>
-auto create_line_segment_data(stk::topology::rank_t line_segment_rank, CenterDataType& node_coords_data) {
+template <typename Scalar, typename NodeCoordsDataType>
+auto create_line_segment_data(stk::topology::rank_t line_segment_rank, NodeCoordsDataType& node_coords_data) {
   MUNDY_THROW_ASSERT(node_coords_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                       "The node_coords data must be a field of NODE_RANK");
-  return LineSegmentData<Scalar, CenterDataType>{line_segment_rank, node_coords_data};
+  return LineSegmentData<Scalar, NodeCoordsDataType>{line_segment_rank, node_coords_data};
 }
 
 /// \brief A helper function to create a NgpLineSegmentData object
 /// See the discussion for create_line_segment_data for more information. Only difference is NgpFields over Fields.
-template <typename Scalar, typename CenterDataType>
-auto create_ngp_line_segment_data(stk::topology::rank_t line_segment_rank, CenterDataType& node_coords_data) {
+template <typename Scalar, typename NodeCoordsDataType>
+auto create_ngp_line_segment_data(stk::topology::rank_t line_segment_rank, NodeCoordsDataType& node_coords_data) {
   MUNDY_THROW_ASSERT(node_coords_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                       "The node_coords data must be a field of NODE_RANK");
-  return NgpLineSegmentData<Scalar, CenterDataType>{line_segment_rank, node_coords_data};
+  return NgpLineSegmentData<Scalar, NodeCoordsDataType>{line_segment_rank, node_coords_data};
 }
 
 /// \brief A concept to check if a type provides the same data as LineSegmentData
@@ -125,26 +125,6 @@ auto get_updated_ngp_data(LineSegmentDataType data) {
                                         stk::mesh::get_updated_ngp_field<scalar_t>(data.node_coords_data));
 }
 
-/// \brief A traits class to provide abstracted access to a NODE_RANK line_segment's data via an aggregate
-///
-/// By default, this class is compatible with LineSegmentData or any class the meets the ValidDefaultLineSegmentDataType concept.
-/// Users can specialize this class to support other aggregate types.
-template <typename Agg>
-struct NodeLineSegmentDataTraits {
-  static_assert(
-      ValidDefaultLineSegmentDataType<Agg>,
-      "Agg must satisfy the ValidDefaultLineSegmentDataType concept.\n"
-      "Basically, Agg must have all the same things as NgpLineSegmentData but is free to extend it as needed without "
-      "having to rely on inheritance.");
-
-  using scalar_t = typename Agg::scalar_t;
-  using node_coords_data_t = typename Agg::node_coords_data_t;
-
-  static decltype(auto) node_coords(Agg agg, stk::mesh::Entity line_segment_node) {
-    return mundy::mesh::vector3_field_data(agg.node_coords_data, line_segment_node);
-  }
-};  // NodeLineSegmentDataTraits
-
 /// \brief A traits class to provide abstracted access to a line_segment's data via an aggregate
 template <typename Agg>
 struct LineSegmentDataTraits {
@@ -182,8 +162,7 @@ struct NgpLineSegmentDataTraits {
 };  // NgpLineSegmentDataTraits
 
 /// @brief A view of an STK entity meant to represent a line_segment
-/// If the line_segment_rank is NODE_RANK, then the line_segment is just a node entity with node node_coords and direction.
-/// If the line_segment_rank is ELEM_RANK, then the line_segment is a particle entity with node node_coords and element direction.
+/// If the line_segment_rank is ELEM_RANK, then the line_segment is a particle entity with node node_coords.
 template <typename LineSegmentDataType>
 class ElemLineSegmentView {
  public:

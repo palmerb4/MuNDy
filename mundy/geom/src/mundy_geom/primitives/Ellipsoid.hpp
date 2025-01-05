@@ -77,6 +77,7 @@ class Ellipsoid {
   Ellipsoid()
     requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
       : center_(scalar_t(), scalar_t(), scalar_t()),
+        orientation_{static_cast<scalar_t>(1), static_cast<scalar_t>(0), static_cast<scalar_t>(0), static_cast<scalar_t>(0)},
         axis_lengths_{static_cast<scalar_t>(-1), static_cast<scalar_t>(-1), static_cast<scalar_t>(-1)} {
   }
 
@@ -95,7 +96,9 @@ class Ellipsoid {
   Ellipsoid(const point_t& center, const scalar_t& axis_length_1, const scalar_t& axis_length_2,
             const scalar_t& axis_length_3)
     requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
-      : center_(center), axis_lengths_{axis_length_1, axis_length_2, axis_length_3} {
+      : center_(center), 
+        orientation_{static_cast<scalar_t>(1), static_cast<scalar_t>(0), static_cast<scalar_t>(0), static_cast<scalar_t>(0)},
+      axis_lengths_{axis_length_1, axis_length_2, axis_length_3} {
   }
 
   /// \brief Constructor to initialize the center and axis lengths.

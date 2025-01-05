@@ -1196,6 +1196,624 @@ void test_line_segment_data(stk::mesh::BulkData& bulk_data,          //
   ASSERT_NEAR(ngp_node_coords_field(end_node_index, 2), old_non_shared_end_node_coords[2] * 2 * add_value, 1e-12);
 }
 
+void test_v_segment_data(stk::mesh::BulkData& bulk_data,          //
+                      stk::topology::rank_t v_segment_rank,       //
+                      stk::mesh::Entity v_segment,                //
+                      stk::mesh::Field<double>& node_coords_field) {
+  ASSERT_TRUE(bulk_data.is_valid(v_segment));
+  ASSERT_TRUE(bulk_data.bucket(v_segment).topology().rank() == v_segment_rank);
+  ASSERT_TRUE(v_segment_rank == stk::topology::ELEM_RANK) << "For now, we only support element rank line segments.";
+
+  ASSERT_EQ(bulk_data.num_nodes(v_segment), 3);
+  stk::mesh::Entity start_node = bulk_data.begin_nodes(v_segment)[0];
+  stk::mesh::Entity middle_node = bulk_data.begin_nodes(v_segment)[1];
+  stk::mesh::Entity end_node = bulk_data.begin_nodes(v_segment)[2];
+  ASSERT_TRUE(bulk_data.is_valid(start_node));
+  ASSERT_TRUE(bulk_data.is_valid(middle_node));
+  ASSERT_TRUE(bulk_data.is_valid(end_node));
+
+  // Test the regular v_segment data to ensure that the stored shared data/fields are as expected
+  auto v_segment_data =
+      create_v_segment_data<double>(v_segment_rank, node_coords_field);
+  ASSERT_EQ(&v_segment_data.node_coords_data, &node_coords_field);
+
+  // Same test for the NGP v_segment data
+  stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
+  stk::mesh::NgpField<double>& ngp_node_coords_field = stk::mesh::get_updated_ngp_field<double>(node_coords_field);
+  auto ngp_v_segment_data =
+      create_ngp_v_segment_data<double>(v_segment_rank, ngp_node_coords_field);
+  ASSERT_EQ(&ngp_v_segment_data.node_coords_data, &ngp_node_coords_field);
+
+  // Set the node_coords for the v_segment directly via their fields
+  const Point<double> non_shared_start_node_coords{7.7, 8.8, 9.9};
+  const Point<double> non_shared_middle_node_coords{4.4, 5.5, 6.6};
+  const Point<double> non_shared_end_node_coords{1.1, 2.2, 3.3};
+
+  Point<double> old_non_shared_start_node_coords = non_shared_start_node_coords;
+  Point<double> old_non_shared_middle_node_coords = non_shared_middle_node_coords;
+  Point<double> old_non_shared_end_node_coords = non_shared_end_node_coords;
+  stk::mesh::field_data(node_coords_field, start_node)[0] = non_shared_start_node_coords[0];
+  stk::mesh::field_data(node_coords_field, start_node)[1] = non_shared_start_node_coords[1];
+  stk::mesh::field_data(node_coords_field, start_node)[2] = non_shared_start_node_coords[2];
+  stk::mesh::field_data(node_coords_field, middle_node)[0] = non_shared_middle_node_coords[0];
+  stk::mesh::field_data(node_coords_field, middle_node)[1] = non_shared_middle_node_coords[1];
+  stk::mesh::field_data(node_coords_field, middle_node)[2] = non_shared_middle_node_coords[2];
+  stk::mesh::field_data(node_coords_field, end_node)[0] = non_shared_end_node_coords[0];
+  stk::mesh::field_data(node_coords_field, end_node)[1] = non_shared_end_node_coords[1];
+  stk::mesh::field_data(node_coords_field, end_node)[2] = non_shared_end_node_coords[2];
+
+  // Test that the v_segment data properly views the updated fields
+
+  // Test that the data is modifiable
+  // Add and then remove a constant value to the node_coords
+  const double add_value = 1.1;
+  auto v_segment_view = create_elem_v_segment_view(bulk_data, v_segment_data, v_segment);
+  ASSERT_NEAR(v_segment_view.start()[0], non_shared_start_node_coords[0], 1e-12);
+  ASSERT_NEAR(v_segment_view.start()[1], non_shared_start_node_coords[1], 1e-12);
+  ASSERT_NEAR(v_segment_view.start()[2], non_shared_start_node_coords[2], 1e-12);
+  ASSERT_NEAR(v_segment_view.middle()[0], non_shared_middle_node_coords[0], 1e-12);
+  ASSERT_NEAR(v_segment_view.middle()[1], non_shared_middle_node_coords[1], 1e-12);
+  ASSERT_NEAR(v_segment_view.middle()[2], non_shared_middle_node_coords[2], 1e-12);
+  ASSERT_NEAR(v_segment_view.end()[0], non_shared_end_node_coords[0], 1e-12);
+  ASSERT_NEAR(v_segment_view.end()[1], non_shared_end_node_coords[1], 1e-12);
+  ASSERT_NEAR(v_segment_view.end()[2], non_shared_end_node_coords[2], 1e-12);
+  v_segment_view.start()[0] += add_value;
+  v_segment_view.start()[1] -= add_value;
+  v_segment_view.start()[2] *= add_value;
+  v_segment_view.middle()[0] += 2 * add_value;
+  v_segment_view.middle()[1] -= 2 * add_value;
+  v_segment_view.middle()[2] *= 2 * add_value;
+  v_segment_view.end()[0] += 2 * add_value;
+  v_segment_view.end()[1] -= 2 * add_value;
+  v_segment_view.end()[2] *= 2 * add_value;
+
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, start_node)[0], old_non_shared_start_node_coords[0] + add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, start_node)[1], old_non_shared_start_node_coords[1] - add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, start_node)[2], old_non_shared_start_node_coords[2] * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, middle_node)[0], old_non_shared_middle_node_coords[0] + 2 * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, middle_node)[1], old_non_shared_middle_node_coords[1] - 2 * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, middle_node)[2], old_non_shared_middle_node_coords[2] * 2 * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, end_node)[0], old_non_shared_end_node_coords[0] + 2 * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, end_node)[1], old_non_shared_end_node_coords[1] - 2 * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, end_node)[2], old_non_shared_end_node_coords[2] * 2 * add_value, 1e-12);
+
+  // Remove the added value
+  v_segment_view.start()[0] -= add_value;
+  v_segment_view.start()[1] += add_value;
+  v_segment_view.start()[2] /= add_value;
+  v_segment_view.middle()[0] -= 2 * add_value;
+  v_segment_view.middle()[1] += 2 * add_value;
+  v_segment_view.middle()[2] /= 2 * add_value;
+  v_segment_view.end()[0] -= 2 * add_value;
+  v_segment_view.end()[1] += 2 * add_value;
+  v_segment_view.end()[2] /= 2 * add_value;
+
+  // Test that the NGP v_segment data properly views the updated fields
+  stk::mesh::FastMeshIndex v_segment_index = ngp_mesh.fast_mesh_index(v_segment);
+  stk::mesh::FastMeshIndex start_node_index = ngp_mesh.fast_mesh_index(start_node);
+  stk::mesh::FastMeshIndex middle_node_index = ngp_mesh.fast_mesh_index(middle_node);
+  stk::mesh::FastMeshIndex end_node_index = ngp_mesh.fast_mesh_index(end_node);
+  auto ngp_v_segment_view = create_ngp_elem_v_segment_view(ngp_mesh, ngp_v_segment_data, v_segment_index);
+  ASSERT_NEAR(ngp_v_segment_view.start()[0], non_shared_start_node_coords[0], 1e-12);
+  ASSERT_NEAR(ngp_v_segment_view.start()[1], non_shared_start_node_coords[1], 1e-12);
+  ASSERT_NEAR(ngp_v_segment_view.start()[2], non_shared_start_node_coords[2], 1e-12);
+  ASSERT_NEAR(ngp_v_segment_view.middle()[0], non_shared_middle_node_coords[0], 1e-12);
+  ASSERT_NEAR(ngp_v_segment_view.middle()[1], non_shared_middle_node_coords[1], 1e-12);
+  ASSERT_NEAR(ngp_v_segment_view.middle()[2], non_shared_middle_node_coords[2], 1e-12);
+  ASSERT_NEAR(ngp_v_segment_view.end()[0], non_shared_end_node_coords[0], 1e-12);
+  ASSERT_NEAR(ngp_v_segment_view.end()[1], non_shared_end_node_coords[1], 1e-12);
+  ASSERT_NEAR(ngp_v_segment_view.end()[2], non_shared_end_node_coords[2], 1e-12);
+
+  // Test that the data is modifiable
+  ngp_v_segment_view.start()[0] += add_value;
+  ngp_v_segment_view.start()[1] -= add_value;
+  ngp_v_segment_view.start()[2] *= add_value;
+  ngp_v_segment_view.middle()[0] += 2 * add_value;
+  ngp_v_segment_view.middle()[1] -= 2 * add_value;
+  ngp_v_segment_view.middle()[2] *= 2 * add_value;
+  ngp_v_segment_view.end()[0] += 2 * add_value;
+  ngp_v_segment_view.end()[1] -= 2 * add_value;
+  ngp_v_segment_view.end()[2] *= 2 * add_value;
+  ASSERT_NEAR(ngp_node_coords_field(start_node_index, 0), old_non_shared_start_node_coords[0] + add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(start_node_index, 1), old_non_shared_start_node_coords[1] - add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(start_node_index, 2), old_non_shared_start_node_coords[2] * add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(middle_node_index, 0), old_non_shared_middle_node_coords[0] + 2 * add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(middle_node_index, 1), old_non_shared_middle_node_coords[1] - 2 * add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(middle_node_index, 2), old_non_shared_middle_node_coords[2] * 2 * add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(end_node_index, 0), old_non_shared_end_node_coords[0] + 2 * add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(end_node_index, 1), old_non_shared_end_node_coords[1] - 2 * add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(end_node_index, 2), old_non_shared_end_node_coords[2] * 2 * add_value, 1e-12);
+}
+
+template <bool is_orientation_shared, bool is_radius_shared>
+void test_spherocylinder_data(stk::mesh::BulkData& bulk_data,               //
+                         stk::topology::rank_t spherocylinder_rank,         //
+                         stk::mesh::Entity spherocylinder,                  //
+                         stk::mesh::Field<double>& center_field,       //
+                         stk::mesh::Field<double>& orientation_field,  //
+                         stk::mesh::Field<double>& radius_field) {
+  ASSERT_TRUE(bulk_data.is_valid(spherocylinder));
+  ASSERT_TRUE(bulk_data.bucket(spherocylinder).topology().rank() == spherocylinder_rank);
+  ASSERT_TRUE(spherocylinder_rank == stk::topology::ELEMENT_RANK || spherocylinder_rank == stk::topology::NODE_RANK);
+
+  // The shared data for the spherocylinder
+  mundy::math::Quaternion<double> orientation{0.1, 0.2, 0.3,
+                                              0.4};  // Not a valid unit quaternion but that's fine for this test.
+  double radius = 1.01;
+
+  // Test the regular spherocylinder data to ensure that the stored shared data/fields are as expected
+  auto spherocylinder_data =
+      create_spherocylinder_data<double>(spherocylinder_rank, center_field,
+                                    get_first_or_second<is_orientation_shared>(orientation, orientation_field),
+                                    get_first_or_second<is_radius_shared>(radius, radius_field));
+  ASSERT_EQ(&spherocylinder_data.center_data, &center_field);
+  if constexpr (is_orientation_shared) {
+    ASSERT_EQ(&spherocylinder_data.orientation_data, &orientation);
+  } else {
+    ASSERT_EQ(&spherocylinder_data.orientation_data, &orientation_field);
+  }
+  if constexpr (is_radius_shared) {
+    ASSERT_EQ(&spherocylinder_data.radius_data, &radius);
+  } else {
+    ASSERT_EQ(&spherocylinder_data.radius_data, &radius_field);
+  }
+
+  // Same test for the NGP spherocylinder data
+  stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
+  stk::mesh::NgpField<double>& ngp_center_field = stk::mesh::get_updated_ngp_field<double>(center_field);
+  stk::mesh::NgpField<double>& ngp_orientation_field = stk::mesh::get_updated_ngp_field<double>(orientation_field);
+  stk::mesh::NgpField<double>& ngp_radius_field = stk::mesh::get_updated_ngp_field<double>(radius_field);
+  auto ngp_spherocylinder_data = create_ngp_spherocylinder_data<double>(
+      spherocylinder_rank, ngp_center_field,
+      get_first_or_second<is_orientation_shared>(orientation, ngp_orientation_field),
+      get_first_or_second<is_radius_shared>(radius, ngp_radius_field));
+
+  ASSERT_EQ(&ngp_spherocylinder_data.center_data, &ngp_center_field);
+  if constexpr (is_orientation_shared) {
+    ASSERT_EQ(&ngp_spherocylinder_data.orientation_data, &orientation);
+  } else {
+    ASSERT_EQ(&ngp_spherocylinder_data.orientation_data, &ngp_orientation_field);
+  }
+  if constexpr (is_radius_shared) {
+    ASSERT_EQ(&ngp_spherocylinder_data.radius_data, &radius);
+  } else {
+    ASSERT_EQ(&ngp_spherocylinder_data.radius_data, &ngp_radius_field);
+  }
+
+  // Set the center and radius data for the spherocylinder directly via their fields
+  const Point<double> non_shared_center{7.7, 8.8, 9.9};
+  const mundy::math::Quaternion<double> non_shared_orientation{0.5, 0.6, 0.7, 0.8};
+  const double non_shared_radius = 4.04;
+
+  Point<double> old_non_shared_center = non_shared_center;
+  mundy::math::Quaternion<double> old_orientation = orientation;
+  mundy::math::Quaternion<double> old_non_shared_orientation = non_shared_orientation;
+  double old_radius = radius;
+  double old_non_shared_radius = non_shared_radius;
+
+  if (spherocylinder_rank == stk::topology::NODE_RANK) {
+    stk::mesh::field_data(center_field, spherocylinder)[0] = non_shared_center[0];
+    stk::mesh::field_data(center_field, spherocylinder)[1] = non_shared_center[1];
+    stk::mesh::field_data(center_field, spherocylinder)[2] = non_shared_center[2];
+    if constexpr (!is_orientation_shared) {
+      stk::mesh::field_data(orientation_field, spherocylinder)[0] = non_shared_orientation[0];
+      stk::mesh::field_data(orientation_field, spherocylinder)[1] = non_shared_orientation[1];
+      stk::mesh::field_data(orientation_field, spherocylinder)[2] = non_shared_orientation[2];
+      stk::mesh::field_data(orientation_field, spherocylinder)[3] = non_shared_orientation[3];
+    }
+    if constexpr (!is_radius_shared) {
+      stk::mesh::field_data(radius_field, spherocylinder)[0] = non_shared_radius;
+    }
+  } else {
+    ASSERT_EQ(bulk_data.num_nodes(spherocylinder), 1);
+    stk::mesh::Entity node = bulk_data.begin_nodes(spherocylinder)[0];
+    ASSERT_TRUE(bulk_data.is_valid(node));
+    stk::mesh::field_data(center_field, node)[0] = non_shared_center[0];
+    stk::mesh::field_data(center_field, node)[1] = non_shared_center[1];
+    stk::mesh::field_data(center_field, node)[2] = non_shared_center[2];
+    if constexpr (!is_orientation_shared) {
+      stk::mesh::field_data(orientation_field, spherocylinder)[0] = non_shared_orientation[0];
+      stk::mesh::field_data(orientation_field, spherocylinder)[1] = non_shared_orientation[1];
+      stk::mesh::field_data(orientation_field, spherocylinder)[2] = non_shared_orientation[2];
+      stk::mesh::field_data(orientation_field, spherocylinder)[3] = non_shared_orientation[3];
+    }
+    if constexpr (!is_radius_shared) {
+      stk::mesh::field_data(radius_field, spherocylinder)[0] = non_shared_radius;
+    }
+  }
+
+  // Test that the spherocylinder data properly views the updated fields
+
+  // Test that the data is modifiable
+  const double add_value = 1.1;
+  if (spherocylinder_rank == stk::topology::NODE_RANK) {
+    auto spherocylinder_view = create_node_spherocylinder_view(bulk_data, spherocylinder_data, spherocylinder);
+    ASSERT_DOUBLE_EQ(spherocylinder_view.center()[0], non_shared_center[0]);
+    ASSERT_DOUBLE_EQ(spherocylinder_view.center()[1], non_shared_center[1]);
+    ASSERT_DOUBLE_EQ(spherocylinder_view.center()[2], non_shared_center[2]);
+    if constexpr (is_orientation_shared) {
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[0], orientation[0]);
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[1], orientation[1]);
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[2], orientation[2]);
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[3], orientation[3]);
+    } else {
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[0], non_shared_orientation[0]);
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[1], non_shared_orientation[1]);
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[2], non_shared_orientation[2]);
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[3], non_shared_orientation[3]);
+    }
+    if constexpr (is_radius_shared) {
+      ASSERT_DOUBLE_EQ(spherocylinder_view.radius(), radius);
+    } else {
+      ASSERT_DOUBLE_EQ(spherocylinder_view.radius(), non_shared_radius);
+    }
+    spherocylinder_view.center()[0] += add_value;
+    spherocylinder_view.center()[1] -= add_value;
+    spherocylinder_view.center()[2] *= add_value;
+    spherocylinder_view.orientation()[0] += add_value;
+    spherocylinder_view.orientation()[1] -= add_value;
+    spherocylinder_view.orientation()[2] *= add_value;
+    spherocylinder_view.orientation()[3] += 2 * add_value;
+    spherocylinder_view.radius() += 3 * add_value;
+
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, spherocylinder)[0], old_non_shared_center[0] + add_value);
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, spherocylinder)[1], old_non_shared_center[1] - add_value);
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, spherocylinder)[2], old_non_shared_center[2] * add_value);
+    if constexpr (is_orientation_shared) {
+      ASSERT_DOUBLE_EQ(orientation[0], old_orientation[0] + add_value);
+      ASSERT_DOUBLE_EQ(orientation[1], old_orientation[1] - add_value);
+      ASSERT_DOUBLE_EQ(orientation[2], old_orientation[2] * add_value);
+      ASSERT_DOUBLE_EQ(orientation[3], old_orientation[3] + 2 * add_value);
+    } else {
+      ASSERT_DOUBLE_EQ(stk::mesh::field_data(orientation_field, spherocylinder)[0],
+                       old_non_shared_orientation[0] + add_value);
+      ASSERT_DOUBLE_EQ(stk::mesh::field_data(orientation_field, spherocylinder)[1],
+                       old_non_shared_orientation[1] - add_value);
+      ASSERT_DOUBLE_EQ(stk::mesh::field_data(orientation_field, spherocylinder)[2],
+                       old_non_shared_orientation[2] * add_value);
+      ASSERT_DOUBLE_EQ(stk::mesh::field_data(orientation_field, spherocylinder)[3],
+                       old_non_shared_orientation[3] + 2 * add_value);
+    }
+    if constexpr (is_radius_shared) {
+      ASSERT_DOUBLE_EQ(radius, old_radius + 3 * add_value);
+    } else {
+      ASSERT_DOUBLE_EQ(stk::mesh::field_data(radius_field, spherocylinder)[0],
+                       old_non_shared_radius + 3 * add_value);
+    }
+
+    // Remove the added value
+    spherocylinder_view.center()[0] -= add_value;
+    spherocylinder_view.center()[1] += add_value;
+    spherocylinder_view.center()[2] /= add_value;
+    spherocylinder_view.orientation()[0] -= add_value;
+    spherocylinder_view.orientation()[1] += add_value;
+    spherocylinder_view.orientation()[2] /= add_value;
+    spherocylinder_view.orientation()[3] -= 2 * add_value;
+    spherocylinder_view.radius() -= 3 * add_value;
+  } else {
+    auto spherocylinder_view = create_elem_spherocylinder_view(bulk_data, spherocylinder_data, spherocylinder);
+    ASSERT_DOUBLE_EQ(spherocylinder_view.center()[0], non_shared_center[0]);
+    ASSERT_DOUBLE_EQ(spherocylinder_view.center()[1], non_shared_center[1]);
+    ASSERT_DOUBLE_EQ(spherocylinder_view.center()[2], non_shared_center[2]);
+    if constexpr (is_orientation_shared) {
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[0], orientation[0]);
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[1], orientation[1]);
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[2], orientation[2]);
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[3], orientation[3]);
+    } else {
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[0], non_shared_orientation[0]);
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[1], non_shared_orientation[1]);
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[2], non_shared_orientation[2]);
+      ASSERT_DOUBLE_EQ(spherocylinder_view.orientation()[3], non_shared_orientation[3]);
+    }
+    if constexpr (is_radius_shared) {
+      ASSERT_DOUBLE_EQ(spherocylinder_view.radius(), radius);
+    } else {
+      ASSERT_DOUBLE_EQ(spherocylinder_view.radius(), non_shared_radius);
+    }
+    spherocylinder_view.center()[0] += add_value;
+    spherocylinder_view.center()[1] -= add_value;
+    spherocylinder_view.center()[2] *= add_value;
+    spherocylinder_view.orientation()[0] += add_value;
+    spherocylinder_view.orientation()[1] -= add_value;
+    spherocylinder_view.orientation()[2] *= add_value;
+    spherocylinder_view.orientation()[3] += 2 * add_value;
+    spherocylinder_view.radius() += 3 * add_value;
+
+    ASSERT_EQ(bulk_data.num_nodes(spherocylinder), 1);
+    stk::mesh::Entity node = bulk_data.begin_nodes(spherocylinder)[0];
+    ASSERT_TRUE(bulk_data.is_valid(node));
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[0], old_non_shared_center[0] + add_value);
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[1], old_non_shared_center[1] - add_value);
+    ASSERT_DOUBLE_EQ(stk::mesh::field_data(center_field, node)[2], old_non_shared_center[2] * add_value);
+    if constexpr (is_orientation_shared) {
+      ASSERT_DOUBLE_EQ(orientation[0], old_orientation[0] + add_value);
+      ASSERT_DOUBLE_EQ(orientation[1], old_orientation[1] - add_value);
+      ASSERT_DOUBLE_EQ(orientation[2], old_orientation[2] * add_value);
+      ASSERT_DOUBLE_EQ(orientation[3], old_orientation[3] + 2 * add_value);
+    } else {
+      ASSERT_DOUBLE_EQ(stk::mesh::field_data(orientation_field, spherocylinder)[0],
+                       old_non_shared_orientation[0] + add_value);
+      ASSERT_DOUBLE_EQ(stk::mesh::field_data(orientation_field, spherocylinder)[1],
+                       old_non_shared_orientation[1] - add_value);
+      ASSERT_DOUBLE_EQ(stk::mesh::field_data(orientation_field, spherocylinder)[2],
+                       old_non_shared_orientation[2] * add_value);
+      ASSERT_DOUBLE_EQ(stk::mesh::field_data(orientation_field, spherocylinder)[3],
+                       old_non_shared_orientation[3] + 2 * add_value);
+    }
+    if constexpr (is_radius_shared) {
+      ASSERT_DOUBLE_EQ(radius, old_radius + 3 * add_value);
+    } else {
+      ASSERT_DOUBLE_EQ(stk::mesh::field_data(radius_field, spherocylinder)[0],
+                       old_non_shared_radius + 3 * add_value);
+    }
+
+    // Remove the added value
+    spherocylinder_view.center()[0] -= add_value;
+    spherocylinder_view.center()[1] += add_value;
+    spherocylinder_view.center()[2] /= add_value;
+    spherocylinder_view.orientation()[0] -= add_value;
+    spherocylinder_view.orientation()[1] += add_value;
+    spherocylinder_view.orientation()[2] /= add_value;
+    spherocylinder_view.orientation()[3] -= 2 * add_value;
+    spherocylinder_view.radius() -= 3 * add_value;
+  }
+
+  // Test that the NGP spherocylinder data properly views the updated fields
+  stk::mesh::FastMeshIndex spherocylinder_index = ngp_mesh.fast_mesh_index(spherocylinder);
+  if (spherocylinder_rank == stk::topology::NODE_RANK) {
+    auto ngp_spherocylinder_view = create_ngp_node_spherocylinder_view(ngp_mesh, ngp_spherocylinder_data, spherocylinder_index);
+    ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.center()[0], non_shared_center[0]);
+    ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.center()[1], non_shared_center[1]);
+    ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.center()[2], non_shared_center[2]);
+    if constexpr (is_orientation_shared) {
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[0], orientation[0]);
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[1], orientation[1]);
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[2], orientation[2]);
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[3], orientation[3]);
+    } else {
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[0], non_shared_orientation[0]);
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[1], non_shared_orientation[1]);
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[2], non_shared_orientation[2]);
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[3], non_shared_orientation[3]);
+    }
+    if constexpr (is_radius_shared) {
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.radius(), radius);
+    } else {
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.radius(), non_shared_radius);
+    }
+
+    // Test that the data is modifiable
+    // Add a constant value to the center and radius
+    ngp_spherocylinder_view.center()[0] += add_value;
+    ngp_spherocylinder_view.center()[1] -= add_value;
+    ngp_spherocylinder_view.center()[2] *= add_value;
+    ngp_spherocylinder_view.orientation()[0] += add_value;
+    ngp_spherocylinder_view.orientation()[1] -= add_value;
+    ngp_spherocylinder_view.orientation()[2] *= add_value;
+    ngp_spherocylinder_view.orientation()[3] += 2 * add_value;
+    ngp_spherocylinder_view.radius() += 3 * add_value;
+    ASSERT_DOUBLE_EQ(ngp_center_field(spherocylinder_index, 0), old_non_shared_center[0] + add_value);
+    ASSERT_DOUBLE_EQ(ngp_center_field(spherocylinder_index, 1), old_non_shared_center[1] - add_value);
+    ASSERT_DOUBLE_EQ(ngp_center_field(spherocylinder_index, 2), old_non_shared_center[2] * add_value);
+    if constexpr (is_orientation_shared) {
+      ASSERT_DOUBLE_EQ(orientation[0], old_orientation[0] + add_value);
+      ASSERT_DOUBLE_EQ(orientation[1], old_orientation[1] - add_value);
+      ASSERT_DOUBLE_EQ(orientation[2], old_orientation[2] * add_value);
+      ASSERT_DOUBLE_EQ(orientation[3], old_orientation[3] + 2 * add_value);
+    } else {
+      ASSERT_DOUBLE_EQ(ngp_orientation_field(spherocylinder_index, 0), old_non_shared_orientation[0] + add_value);
+      ASSERT_DOUBLE_EQ(ngp_orientation_field(spherocylinder_index, 1), old_non_shared_orientation[1] - add_value);
+      ASSERT_DOUBLE_EQ(ngp_orientation_field(spherocylinder_index, 2), old_non_shared_orientation[2] * add_value);
+      ASSERT_DOUBLE_EQ(ngp_orientation_field(spherocylinder_index, 3), old_non_shared_orientation[3] + 2 * add_value);
+    }
+    if constexpr (is_radius_shared) {
+      ASSERT_DOUBLE_EQ(radius, old_radius + 3 * add_value);
+    } else {
+      ASSERT_DOUBLE_EQ(ngp_radius_field(spherocylinder_index, 0), old_non_shared_radius + 3 * add_value);
+    }
+  } else {
+    auto ngp_spherocylinder_view = create_ngp_elem_spherocylinder_view(ngp_mesh, ngp_spherocylinder_data, spherocylinder_index);
+    ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.center()[0], non_shared_center[0]);
+    ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.center()[1], non_shared_center[1]);
+    ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.center()[2], non_shared_center[2]);
+    if constexpr (is_orientation_shared) {
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[0], orientation[0]);
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[1], orientation[1]);
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[2], orientation[2]);
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[3], orientation[3]);
+    } else {
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[0], non_shared_orientation[0]);
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[1], non_shared_orientation[1]);
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[2], non_shared_orientation[2]);
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.orientation()[3], non_shared_orientation[3]);
+    }
+    if constexpr (is_radius_shared) {
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.radius(), radius);
+    } else {
+      ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.radius(), non_shared_radius);
+    }
+
+    // Test that the data is modifiable
+    // Add a constant value to the center and radius
+    ngp_spherocylinder_view.center()[0] += add_value;
+    ngp_spherocylinder_view.center()[1] -= add_value;
+    ngp_spherocylinder_view.center()[2] *= add_value;
+    ngp_spherocylinder_view.orientation()[0] += add_value;
+    ngp_spherocylinder_view.orientation()[1] -= add_value;
+    ngp_spherocylinder_view.orientation()[2] *= add_value;
+    ngp_spherocylinder_view.orientation()[3] += 2 * add_value;
+    ngp_spherocylinder_view.radius() += 3 * add_value;
+    stk::mesh::Entity node = bulk_data.begin_nodes(spherocylinder)[0];
+    stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+
+    ASSERT_EQ(ngp_center_field(node_index, 0), old_non_shared_center[0] + add_value);
+    ASSERT_EQ(ngp_center_field(node_index, 1), old_non_shared_center[1] - add_value);
+    ASSERT_EQ(ngp_center_field(node_index, 2), old_non_shared_center[2] * add_value);
+    if constexpr (is_orientation_shared) {
+      ASSERT_EQ(orientation[0], old_orientation[0] + add_value);
+      ASSERT_EQ(orientation[1], old_orientation[1] - add_value);
+      ASSERT_EQ(orientation[2], old_orientation[2] * add_value);
+      ASSERT_EQ(orientation[3], old_orientation[3] + 2 * add_value);
+    } else {
+      ASSERT_EQ(ngp_orientation_field(spherocylinder_index, 0), old_non_shared_orientation[0] + add_value);
+      ASSERT_EQ(ngp_orientation_field(spherocylinder_index, 1), old_non_shared_orientation[1] - add_value);
+      ASSERT_EQ(ngp_orientation_field(spherocylinder_index, 2), old_non_shared_orientation[2] * add_value);
+      ASSERT_EQ(ngp_orientation_field(spherocylinder_index, 3), old_non_shared_orientation[3] + 2 * add_value);
+    }
+    if constexpr (is_radius_shared) {
+      ASSERT_EQ(radius, old_radius + 3 * add_value);
+    } else {
+      ASSERT_EQ(ngp_radius_field(spherocylinder_index, 0), old_non_shared_radius + 3 * add_value);
+    }
+  }
+}
+
+template <bool is_radius_shared>
+void test_spherocylinder_segment_data(stk::mesh::BulkData& bulk_data,          //
+                      stk::topology::rank_t spherocylinder_segment_rank,       //
+                      stk::mesh::Entity spherocylinder_segment,                //
+                      stk::mesh::Field<double>& node_coords_field,  //
+                      stk::mesh::Field<double>& radius_field) {
+  ASSERT_TRUE(bulk_data.is_valid(spherocylinder_segment));
+  ASSERT_TRUE(bulk_data.bucket(spherocylinder_segment).topology().rank() == spherocylinder_segment_rank);
+  ASSERT_TRUE(spherocylinder_segment_rank == stk::topology::ELEM_RANK) << "For now, we only support element rank spherocylinder segments.";
+
+  ASSERT_EQ(bulk_data.num_nodes(spherocylinder_segment), 2);
+  stk::mesh::Entity start_node = bulk_data.begin_nodes(spherocylinder_segment)[0];
+  stk::mesh::Entity end_node = bulk_data.begin_nodes(spherocylinder_segment)[1];
+  ASSERT_TRUE(bulk_data.is_valid(start_node));
+  ASSERT_TRUE(bulk_data.is_valid(end_node));
+
+  // Shared data for the spherocylinder_segment
+  double radius = 1.1;
+
+  // Test the regular spherocylinder_segment data to ensure that the stored shared data/fields are as expected
+  auto spherocylinder_segment_data =
+      create_spherocylinder_segment_data<double>(spherocylinder_segment_rank, node_coords_field, get_first_or_second<is_radius_shared>(radius, radius_field));
+  ASSERT_EQ(&spherocylinder_segment_data.node_coords_data, &node_coords_field);
+  if constexpr (is_radius_shared) {
+    ASSERT_EQ(&spherocylinder_segment_data.radius_data, &radius);
+  } else {
+    ASSERT_EQ(&spherocylinder_segment_data.radius_data, &radius_field);
+  }
+
+  // Same test for the NGP spherocylinder_segment data
+  stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
+  stk::mesh::NgpField<double>& ngp_node_coords_field = stk::mesh::get_updated_ngp_field<double>(node_coords_field);
+  stk::mesh::NgpField<double>& ngp_radius_field = stk::mesh::get_updated_ngp_field<double>(radius_field);
+  auto ngp_spherocylinder_segment_data =
+      create_ngp_spherocylinder_segment_data<double>(spherocylinder_segment_rank, ngp_node_coords_field, get_first_or_second<is_radius_shared>(radius, ngp_radius_field));
+  ASSERT_EQ(&ngp_spherocylinder_segment_data.node_coords_data, &ngp_node_coords_field);
+  if constexpr (is_radius_shared) {
+    ASSERT_EQ(&ngp_spherocylinder_segment_data.radius_data, &radius);
+  } else {
+    ASSERT_EQ(&ngp_spherocylinder_segment_data.radius_data, &ngp_radius_field);
+  }
+
+  // Set the node_coords for the spherocylinder_segment directly via their fields
+  const Point<double> non_shared_start_node_coords{7.7, 8.8, 9.9};
+  const Point<double> non_shared_end_node_coords{1.1, 2.2, 3.3};
+  const double non_shared_radius = 2.2;
+
+  Point<double> old_non_shared_start_node_coords = non_shared_start_node_coords;
+  Point<double> old_non_shared_end_node_coords = non_shared_end_node_coords;
+  double old_radius = radius;
+  double old_non_shared_radius = non_shared_radius;
+  stk::mesh::field_data(node_coords_field, start_node)[0] = non_shared_start_node_coords[0];
+  stk::mesh::field_data(node_coords_field, start_node)[1] = non_shared_start_node_coords[1];
+  stk::mesh::field_data(node_coords_field, start_node)[2] = non_shared_start_node_coords[2];
+  stk::mesh::field_data(node_coords_field, end_node)[0] = non_shared_end_node_coords[0];
+  stk::mesh::field_data(node_coords_field, end_node)[1] = non_shared_end_node_coords[1];
+  stk::mesh::field_data(node_coords_field, end_node)[2] = non_shared_end_node_coords[2];
+  if constexpr (!is_radius_shared) {
+    stk::mesh::field_data(radius_field, spherocylinder_segment)[0] = non_shared_radius;
+  }
+
+  // Test that the spherocylinder_segment data properly views the updated fields
+
+  // Test that the data is modifiable
+  // Add and then remove a constant value to the node_coords
+  const double add_value = 1.1;
+  auto spherocylinder_segment_view = create_elem_spherocylinder_segment_view(bulk_data, spherocylinder_segment_data, spherocylinder_segment);
+  ASSERT_NEAR(spherocylinder_segment_view.start()[0], non_shared_start_node_coords[0], 1e-12);
+  ASSERT_NEAR(spherocylinder_segment_view.start()[1], non_shared_start_node_coords[1], 1e-12);
+  ASSERT_NEAR(spherocylinder_segment_view.start()[2], non_shared_start_node_coords[2], 1e-12);
+  ASSERT_NEAR(spherocylinder_segment_view.end()[0], non_shared_end_node_coords[0], 1e-12);
+  ASSERT_NEAR(spherocylinder_segment_view.end()[1], non_shared_end_node_coords[1], 1e-12);
+  ASSERT_NEAR(spherocylinder_segment_view.end()[2], non_shared_end_node_coords[2], 1e-12);
+  if constexpr (is_radius_shared) {
+    ASSERT_NEAR(spherocylinder_segment_view.radius(), radius, 1e-12);
+  } else {
+    ASSERT_NEAR(spherocylinder_segment_view.radius(), non_shared_radius, 1e-12);
+  }
+
+  spherocylinder_segment_view.start()[0] += add_value;
+  spherocylinder_segment_view.start()[1] -= add_value;
+  spherocylinder_segment_view.start()[2] *= add_value;
+  spherocylinder_segment_view.end()[0] += 2 * add_value;
+  spherocylinder_segment_view.end()[1] -= 2 * add_value;
+  spherocylinder_segment_view.end()[2] *= 2 * add_value;
+  spherocylinder_segment_view.radius() += 3 * add_value;
+
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, start_node)[0], old_non_shared_start_node_coords[0] + add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, start_node)[1], old_non_shared_start_node_coords[1] - add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, start_node)[2], old_non_shared_start_node_coords[2] * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, end_node)[0], old_non_shared_end_node_coords[0] + 2 * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, end_node)[1], old_non_shared_end_node_coords[1] - 2 * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, end_node)[2], old_non_shared_end_node_coords[2] * 2 * add_value, 1e-12);
+  if constexpr (is_radius_shared) {
+    ASSERT_NEAR(radius, old_radius + 3 * add_value, 1e-12);
+  } else {
+    ASSERT_NEAR(stk::mesh::field_data(radius_field, spherocylinder_segment)[0], old_non_shared_radius + 3 * add_value, 1e-12);
+  }
+
+  // Remove the added value
+  spherocylinder_segment_view.start()[0] -= add_value;
+  spherocylinder_segment_view.start()[1] += add_value;
+  spherocylinder_segment_view.start()[2] /= add_value;
+  spherocylinder_segment_view.end()[0] -= 2 * add_value;
+  spherocylinder_segment_view.end()[1] += 2 * add_value;
+  spherocylinder_segment_view.end()[2] /= 2 * add_value;
+  spherocylinder_segment_view.radius() -= 3 * add_value;
+
+  // Test that the NGP spherocylinder_segment data properly views the updated fields
+  stk::mesh::FastMeshIndex spherocylinder_segment_index = ngp_mesh.fast_mesh_index(spherocylinder_segment);
+  stk::mesh::FastMeshIndex start_node_index = ngp_mesh.fast_mesh_index(start_node);
+  stk::mesh::FastMeshIndex end_node_index = ngp_mesh.fast_mesh_index(end_node);
+  auto ngp_spherocylinder_segment_view = create_ngp_elem_spherocylinder_segment_view(ngp_mesh, ngp_spherocylinder_segment_data, spherocylinder_segment_index);
+  ASSERT_NEAR(ngp_spherocylinder_segment_view.start()[0], non_shared_start_node_coords[0], 1e-12);
+  ASSERT_NEAR(ngp_spherocylinder_segment_view.start()[1], non_shared_start_node_coords[1], 1e-12);
+  ASSERT_NEAR(ngp_spherocylinder_segment_view.start()[2], non_shared_start_node_coords[2], 1e-12);
+  ASSERT_NEAR(ngp_spherocylinder_segment_view.end()[0], non_shared_end_node_coords[0], 1e-12);
+  ASSERT_NEAR(ngp_spherocylinder_segment_view.end()[1], non_shared_end_node_coords[1], 1e-12);
+  ASSERT_NEAR(ngp_spherocylinder_segment_view.end()[2], non_shared_end_node_coords[2], 1e-12);
+  if constexpr (is_radius_shared) {
+    ASSERT_NEAR(ngp_spherocylinder_segment_view.radius(), radius, 1e-12);
+  } else {
+    ASSERT_NEAR(ngp_spherocylinder_segment_view.radius(), non_shared_radius, 1e-12);
+  }
+
+  // Test that the data is modifiable
+  ngp_spherocylinder_segment_view.start()[0] += add_value;
+  ngp_spherocylinder_segment_view.start()[1] -= add_value;
+  ngp_spherocylinder_segment_view.start()[2] *= add_value;
+  ngp_spherocylinder_segment_view.end()[0] += 2 * add_value;
+  ngp_spherocylinder_segment_view.end()[1] -= 2 * add_value;
+  ngp_spherocylinder_segment_view.end()[2] *= 2 * add_value;
+  ngp_spherocylinder_segment_view.radius() += 3 * add_value;
+  ASSERT_NEAR(ngp_node_coords_field(start_node_index, 0), old_non_shared_start_node_coords[0] + add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(start_node_index, 1), old_non_shared_start_node_coords[1] - add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(start_node_index, 2), old_non_shared_start_node_coords[2] * add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(end_node_index, 0), old_non_shared_end_node_coords[0] + 2 * add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(end_node_index, 1), old_non_shared_end_node_coords[1] - 2 * add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(end_node_index, 2), old_non_shared_end_node_coords[2] * 2 * add_value, 1e-12);
+  if constexpr (is_radius_shared) {
+    ASSERT_NEAR(radius, old_radius + 3 * add_value, 1e-12);
+  } else {
+    ASSERT_NEAR(ngp_radius_field(spherocylinder_segment_index, 0), old_non_shared_radius + 3 * add_value, 1e-12);
+  }
+}
 
 TEST(Aggregates, SphereData) {
   stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
@@ -1411,6 +2029,123 @@ TEST(Aggregates, LineSegmentData) {
 
   test_line_segment_data(bulk_data, stk::topology::ELEM_RANK, line_segment, node_coords_field);
   test_line_segment_data(bulk_data, stk::topology::ELEM_RANK, line_segment, node_coords_field);
+}
+
+TEST(Aggregates, VSegmentData) {
+  stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
+  builder.set_spatial_dimension(3);
+  builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+  std::shared_ptr<stk::mesh::MetaData> meta_data_ptr = builder.create_meta_data();
+  stk::mesh::MetaData& meta_data = *meta_data_ptr;
+  meta_data.use_simple_fields();
+  std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create(meta_data_ptr);
+  stk::mesh::BulkData& bulk_data = *bulk_data_ptr;
+
+  stk::mesh::Part& v_segment_part = meta_data.declare_part_with_topology("v_segments", stk::topology::SHELL_TRI_3);
+  stk::mesh::Field<double>& node_coords_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "coords");
+  stk::mesh::put_field_on_mesh(node_coords_field, meta_data.universal_part(), 3, nullptr);
+  meta_data.commit();
+
+  bulk_data.modification_begin();
+  stk::mesh::Entity start_node = bulk_data.declare_node(1);
+  stk::mesh::Entity middle_node = bulk_data.declare_node(2);
+  stk::mesh::Entity end_node = bulk_data.declare_node(3);
+  stk::mesh::Entity v_segment = bulk_data.declare_element(1, stk::mesh::PartVector{&v_segment_part});
+  bulk_data.declare_relation(v_segment, start_node, 0);
+  bulk_data.declare_relation(v_segment, middle_node, 1);
+  bulk_data.declare_relation(v_segment, end_node, 2);
+  bulk_data.modification_end();
+
+  test_v_segment_data(bulk_data, stk::topology::ELEM_RANK, v_segment, node_coords_field);
+  test_v_segment_data(bulk_data, stk::topology::ELEM_RANK, v_segment, node_coords_field);
+}
+
+TEST(Aggregates, SpherocylinderData) {
+  stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
+  builder.set_spatial_dimension(3);
+  builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+  std::shared_ptr<stk::mesh::MetaData> meta_data_ptr = builder.create_meta_data();
+  stk::mesh::MetaData& meta_data = *meta_data_ptr;
+  meta_data.use_simple_fields();
+  meta_data.set_coordinate_field_name("COORDS");
+  std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create(meta_data_ptr);
+  stk::mesh::BulkData& bulk_data = *bulk_data_ptr;
+
+  stk::mesh::Part& spherocylinder_part = meta_data.declare_part_with_topology("spherocylinders", stk::topology::PARTICLE);
+  stk::mesh::Part& node_spherocylinder_part = meta_data.declare_part_with_topology("node_spherocylinders", stk::topology::NODE);
+
+  stk::mesh::Field<double>& node_coords_field =
+      meta_data.declare_field<double>(stk::topology::NODE_RANK, "coordinates");
+  stk::mesh::Field<double>& node_orientation_field =
+      meta_data.declare_field<double>(stk::topology::NODE_RANK, "orientation");
+  stk::mesh::Field<double>& node_radius_field =
+      meta_data.declare_field<double>(stk::topology::NODE_RANK, "radius");
+  stk::mesh::Field<double>& elem_orientation_field =
+      meta_data.declare_field<double>(stk::topology::ELEM_RANK, "orientation");
+  stk::mesh::Field<double>& elem_radius_field =
+      meta_data.declare_field<double>(stk::topology::ELEM_RANK, "radius");
+
+  stk::mesh::put_field_on_mesh(node_coords_field, meta_data.universal_part(), 3, nullptr);
+  stk::mesh::put_field_on_mesh(node_orientation_field, node_spherocylinder_part, 4, nullptr);
+  stk::mesh::put_field_on_mesh(node_radius_field, node_spherocylinder_part, 1, nullptr);
+  stk::mesh::put_field_on_mesh(elem_orientation_field, spherocylinder_part, 4, nullptr);
+  stk::mesh::put_field_on_mesh(elem_radius_field, spherocylinder_part, 1, nullptr);
+  meta_data.commit();
+
+  // Create the node and element spherocylinders
+  bulk_data.modification_begin();
+  stk::mesh::Entity spherocylinder = bulk_data.declare_element(1, stk::mesh::PartVector{&spherocylinder_part});
+  stk::mesh::Entity node = bulk_data.declare_node(1);
+  stk::mesh::Entity node_spherocylinder = bulk_data.declare_node(2, stk::mesh::PartVector{&node_spherocylinder_part});
+  bulk_data.declare_relation(spherocylinder, node, 0);
+  bulk_data.modification_end();
+
+  test_spherocylinder_data<true, true>(bulk_data, stk::topology::NODE_RANK, node_spherocylinder, node_coords_field,
+                                        node_orientation_field, node_radius_field);
+  test_spherocylinder_data<false, true>(bulk_data, stk::topology::NODE_RANK, node_spherocylinder, node_coords_field,
+                                         node_orientation_field, node_radius_field);
+  test_spherocylinder_data<true, false>(bulk_data, stk::topology::NODE_RANK, node_spherocylinder, node_coords_field,
+                                         node_orientation_field, node_radius_field);
+  test_spherocylinder_data<false, false>(bulk_data, stk::topology::NODE_RANK, node_spherocylinder, node_coords_field,
+                                          node_orientation_field, node_radius_field);
+
+  test_spherocylinder_data<true, true>(bulk_data, stk::topology::ELEM_RANK, spherocylinder, node_coords_field,
+                                        elem_orientation_field, elem_radius_field);
+  test_spherocylinder_data<false, true>(bulk_data, stk::topology::ELEM_RANK, spherocylinder, node_coords_field,
+                                          elem_orientation_field, elem_radius_field);
+  test_spherocylinder_data<true, false>(bulk_data, stk::topology::ELEM_RANK, spherocylinder, node_coords_field,
+                                          elem_orientation_field, elem_radius_field);
+  test_spherocylinder_data<false, false>(bulk_data, stk::topology::ELEM_RANK, spherocylinder, node_coords_field,
+                                          elem_orientation_field, elem_radius_field);
+}
+
+TEST(Aggregates, SpherocylinderSegmentData) {
+  stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
+  builder.set_spatial_dimension(3);
+  builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+  std::shared_ptr<stk::mesh::MetaData> meta_data_ptr = builder.create_meta_data();
+  stk::mesh::MetaData& meta_data = *meta_data_ptr;
+  meta_data.use_simple_fields();
+  std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create(meta_data_ptr);
+  stk::mesh::BulkData& bulk_data = *bulk_data_ptr;
+
+  stk::mesh::Part& spherocylinder_segment_part = meta_data.declare_part_with_topology("segments", stk::topology::BEAM_2);
+  stk::mesh::Field<double>& node_coords_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "coords");
+  stk::mesh::Field<double>& radius_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "radius");
+  stk::mesh::put_field_on_mesh(node_coords_field, meta_data.universal_part(), 3, nullptr);
+  stk::mesh::put_field_on_mesh(radius_field, meta_data.universal_part(), 1, nullptr);
+  meta_data.commit();
+
+  bulk_data.modification_begin();
+  stk::mesh::Entity start_node = bulk_data.declare_node(1);
+  stk::mesh::Entity end_node = bulk_data.declare_node(2);
+  stk::mesh::Entity segment = bulk_data.declare_element(1, stk::mesh::PartVector{&spherocylinder_segment_part});
+  bulk_data.declare_relation(segment, start_node, 0);
+  bulk_data.declare_relation(segment, end_node, 1);
+  bulk_data.modification_end();
+
+  test_spherocylinder_segment_data<true>(bulk_data, stk::topology::ELEM_RANK, segment, node_coords_field, radius_field);
+  test_spherocylinder_segment_data<false>(bulk_data, stk::topology::ELEM_RANK, segment, node_coords_field, radius_field);
 }
 
 }  // namespace
