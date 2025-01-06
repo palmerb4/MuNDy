@@ -29,20 +29,20 @@
 #include <utility>
 
 // Mundy
-#include <mundy_geom/primitives/LineSegment.hpp>  // for mundy::geom::LineSegment
+#include <mundy_geom/primitives/VSegment.hpp>  // for mundy::geom::VSegment
 
 namespace mundy {
 
 namespace mech {
 
 /// \brief A hookean spring between two points with a rest angle and spring constant
-template <typename Scalar, mundy::geom::ValidLineSegmentType LineSegmentType = mundy::geom::LineSegment<Scalar>,
+template <typename Scalar, mundy::geom::ValidVSegmentType VSegmentType = mundy::geom::VSegment<Scalar>,
           typename OwnershipType = mundy::math::Ownership::Owns>
 class TorsionalSpring {
-  static_assert(std::is_same_v<typename LineSegmentType::scalar_t, Scalar>,
-                "The scalar_t of the LineSegmentType must match the Scalar type.");
-  static_assert(std::is_same_v<typename LineSegmentType::ownership_t, OwnershipType>,
-                "The ownership type of the LineSegmentType must match the OwnershipType.\n"
+  static_assert(std::is_same_v<typename VSegmentType::scalar_t, Scalar>,
+                "The scalar_t of the VSegmentType must match the Scalar type.");
+  static_assert(std::is_same_v<typename VSegmentType::ownership_t, OwnershipType>,
+                "The ownership type of the VSegmentType must match the OwnershipType.\n"
                 "This is somewhat restrictive, and we may want to relax this constraint in the future.\n"
                 "If you need to use a different ownership type, please let us know and we'll remove this restriction.");
 
@@ -54,7 +54,7 @@ class TorsionalSpring {
   using scalar_t = Scalar;
 
   /// \brief Our line segment type
-  using line_segment_t = LineSegmentType;
+  using v_segment_t = VSegmentType;
   //@}
 
   //! \name Constructors and destructor
@@ -65,7 +65,7 @@ class TorsionalSpring {
   KOKKOS_FUNCTION
   TorsionalSpring()
     requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
-      : line_segment_(), rest_angle_(static_cast<scalar_t>(-1)), spring_constant_(static_cast<scalar_t>(-1)) {
+      : v_segment_(), rest_angle_(static_cast<scalar_t>(-1)), spring_constant_(static_cast<scalar_t>(-1)) {
   }
 
   /// \brief No default constructor for viewing TorsionalSpringss.
@@ -76,18 +76,18 @@ class TorsionalSpring {
 
   /// \brief Constructor to initialize the line segment, rest angle, and spring constant.
   KOKKOS_FUNCTION
-  TorsionalSpring(const line_segment_t& line_segment, const scalar_t& rest_angle, const scalar_t& spring_constant)
-      : line_segment_(line_segment), rest_angle_(rest_angle), spring_constant_(spring_constant) {
+  TorsionalSpring(const v_segment_t& v_segment, const scalar_t& rest_angle, const scalar_t& spring_constant)
+      : v_segment_(v_segment), rest_angle_(rest_angle), spring_constant_(spring_constant) {
   }
 
   /// \brief Constructor to initialize the start and end points.
   /// \param[in] start The start of the TorsionalSpring.
   /// \param[in] end The end of the TorsionalSpring.
-  template <mundy::geom::ValidLineSegmentType OtherLineSegmentType>
-  KOKKOS_FUNCTION TorsionalSpring(const OtherLineSegmentType& line_segment, const scalar_t& rest_angle,
+  template <mundy::geom::ValidVSegmentType OtherVSegmentType>
+  KOKKOS_FUNCTION TorsionalSpring(const OtherVSegmentType& v_segment, const scalar_t& rest_angle,
                                 const scalar_t& spring_constant)
-    requires(!std::is_same_v<OtherLineSegmentType, line_segment_t>)
-      : line_segment_(line_segment), rest_angle_(rest_angle), spring_constant_(spring_constant) {
+    requires(!std::is_same_v<OtherVSegmentType, v_segment_t>)
+      : v_segment_(v_segment), rest_angle_(rest_angle), spring_constant_(spring_constant) {
   }
 
   /// \brief Destructor
@@ -96,21 +96,21 @@ class TorsionalSpring {
 
   /// \brief Deep copy constructor
   KOKKOS_FUNCTION
-  TorsionalSpring(const TorsionalSpring<scalar_t, line_segment_t, ownership_t>& other)
-      : line_segment_(other.line_segment_), rest_angle_(other.rest_angle_), spring_constant_(other.spring_constant_) {
+  TorsionalSpring(const TorsionalSpring<scalar_t, v_segment_t, ownership_t>& other)
+      : v_segment_(other.v_segment_), rest_angle_(other.rest_angle_), spring_constant_(other.spring_constant_) {
   }
 
   /// \brief Deep copy constructor
   template <typename OtherTorsionalSpringType>
   KOKKOS_FUNCTION TorsionalSpring(const OtherTorsionalSpringType& other)
-    requires(!std::is_same_v<OtherTorsionalSpringType, TorsionalSpring<scalar_t, line_segment_t, ownership_t>>)
-      : line_segment_(other.line_segment_), rest_angle_(other.rest_angle_), spring_constant_(other.spring_constant_) {
+    requires(!std::is_same_v<OtherTorsionalSpringType, TorsionalSpring<scalar_t, v_segment_t, ownership_t>>)
+      : v_segment_(other.v_segment_), rest_angle_(other.rest_angle_), spring_constant_(other.spring_constant_) {
   }
 
   /// \brief Deep move constructor
   KOKKOS_FUNCTION
-  TorsionalSpring(TorsionalSpring<scalar_t, line_segment_t, ownership_t>&& other)
-      : line_segment_(std::move(other.line_segment_)),
+  TorsionalSpring(TorsionalSpring<scalar_t, v_segment_t, ownership_t>&& other)
+      : v_segment_(std::move(other.v_segment_)),
         rest_angle_(std::move(other.rest_angle_)),
         spring_constant_(std::move(other.spring_constant_)) {
   }
@@ -118,8 +118,8 @@ class TorsionalSpring {
   /// \brief Deep move constructor
   template <typename OtherTorsionalSpringType>
   KOKKOS_FUNCTION TorsionalSpring(OtherTorsionalSpringType&& other)
-    requires(!std::is_same_v<OtherTorsionalSpringType, TorsionalSpring<scalar_t, line_segment_t, ownership_t>>)
-      : line_segment_(std::move(other.line_segment_)),
+    requires(!std::is_same_v<OtherTorsionalSpringType, TorsionalSpring<scalar_t, v_segment_t, ownership_t>>)
+      : v_segment_(std::move(other.v_segment_)),
         rest_angle_(std::move(other.rest_angle_)),
         spring_constant_(std::move(other.spring_constant_)) {
   }
@@ -130,9 +130,9 @@ class TorsionalSpring {
 
   /// \brief Copy assignment operator
   KOKKOS_FUNCTION
-  TorsionalSpring<scalar_t, line_segment_t, ownership_t>& operator=(const TorsionalSpring<scalar_t, line_segment_t, ownership_t>& other) {
+  TorsionalSpring<scalar_t, v_segment_t, ownership_t>& operator=(const TorsionalSpring<scalar_t, v_segment_t, ownership_t>& other) {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
-    line_segment_ = other.line_segment_;
+    v_segment_ = other.v_segment_;
     rest_angle_ = other.rest_angle_;
     spring_constant_ = other.spring_constant_;
     return *this;
@@ -140,11 +140,11 @@ class TorsionalSpring {
 
   /// \brief Copy assignment operator
   template <typename OtherTorsionalSpringType>
-  KOKKOS_FUNCTION TorsionalSpring<scalar_t, line_segment_t, ownership_t>& operator=(const OtherTorsionalSpringType& other)
-    requires(!std::is_same_v<OtherTorsionalSpringType, TorsionalSpring<scalar_t, line_segment_t, ownership_t>>)
+  KOKKOS_FUNCTION TorsionalSpring<scalar_t, v_segment_t, ownership_t>& operator=(const OtherTorsionalSpringType& other)
+    requires(!std::is_same_v<OtherTorsionalSpringType, TorsionalSpring<scalar_t, v_segment_t, ownership_t>>)
   {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
-    line_segment_ = other.line_segment_;
+    v_segment_ = other.v_segment_;
     rest_angle_ = other.rest_angle_;
     spring_constant_ = other.spring_constant_;
     return *this;
@@ -152,9 +152,9 @@ class TorsionalSpring {
 
   /// \brief Move assignment operator
   KOKKOS_FUNCTION
-  TorsionalSpring<scalar_t, line_segment_t, ownership_t>& operator=(TorsionalSpring<scalar_t, line_segment_t, ownership_t>&& other) {
+  TorsionalSpring<scalar_t, v_segment_t, ownership_t>& operator=(TorsionalSpring<scalar_t, v_segment_t, ownership_t>&& other) {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
-    line_segment_ = std::move(other.line_segment_);
+    v_segment_ = std::move(other.v_segment_);
     rest_angle_ = std::move(other.rest_angle_);
     spring_constant_ = std::move(other.spring_constant_);
     return *this;
@@ -162,11 +162,11 @@ class TorsionalSpring {
 
   /// \brief Move assignment operator
   template <typename OtherTorsionalSpringType>
-  KOKKOS_FUNCTION TorsionalSpring<scalar_t, line_segment_t, ownership_t>& operator=(OtherTorsionalSpringType&& other)
-    requires(!std::is_same_v<OtherTorsionalSpringType, TorsionalSpring<scalar_t, line_segment_t, ownership_t>>)
+  KOKKOS_FUNCTION TorsionalSpring<scalar_t, v_segment_t, ownership_t>& operator=(OtherTorsionalSpringType&& other)
+    requires(!std::is_same_v<OtherTorsionalSpringType, TorsionalSpring<scalar_t, v_segment_t, ownership_t>>)
   {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
-    line_segment_ = std::move(other.line_segment_);
+    v_segment_ = std::move(other.v_segment_);
     rest_angle_ = std::move(other.rest_angle_);
     spring_constant_ = std::move(other.spring_constant_);
     return *this;
@@ -178,14 +178,14 @@ class TorsionalSpring {
 
   /// \brief Accessor for the line segment
   KOKKOS_FUNCTION
-  const line_segment_t& line_segment() const {
-    return line_segment_;
+  const v_segment_t& v_segment() const {
+    return v_segment_;
   }
 
   /// \brief Accessor for the line segment
   KOKKOS_FUNCTION
-  line_segment_t& line_segment() {
-    return line_segment_;
+  v_segment_t& v_segment() {
+    return v_segment_;
   }
 
   /// \brief Accessor for the rest angle
@@ -217,10 +217,10 @@ class TorsionalSpring {
   //@{
 
   /// \brief Set the line segment
-  /// \param[in] line_segment The new line segment.
-  template <mundy::geom::ValidLineSegmentType OtherLineSegmentType>
-  KOKKOS_FUNCTION void set_line_segment(const OtherLineSegmentType& line_segment) {
-    line_segment_ = line_segment;
+  /// \param[in] v_segment The new line segment.
+  template <mundy::geom::ValidVSegmentType OtherVSegmentType>
+  KOKKOS_FUNCTION void set_v_segment(const OtherVSegmentType& v_segment) {
+    v_segment_ = v_segment;
   }
 
   /// \brief Set the rest angle
@@ -239,7 +239,7 @@ class TorsionalSpring {
   //@}
 
  private:
-  line_segment_t line_segment_;
+  v_segment_t v_segment_;
   std::conditional_t<std::is_same_v<ownership_t, mundy::math::Ownership::Owns>, scalar_t, scalar_t&> rest_angle_;
   std::conditional_t<std::is_same_v<ownership_t, mundy::math::Ownership::Owns>, scalar_t, scalar_t&> spring_constant_;
 };  // class TorsionalSpring
@@ -248,11 +248,11 @@ class TorsionalSpring {
 template <typename T>
 struct is_torsional_spring : std::false_type {};
 //
-template <typename Scalar, mundy::geom::ValidLineSegmentType LineSegmentType, typename OwnershipType>
-struct is_torsional_spring<TorsionalSpring<Scalar, LineSegmentType, OwnershipType>> : std::true_type {};
+template <typename Scalar, mundy::geom::ValidVSegmentType VSegmentType, typename OwnershipType>
+struct is_torsional_spring<TorsionalSpring<Scalar, VSegmentType, OwnershipType>> : std::true_type {};
 //
-template <typename Scalar, mundy::geom::ValidLineSegmentType LineSegmentType, typename OwnershipType>
-struct is_torsional_spring<const TorsionalSpring<Scalar, LineSegmentType, OwnershipType>> : std::true_type {};
+template <typename Scalar, mundy::geom::ValidVSegmentType VSegmentType, typename OwnershipType>
+struct is_torsional_spring<const TorsionalSpring<Scalar, VSegmentType, OwnershipType>> : std::true_type {};
 //
 template <typename T>
 inline constexpr bool is_torsional_spring_v = is_torsional_spring<T>::value;

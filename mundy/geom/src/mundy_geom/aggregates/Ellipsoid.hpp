@@ -43,16 +43,26 @@ namespace geom {
 
 /// \brief A struct to hold the data for a collection of ellipsoids
 ///
+/// The topology of an ellipsoid directly effects the access pattern for the underlying data:
+///   - NODE: All data is stored on a single node
+///   - PARTICLE: The center is stored on a node, whereas the orientation and axis lengths are stored on the
+///   element-rank particle
+///
+/// Use \ref create_ellipsoid_data to build an EllipsoidData object with automatic template deduction.
+///
 /// \tparam Scalar The scalar type of the ellipsoid's radius and center.
-/// \tparam CenterDataType The type of the center data. Can either be a const or non-const stk::mesh::Field of scalars.
-/// \tparam OrientationDataType The type of the orientation data. Can either be a Quaternion or a const or non-const
-/// stk::mesh::Field of scalars.
-/// \tparam AxisLengthsDataType The type of the axis lengths data. Can either be a Vector3 or a const or non-const
-/// stk::mesh::Field of scalars.
-template <typename Scalar, typename CenterDataType = stk::mesh::Field<Scalar>,
-          typename OrientationDataType = stk::mesh::Field<Scalar>,
+/// \tparam OurTopology Can be NODE or PARTICLE.
+/// \tparam CenterDataType Can either be a const or non-const stk::mesh::Field of scalars.
+/// \tparam OrientationDataType Can either be a Quaternion or a const or non-const stk::mesh::Field of scalars.
+/// \tparam AxisLengthsDataType Can either be a Vector3 or a const or non-const stk::mesh::Field of scalars.
+template <typename Scalar,                                          //
+          stk::topology::topology_t OurTopology,                    //
+          typename CenterDataType = stk::mesh::Field<Scalar>,       //
+          typename OrientationDataType = stk::mesh::Field<Scalar>,  //
           typename AxisLengthsDataType = stk::mesh::Field<Scalar>>
 struct EllipsoidData {
+  static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
+                "The topology of an ellipsoid must be either NODE or PARTICLE");
   static_assert(std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>> &&
                     (std::is_same_v<std::decay_t<OrientationDataType>, stk::mesh::Field<Scalar>> ||
                      std::is_same_v<std::decay_t<OrientationDataType>, mundy::math::Quaternion<Scalar>>) &&
@@ -67,7 +77,7 @@ struct EllipsoidData {
   using orientation_data_t = OrientationDataType;
   using axis_lengths_data_t = AxisLengthsDataType;
 
-  stk::topology::rank_t ellipsoid_rank;
+  static constexpr stk::topology::topology_t topology = OurTopology;
   center_data_t& center_data;
   orientation_data_t& orientation_data;
   axis_lengths_data_t& axis_lengths_data;
@@ -75,10 +85,14 @@ struct EllipsoidData {
 
 /// \brief A struct to hold the data for a collection of NGP-compatible ellipsoids
 /// See the discussion for EllipsoidData for more information. Only difference is NgpFields over Fields.
-template <typename Scalar, typename CenterDataType = stk::mesh::NgpField<Scalar>,
-          typename OrientationDataType = stk::mesh::NgpField<Scalar>,
+template <typename Scalar,                                             //
+          stk::topology::topology_t OurTopology,                       //
+          typename CenterDataType = stk::mesh::NgpField<Scalar>,       //
+          typename OrientationDataType = stk::mesh::NgpField<Scalar>,  //
           typename AxisLengthsDataType = stk::mesh::NgpField<Scalar>>
 struct NgpEllipsoidData {
+  static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
+                "The topology of an ellipsoid must be either NODE or PARTICLE");
   static_assert(std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::NgpField<Scalar>> &&
                     (std::is_same_v<std::decay_t<OrientationDataType>, stk::mesh::NgpField<Scalar>> ||
                      std::is_same_v<std::decay_t<OrientationDataType>, mundy::math::Quaternion<Scalar>>) &&
@@ -93,7 +107,7 @@ struct NgpEllipsoidData {
   using orientation_data_t = OrientationDataType;
   using axis_lengths_data_t = AxisLengthsDataType;
 
-  stk::topology::rank_t ellipsoid_rank;
+  static constexpr stk::topology::topology_t topology = OurTopology;
   center_data_t& center_data;
   orientation_data_t& orientation_data;
   axis_lengths_data_t& axis_lengths_data;
@@ -103,48 +117,56 @@ struct NgpEllipsoidData {
 ///
 /// This function creates a EllipsoidData object given its rank and data (be they shared or field data)
 /// and is used to automatically deduce the template parameters.
-template <typename Scalar, typename CenterDataType, typename OrientationDataType, typename AxisLengthsDataType>
-auto create_ellipsoid_data(stk::topology::rank_t ellipsoid_rank, CenterDataType& center_data,
-                           OrientationDataType& orientation_data, AxisLengthsDataType& axis_lengths_data) {
+template <typename Scalar,                        // Must be provided
+          stk::topology::topology_t OurTopology,  // Must be provided
+          typename CenterDataType,                // deduced
+          typename OrientationDataType,           // deduced
+          typename AxisLengthsDataType>           // deduced
+auto create_ellipsoid_data(CenterDataType& center_data, OrientationDataType& orientation_data,
+                           AxisLengthsDataType& axis_lengths_data) {
   constexpr bool is_orientation_a_field = std::is_same_v<std::decay_t<OrientationDataType>, stk::mesh::Field<Scalar>>;
   constexpr bool is_axis_lengths_a_field = std::is_same_v<std::decay_t<AxisLengthsDataType>, stk::mesh::Field<Scalar>>;
-
+  stk::topology our_topology = OurTopology;
   MUNDY_THROW_ASSERT(center_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
-                      "The center_data data must be a field of NODE_RANK");
+                     "The center_data data must be a field of NODE_RANK");
   if constexpr (is_orientation_a_field) {
-    MUNDY_THROW_ASSERT(orientation_data.entity_rank() == ellipsoid_rank, std::invalid_argument,
+    MUNDY_THROW_ASSERT(orientation_data.entity_rank() == our_topology.rank(), std::invalid_argument,
                        "The orientation data must be a field of the same rank as the ellipsoid");
   }
   if constexpr (is_axis_lengths_a_field) {
-    MUNDY_THROW_ASSERT(axis_lengths_data.entity_rank() == ellipsoid_rank, std::invalid_argument,
+    MUNDY_THROW_ASSERT(axis_lengths_data.entity_rank() == our_topology.rank(), std::invalid_argument,
                        "The axis lengths data must be a field of the same rank as the ellipsoid");
   }
-  return EllipsoidData<Scalar, CenterDataType, OrientationDataType, AxisLengthsDataType>{
-      ellipsoid_rank, center_data, orientation_data, axis_lengths_data};
+  return EllipsoidData<Scalar, OurTopology, CenterDataType, OrientationDataType, AxisLengthsDataType>{
+      center_data, orientation_data, axis_lengths_data};
 }
 
 /// \brief A helper function to create a NgpEllipsoidData object
 /// See the discussion for create_ellipsoid_data for more information. Only difference is NgpFields over Fields.
-template <typename Scalar, typename CenterDataType, typename OrientationDataType, typename AxisLengthsDataType>
-auto create_ngp_ellipsoid_data(stk::topology::rank_t ellipsoid_rank, CenterDataType& center_data,
-                               OrientationDataType& orientation_data, AxisLengthsDataType& axis_lengths_data) {
+template <typename Scalar,                        // Must be provided
+          stk::topology::topology_t OurTopology,  // Must be provided
+          typename CenterDataType,                // deduced
+          typename OrientationDataType,           // deduced
+          typename AxisLengthsDataType>           // deduced
+auto create_ngp_ellipsoid_data(CenterDataType& center_data, OrientationDataType& orientation_data,
+                               AxisLengthsDataType& axis_lengths_data) {
   constexpr bool is_orientation_a_field =
       std::is_same_v<std::decay_t<OrientationDataType>, stk::mesh::NgpField<Scalar>>;
   constexpr bool is_axis_lengths_a_field =
       std::is_same_v<std::decay_t<AxisLengthsDataType>, stk::mesh::NgpField<Scalar>>;
-
+  stk::topology our_topology = OurTopology;
   MUNDY_THROW_ASSERT(center_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
-                      "The center_data data must be a field of NODE_RANK");
+                     "The center_data data must be a field of NODE_RANK");
   if constexpr (is_orientation_a_field) {
-    MUNDY_THROW_ASSERT(orientation_data.get_rank() == ellipsoid_rank, std::invalid_argument,
+    MUNDY_THROW_ASSERT(orientation_data.get_rank() == our_topology.rank(), std::invalid_argument,
                        "The orientation data must be a field of the same rank as the ellipsoid");
   }
   if constexpr (is_axis_lengths_a_field) {
-    MUNDY_THROW_ASSERT(axis_lengths_data.get_rank() == ellipsoid_rank, std::invalid_argument,
+    MUNDY_THROW_ASSERT(axis_lengths_data.get_rank() == our_topology.rank(), std::invalid_argument,
                        "The axis lengths data must be a field of the same rank as the ellipsoid");
   }
-  return NgpEllipsoidData<Scalar, CenterDataType, OrientationDataType, AxisLengthsDataType>{
-      ellipsoid_rank, center_data, orientation_data, axis_lengths_data};
+  return NgpEllipsoidData<Scalar, OurTopology, CenterDataType, OrientationDataType, AxisLengthsDataType>{
+      center_data, orientation_data, axis_lengths_data};
 }
 
 /// \brief A concept to check if a type provides the same data as EllipsoidData
@@ -159,7 +181,7 @@ concept ValidDefaultEllipsoidDataType = requires(Agg agg) {
       std::is_same_v<std::decay_t<typename Agg::orientation_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
   mundy::math::is_vector3_v<std::decay_t<typename Agg::axis_lengths_data_t>> ||
       std::is_same_v<std::decay_t<typename Agg::axis_lengths_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  { agg.ellipsoid_rank } -> std::convertible_to<stk::topology::rank_t>;
+  { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
   { agg.center_data } -> std::convertible_to<typename Agg::center_data_t&>;
   { agg.orientation_data } -> std::convertible_to<typename Agg::orientation_data_t&>;
   { agg.axis_lengths_data } -> std::convertible_to<typename Agg::axis_lengths_data_t&>;
@@ -177,28 +199,35 @@ concept ValidDefaultNgpEllipsoidDataType = requires(Agg agg) {
       std::is_same_v<std::decay_t<typename Agg::orientation_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
   mundy::math::is_vector3_v<std::decay_t<typename Agg::axis_lengths_data_t>> ||
       std::is_same_v<std::decay_t<typename Agg::axis_lengths_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { agg.ellipsoid_rank } -> std::convertible_to<stk::topology::rank_t>;
+  { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
   { agg.center_data } -> std::convertible_to<typename Agg::center_data_t&>;
   { agg.orientation_data } -> std::convertible_to<typename Agg::orientation_data_t&>;
   { agg.axis_lengths_data } -> std::convertible_to<typename Agg::axis_lengths_data_t&>;
 };  // ValidDefaultNgpEllipsoidDataType
 
-static_assert(
-    ValidDefaultEllipsoidDataType<EllipsoidData<float, stk::mesh::Field<float>, mundy::math::Quaternion<float>, Point<float>>> &&
-        ValidDefaultEllipsoidDataType<
-            EllipsoidData<float, stk::mesh::Field<float>, mundy::math::Quaternion<float>, stk::mesh::Field<float>>> &&
-        ValidDefaultEllipsoidDataType<
-            EllipsoidData<float, stk::mesh::Field<float>, mundy::math::Quaternion<float>, stk::mesh::Field<float>>>,
-    "EllipsoidData must satisfy the ValidDefaultEllipsoidDataType concept");
+static_assert(ValidDefaultEllipsoidDataType<EllipsoidData<float,                           //
+                                                          stk::topology::NODE,             //
+                                                          stk::mesh::Field<float>,         //
+                                                          mundy::math::Quaternion<float>,  //
+                                                          Point<float>>> &&
+                  ValidDefaultEllipsoidDataType<EllipsoidData<float,
+                                                              stk::topology::PARTICLE,  //
+                                                              stk::mesh::Field<float>,  //
+                                                              stk::mesh::Field<float>,  //
+                                                              stk::mesh::Field<float>>>,
+              "EllipsoidData must satisfy the ValidDefaultEllipsoidDataType concept");
 
-static_assert(
-    ValidDefaultNgpEllipsoidDataType<
-        NgpEllipsoidData<float, stk::mesh::NgpField<float>, mundy::math::Quaternion<float>, Point<float>>> &&
-        ValidDefaultNgpEllipsoidDataType<
-            NgpEllipsoidData<float, stk::mesh::NgpField<float>, mundy::math::Quaternion<float>, stk::mesh::NgpField<float>>> &&
-        ValidDefaultNgpEllipsoidDataType<
-            NgpEllipsoidData<float, stk::mesh::NgpField<float>, stk::mesh::NgpField<float>, stk::mesh::NgpField<float>>>,
-    "NgpEllipsoidData must satisfy the ValidDefaultNgpEllipsoidDataType concept");
+static_assert(ValidDefaultNgpEllipsoidDataType<NgpEllipsoidData<float,                           //
+                                                                stk::topology::NODE,             //
+                                                                stk::mesh::NgpField<float>,      //
+                                                                mundy::math::Quaternion<float>,  //
+                                                                Point<float>>> &&
+                  ValidDefaultNgpEllipsoidDataType<NgpEllipsoidData<float,
+                                                                    stk::topology::PARTICLE,     //
+                                                                    stk::mesh::NgpField<float>,  //
+                                                                    stk::mesh::NgpField<float>,  //
+                                                                    stk::mesh::NgpField<float>>>,
+              "NgpEllipsoidData must satisfy the ValidDefaultNgpEllipsoidDataType concept");
 
 /// \brief A helper function to get an updated NgpEllipsoidData object from a EllipsoidData object
 /// \param data The EllipsoidData object to convert
@@ -208,30 +237,27 @@ auto get_updated_ngp_data(EllipsoidDataType data) {
   using center_data_t = typename EllipsoidDataType::center_data_t;
   using orientation_data_t = typename EllipsoidDataType::orientation_data_t;
   using axis_lengths_data_t = typename EllipsoidDataType::axis_lengths_data_t;
+  constexpr stk::topology::topology_t our_topology = EllipsoidDataType::topology;
 
   constexpr bool is_orientation_a_field = std::is_same_v<std::decay_t<orientation_data_t>, stk::mesh::Field<scalar_t>>;
   constexpr bool is_axis_lengths_a_field =
       std::is_same_v<std::decay_t<axis_lengths_data_t>, stk::mesh::Field<scalar_t>>;
   if constexpr (is_orientation_a_field && is_axis_lengths_a_field) {
-    return create_ngp_ellipsoid_data<scalar_t>(data.ellipsoid_rank,  //
-                                               stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data),
-                                               stk::mesh::get_updated_ngp_field<scalar_t>(data.orientation_data),
-                                               stk::mesh::get_updated_ngp_field<scalar_t>(data.axis_lengths_data));
+    return create_ngp_ellipsoid_data<scalar_t, our_topology>(
+        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data),
+        stk::mesh::get_updated_ngp_field<scalar_t>(data.orientation_data),
+        stk::mesh::get_updated_ngp_field<scalar_t>(data.axis_lengths_data));
   } else if constexpr (is_orientation_a_field && !is_axis_lengths_a_field) {
-    return create_ngp_ellipsoid_data<scalar_t>(data.ellipsoid_rank,  //
-                                               stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data),
-                                               stk::mesh::get_updated_ngp_field<scalar_t>(data.orientation_data),
-                                               data.axis_lengths_data);
+    return create_ngp_ellipsoid_data<scalar_t, our_topology>(
+        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data),
+        stk::mesh::get_updated_ngp_field<scalar_t>(data.orientation_data), data.axis_lengths_data);
   } else if constexpr (!is_orientation_a_field && is_axis_lengths_a_field) {
-    return create_ngp_ellipsoid_data<scalar_t>(data.ellipsoid_rank,  //
-                                               stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data),
-                                               data.orientation_data,
-                                               stk::mesh::get_updated_ngp_field<scalar_t>(data.axis_lengths_data));
+    return create_ngp_ellipsoid_data<scalar_t, our_topology>(
+        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data), data.orientation_data,
+        stk::mesh::get_updated_ngp_field<scalar_t>(data.axis_lengths_data));
   } else {
-    return create_ngp_ellipsoid_data<scalar_t>(data.ellipsoid_rank, 
-                                               stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data),
-                                               data.orientation_data,
-                                               data.axis_lengths_data);
+    return create_ngp_ellipsoid_data<scalar_t, our_topology>(
+        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data), data.orientation_data, data.axis_lengths_data);
   }
 }
 
@@ -251,6 +277,7 @@ struct EllipsoidDataTraits {
   using center_data_t = typename Agg::center_data_t;
   using orientation_data_t = typename Agg::orientation_data_t;
   using axis_lengths_data_t = typename Agg::axis_lengths_data_t;
+  static constexpr stk::topology::topology_t topology = Agg::topology;
 
   static constexpr bool has_shared_orientation() {
     return mundy::math::is_quaternion_v<orientation_data_t>;
@@ -295,6 +322,7 @@ struct NgpEllipsoidDataTraits {
   using center_data_t = typename Agg::center_data_t;
   using orientation_data_t = typename Agg::orientation_data_t;
   using axis_lengths_data_t = typename Agg::axis_lengths_data_t;
+  static constexpr stk::topology::topology_t topology = Agg::topology;
 
   KOKKOS_INLINE_FUNCTION
   static constexpr bool has_shared_orientation() {
@@ -331,18 +359,75 @@ struct NgpEllipsoidDataTraits {
 };  // NgpEllipsoidDataTraits
 
 /// @brief A view of an STK entity meant to represent a ellipsoid
-/// If ellipsoid_rank is NODE_RANK, then the ellipsoid is just a node entity with node center, orientation, and axis
-/// lengths.
-/// If ellipsoid_rank is ELEM_RANK, then the ellipsoid is a particle entity with node center, elem orientation, and elem
-/// axis lengths.
+///
+/// We type specialize this class based on the valid set of topologies for an ellipsoid entity.
+///
+/// Use \ref create_ellipsoid_entity_view to build an EllipsoidEntityView object with automatic template deduction.
+template <stk::topology::topology_t OurTopology, typename EllipsoidDataType>
+class EllipsoidEntityView;
+
+/// @brief A view of an STK entity meant to represent a ellipsoid
 template <typename EllipsoidDataType>
-class ElemEllipsoidView {
+class EllipsoidEntityView<stk::topology::NODE, EllipsoidDataType> {
+  static_assert(EllipsoidDataType::topology == stk::topology::NODE,
+                "The topology of the ellipsoid data must match the view");
+
  public:
   using data_access_t = EllipsoidDataTraits<EllipsoidDataType>;
   using scalar_t = typename data_access_t::scalar_t;
   using point_t = decltype(data_access_t::center(std::declval<EllipsoidDataType>(), std::declval<stk::mesh::Entity>()));
 
-  ElemEllipsoidView(const stk::mesh::BulkData& bulk_data, EllipsoidDataType data, stk::mesh::Entity ellipsoid)
+  static constexpr stk::topology::topology_t topology = stk::topology::NODE;
+  static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
+
+  EllipsoidEntityView([[maybe_unused]] const stk::mesh::BulkData& bulk_data, EllipsoidDataType data,
+                          stk::mesh::Entity ellipsoid)
+      : data_(data), ellipsoid_(ellipsoid) {
+  }
+
+  decltype(auto) center() {
+    return data_access_t::center(data_, ellipsoid_);
+  }
+
+  decltype(auto) center() const {
+    return data_access_t::center(data_, ellipsoid_);
+  }
+
+  decltype(auto) orientation() {
+    return data_access_t::orientation(data_, ellipsoid_);
+  }
+
+  decltype(auto) orientation() const {
+    return data_access_t::orientation(data_, ellipsoid_);
+  }
+
+  decltype(auto) axis_lengths() {
+    return data_access_t::axis_lengths(data_, ellipsoid_);
+  }
+
+  decltype(auto) axis_lengths() const {
+    return data_access_t::axis_lengths(data_, ellipsoid_);
+  }
+
+ private:
+  EllipsoidDataType data_;
+  stk::mesh::Entity ellipsoid_;
+};  // EllipsoidEntityView<NODE, EllipsoidDataType>
+
+template <typename EllipsoidDataType>
+class EllipsoidEntityView<stk::topology::PARTICLE, EllipsoidDataType> {
+  static_assert(EllipsoidDataType::topology == stk::topology::PARTICLE,
+                "The topology of the ellipsoid data must match the view");
+
+ public:
+  using data_access_t = EllipsoidDataTraits<EllipsoidDataType>;
+  using scalar_t = typename data_access_t::scalar_t;
+  using point_t = decltype(data_access_t::center(std::declval<EllipsoidDataType>(), std::declval<stk::mesh::Entity>()));
+
+  static constexpr stk::topology::topology_t topology = stk::topology::PARTICLE;
+  static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
+
+  EllipsoidEntityView(const stk::mesh::BulkData& bulk_data, EllipsoidDataType data, stk::mesh::Entity ellipsoid)
       : data_(data), ellipsoid_(ellipsoid), node_(bulk_data.begin_nodes(ellipsoid_)[0]) {
   }
 
@@ -374,22 +459,88 @@ class ElemEllipsoidView {
   EllipsoidDataType data_;
   stk::mesh::Entity ellipsoid_;
   stk::mesh::Entity node_;
-};  // ElemEllipsoidView
+};  // EllipsoidEntityView<PARTICLE, EllipsoidDataType>
 
-/// @brief An ngp-compatible view of an STK entity meant to represent a ellipsoid
-/// See the discussion for ElemEllipsoidView for more information. The only difference is ngp-compatible data access.
+/// @brief An ngp-compatible view of an ellipsoid entity
+template <stk::topology::topology_t OurTopology, typename NgpEllipsoidDataType>
+class NgpEllipsoidEntityView;
+
 template <typename NgpEllipsoidDataType>
-class NgpElemEllipsoidView {
+class NgpEllipsoidEntityView<stk::topology::NODE, NgpEllipsoidDataType> {
+  static_assert(NgpEllipsoidDataType::topology == stk::topology::NODE,
+                "The topology of the ellipsoid data must match the view");
+
  public:
   using data_access_t = NgpEllipsoidDataTraits<NgpEllipsoidDataType>;
   using scalar_t = typename data_access_t::scalar_t;
-  using point_t = decltype(data_access_t::center(std::declval<NgpEllipsoidDataType>(), std::declval<stk::mesh::FastMeshIndex>()));
+  using point_t =
+      decltype(data_access_t::center(std::declval<NgpEllipsoidDataType>(), std::declval<stk::mesh::FastMeshIndex>()));
+
+  static constexpr stk::topology::topology_t topology = stk::topology::NODE;
+  static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
 
   KOKKOS_INLINE_FUNCTION
-  NgpElemEllipsoidView(stk::mesh::NgpMesh ngp_mesh, NgpEllipsoidDataType data, stk::mesh::FastMeshIndex ellipsoid_index)
+  NgpEllipsoidEntityView([[maybe_unused]] stk::mesh::NgpMesh ngp_mesh, NgpEllipsoidDataType data,
+                         stk::mesh::FastMeshIndex ellipsoid_index)
+      : data_(data), ellipsoid_index_(ellipsoid_index) {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) center() {
+    return data_access_t::center(data_, ellipsoid_index_);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) center() const {
+    return data_access_t::center(data_, ellipsoid_index_);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) orientation() {
+    return data_access_t::orientation(data_, ellipsoid_index_);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) orientation() const {
+    return data_access_t::orientation(data_, ellipsoid_index_);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) axis_lengths() {
+    return data_access_t::axis_lengths(data_, ellipsoid_index_);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) axis_lengths() const {
+    return data_access_t::axis_lengths(data_, ellipsoid_index_);
+  }
+
+ private:
+  NgpEllipsoidDataType data_;
+  stk::mesh::FastMeshIndex ellipsoid_index_;
+};  // NgpEllipsoidEntityView<NODE, NgpEllipsoidDataType>
+
+/// @brief An ngp-compatible view of an STK entity meant to represent a ellipsoid
+template <typename NgpEllipsoidDataType>
+class NgpEllipsoidEntityView<stk::topology::PARTICLE, NgpEllipsoidDataType> {
+  static_assert(NgpEllipsoidDataType::topology == stk::topology::PARTICLE,
+                "The topology of the ellipsoid data must match the view");
+
+ public:
+  using data_access_t = NgpEllipsoidDataTraits<NgpEllipsoidDataType>;
+  using scalar_t = typename data_access_t::scalar_t;
+  using point_t =
+      decltype(data_access_t::center(std::declval<NgpEllipsoidDataType>(), std::declval<stk::mesh::FastMeshIndex>()));
+
+  static constexpr stk::topology::topology_t topology = stk::topology::PARTICLE;
+  static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
+
+  KOKKOS_INLINE_FUNCTION
+  NgpEllipsoidEntityView(stk::mesh::NgpMesh ngp_mesh, NgpEllipsoidDataType data,
+                         stk::mesh::FastMeshIndex ellipsoid_index)
       : data_(data),
         ellipsoid_index_(ellipsoid_index),
-        node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(data_.ellipsoid_rank, ellipsoid_index_)[0])) {
+        node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(rank, ellipsoid_index_)[0])) {
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -426,145 +577,48 @@ class NgpElemEllipsoidView {
   NgpEllipsoidDataType data_;
   stk::mesh::FastMeshIndex ellipsoid_index_;
   stk::mesh::FastMeshIndex node_index_;
-};  // NgpElemEllipsoidView
+};  // NgpEllipsoidEntityView<PARTICLE, NgpEllipsoidDataType>
 
-/// @brief A view of an STK entity meant to represent a ellipsoid
-/// If the ellipsoid_rank is NODE_RANK, then the ellipsoid is just a node entity with node radius and node center.
-/// If the ellipsoid_rank is ELEM_RANK, then the ellipsoid is a particle entity with element radius and node center.
-template <typename EllipsoidDataType>
-class NodeEllipsoidView {
- public:
-  using data_access_t = EllipsoidDataTraits<EllipsoidDataType>;
-  using scalar_t = typename data_access_t::scalar_t;
-  using point_t = decltype(data_access_t::center(std::declval<EllipsoidDataType>(), std::declval<stk::mesh::Entity>()));
+static_assert(ValidEllipsoidType<EllipsoidEntityView<stk::topology::NODE,
+                                                     EllipsoidData<float,                           //
+                                                                   stk::topology::NODE,             //
+                                                                   stk::mesh::Field<float>,         //
+                                                                   mundy::math::Quaternion<float>,  //
+                                                                   Point<float>>>> &&
+                  ValidEllipsoidType<EllipsoidEntityView<stk::topology::PARTICLE,
+                                                         EllipsoidData<float,                    //
+                                                                       stk::topology::PARTICLE,  //
+                                                                       stk::mesh::Field<float>,  //
+                                                                       stk::mesh::Field<float>,  //
+                                                                       stk::mesh::Field<float>>>> &&
+                  ValidEllipsoidType<NgpEllipsoidEntityView<stk::topology::NODE,
+                                                            NgpEllipsoidData<float,                           //
+                                                                             stk::topology::NODE,             //
+                                                                             stk::mesh::NgpField<float>,      //
+                                                                             mundy::math::Quaternion<float>,  //
+                                                                             Point<float>>>> &&
+                  ValidEllipsoidType<NgpEllipsoidEntityView<stk::topology::PARTICLE,
+                                                            NgpEllipsoidData<float,                       //
+                                                                             stk::topology::PARTICLE,     //
+                                                                             stk::mesh::NgpField<float>,  //
+                                                                             stk::mesh::NgpField<float>,  //
+                                                                             stk::mesh::NgpField<float>>>>,
+              "EllipsoidEntityView and NgpEllipsoidEntityView must be valid Ellipsoid types.");
 
-  NodeEllipsoidView([[maybe_unused]] const stk::mesh::BulkData& bulk_data, EllipsoidDataType data, stk::mesh::Entity ellipsoid)
-      : data_(data), ellipsoid_(ellipsoid) {
-  }
-
-  decltype(auto) center() {
-    return data_access_t::center(data_, ellipsoid_);
-  }
-
-  decltype(auto) center() const {
-    return data_access_t::center(data_, ellipsoid_);
-  }
-
-  decltype(auto) orientation() {
-    return data_access_t::orientation(data_, ellipsoid_);
-  }
-
-  decltype(auto) orientation() const {
-    return data_access_t::orientation(data_, ellipsoid_);
-  }
-
-  decltype(auto) axis_lengths() {
-    return data_access_t::axis_lengths(data_, ellipsoid_);
-  }
-
-  decltype(auto) axis_lengths() const {
-    return data_access_t::axis_lengths(data_, ellipsoid_);
-  }
-
-
- private:
-  EllipsoidDataType data_;
-  stk::mesh::Entity ellipsoid_;
-};  // NodeEllipsoidView
-
-/// @brief An ngp-compatible view of an ELEM_RANK, PARTICLE topology ellipsoid entity
-template <typename NgpEllipsoidDataType>
-class NgpNodeEllipsoidView {
- public:
-  using data_access_t = NgpEllipsoidDataTraits<NgpEllipsoidDataType>;
-  using scalar_t = typename data_access_t::scalar_t;
-  using point_t = decltype(data_access_t::center(std::declval<NgpEllipsoidDataType>(), std::declval<stk::mesh::FastMeshIndex>()));
-
-  KOKKOS_INLINE_FUNCTION
-  NgpNodeEllipsoidView([[maybe_unused]] stk::mesh::NgpMesh ngp_mesh, NgpEllipsoidDataType data, stk::mesh::FastMeshIndex ellipsoid_index)
-      : data_(data),
-        ellipsoid_index_(ellipsoid_index) {
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  decltype(auto) center() {
-    return data_access_t::center(data_, ellipsoid_index_);
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  decltype(auto) center() const {
-    return data_access_t::center(data_, ellipsoid_index_);
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  decltype(auto) orientation() {
-    return data_access_t::orientation(data_, ellipsoid_index_);
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  decltype(auto) orientation() const {
-    return data_access_t::orientation(data_, ellipsoid_index_);
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  decltype(auto) axis_lengths() {
-    return data_access_t::axis_lengths(data_, ellipsoid_index_);
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  decltype(auto) axis_lengths() const {
-    return data_access_t::axis_lengths(data_, ellipsoid_index_);
-  }
-
- private:
-  NgpEllipsoidDataType data_;
-  stk::mesh::FastMeshIndex ellipsoid_index_;
-};  // NgpNodeEllipsoidView
-
-static_assert(
-  ValidEllipsoidType<ElemEllipsoidView<EllipsoidData<float, stk::mesh::Field<float>, mundy::math::Quaternion<float>, Point<float>>>>
-  && ValidEllipsoidType<ElemEllipsoidView<EllipsoidData<float, stk::mesh::Field<float>, mundy::math::Quaternion<float>, stk::mesh::Field<float>>>>
-  && ValidEllipsoidType<ElemEllipsoidView<EllipsoidData<float, stk::mesh::Field<float>, stk::mesh::Field<float>, stk::mesh::Field<float>>>>
-  && ValidEllipsoidType<NgpElemEllipsoidView<NgpEllipsoidData<float, stk::mesh::NgpField<float>, mundy::math::Quaternion<float>, Point<float>>>>
-  && ValidEllipsoidType<NgpElemEllipsoidView<NgpEllipsoidData<float, stk::mesh::NgpField<float>, mundy::math::Quaternion<float>, stk::mesh::NgpField<float>>>>
-  && ValidEllipsoidType<NgpElemEllipsoidView<NgpEllipsoidData<float, stk::mesh::NgpField<float>, stk::mesh::NgpField<float>, stk::mesh::NgpField<float>>>>,
-  "ElemEllipsoidView and NgpElemEllipsoidView must be valid Ellipsoid types");
-
-static_assert(
-  ValidEllipsoidType<NodeEllipsoidView<EllipsoidData<float, stk::mesh::Field<float>, mundy::math::Quaternion<float>, Point<float>>>>
-  && ValidEllipsoidType<NodeEllipsoidView<EllipsoidData<float, stk::mesh::Field<float>, mundy::math::Quaternion<float>, stk::mesh::Field<float>>>>
-  && ValidEllipsoidType<NodeEllipsoidView<EllipsoidData<float, stk::mesh::Field<float>, stk::mesh::Field<float>, stk::mesh::Field<float>>>>
-  && ValidEllipsoidType<NgpNodeEllipsoidView<NgpEllipsoidData<float, stk::mesh::NgpField<float>, mundy::math::Quaternion<float>, Point<float>>>>
-  && ValidEllipsoidType<NgpNodeEllipsoidView<NgpEllipsoidData<float, stk::mesh::NgpField<float>, mundy::math::Quaternion<float>, stk::mesh::NgpField<float>>>>
-  && ValidEllipsoidType<NgpNodeEllipsoidView<NgpEllipsoidData<float, stk::mesh::NgpField<float>, stk::mesh::NgpField<float>, stk::mesh::NgpField<float>>>>,
-  "NodeEllipsoidView and NgpNodeEllipsoidView must be valid Ellipsoid types");
-
-/// \brief A helper function to create a ElemEllipsoidView object with type deduction
-template <typename EllipsoidDataType>
-auto create_elem_ellipsoid_view(const stk::mesh::BulkData& bulk_data, EllipsoidDataType& data,
-                                stk::mesh::Entity ellipsoid) {
-  return ElemEllipsoidView<EllipsoidDataType>(bulk_data, data, ellipsoid);
+/// \brief A helper function to create a EllipsoidEntityView object with type deduction
+template <stk::topology::topology_t OurTopology,  // Must be provided
+          typename EllipsoidDataType>             // deduced
+auto create_ellipsoid_entity_view(const stk::mesh::BulkData& bulk_data, EllipsoidDataType& data,
+                                  stk::mesh::Entity ellipsoid) {
+  return EllipsoidEntityView<OurTopology, EllipsoidDataType>(bulk_data, data, ellipsoid);
 }
 
-/// \brief A helper function to create a NgpElemEllipsoidView object with type deduction
-template <typename NgpEllipsoidDataType>
-auto create_ngp_elem_ellipsoid_view(stk::mesh::NgpMesh ngp_mesh, NgpEllipsoidDataType data,
-                                    stk::mesh::FastMeshIndex ellipsoid_index) {
-  return NgpElemEllipsoidView<NgpEllipsoidDataType>(ngp_mesh, data, ellipsoid_index);
-}
-
-/// \brief A helper function to create a NodeEllipsoidView object with type deduction
-template <typename EllipsoidDataType>
-auto create_node_ellipsoid_view(const stk::mesh::BulkData& bulk_data, EllipsoidDataType& data,
-                                stk::mesh::Entity ellipsoid) {
-  return NodeEllipsoidView<EllipsoidDataType>(bulk_data, data, ellipsoid);
-}
-
-/// \brief A helper function to create a NgpNodeEllipsoidView object with type deduction
-template <typename NgpEllipsoidDataType>
-auto create_ngp_node_ellipsoid_view(stk::mesh::NgpMesh ngp_mesh, NgpEllipsoidDataType data,
-                                    stk::mesh::FastMeshIndex ellipsoid_index) {
-  return NgpNodeEllipsoidView<NgpEllipsoidDataType>(ngp_mesh, data, ellipsoid_index);
+/// \brief A helper function to create a NgpEllipsoidEntityView object with type deduction
+template <stk::topology::topology_t OurTopology,  // Must be provided
+          typename NgpEllipsoidDataType>          // deduced
+auto create_ngp_ellipsoid_entity_view(stk::mesh::NgpMesh ngp_mesh, NgpEllipsoidDataType data,
+                                      stk::mesh::FastMeshIndex ellipsoid_index) {
+  return NgpEllipsoidEntityView<OurTopology, NgpEllipsoidDataType>(ngp_mesh, data, ellipsoid_index);
 }
 //@}
 

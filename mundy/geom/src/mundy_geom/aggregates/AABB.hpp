@@ -43,6 +43,9 @@ namespace geom {
 
 /// \brief A struct to hold the data for a collection of aabbs
 ///
+/// The rank of an AABB does not change the access pattern for the underlying data, so we need not store it 
+/// as a constexpr. It only enforces a single check that the aabb data is of the same rank as the aabb.
+///
 /// \note Typically, aabb data will be augmented on top of other data, such as adding aabb data to a collection of
 /// spheres. In and of itself, the aabb data isn't very useful.
 ///

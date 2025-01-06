@@ -20,13 +20,12 @@
 #ifndef MUNDY_MECH_PRIMITIVES_HPP_
 #define MUNDY_MECH_PRIMITIVES_HPP_
 
-// All of our headers for primitive mechanical objects
-//
-// The total set of desired mechanical primatives is:
-//   - BallJoint:       A line segment with a desired length
-//   - HookeanSpring:   A line segment with a rest length and spring constant
-//   - FeneSpring:      A line segment with a maximum length and spring constant
-//   - AngularSpring:   A triangle of points with a rest angle and spring constant
-
+/// All of our headers for primitive mechanical objects
+///
+/// The total set of desired mechanical primatives is:
+///   - BallJoint:       A line segment with a desired length
+///   - HookeanSpring:   A line segment with a rest length and spring constant
+///   - FeneSpring:      A line segment with a maximum length and spring constant
+///   - AngularSpring:   A triangle of points with a rest angle and spring constant
 
 #endif  // MUNDY_MECH_PRIMITIVES_HPP_

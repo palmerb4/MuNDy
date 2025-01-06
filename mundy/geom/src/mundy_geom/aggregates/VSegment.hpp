@@ -31,8 +31,8 @@
 
 // Mundy mesh
 #include <mundy_geom/primitives/VSegment.hpp>  // for mundy::geom::ValidVSegmentType
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/FieldViews.hpp>        // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_mesh/BulkData.hpp>             // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
 
 namespace mundy {
 
@@ -41,30 +41,49 @@ namespace geom {
 //! \name Aggregate traits
 //@{
 
-/// \brief A struct to hold the data for a collection of line segments
-template <typename Scalar, typename NodeCoordsDataType = stk::mesh::Field<Scalar>>
+/// \brief A struct to hold the data for a collection of v_segments
+///
+/// The topology of a v segment directly effects the access pattern for the underlying data.
+/// Regardless of the topology, the node coordinates are stored on all nodes of the v segment.
+/// The difference between the topologies is how we access those nodes.
+///
+/// Allowable topologies are and their node access patterns are:
+///   - SPRING_3: Left, right, middle
+///   - TRI_3: Left, middle, right
+///   - SHELL_TRI_3: Left, middle, right
+template <typename Scalar,                        //
+          stk::topology::topology_t OurTopology,  //
+          typename NodeCoordsDataType = stk::mesh::Field<Scalar>>
 struct VSegmentData {
+  static_assert(OurTopology == stk::topology::SPRING_3 || OurTopology == stk::topology::TRI_3 ||
+                    OurTopology == stk::topology::SHELL_TRI_3,
+                "The topology of a v segment must be SPRING_3, TRI_3, or SHELL_TRI_3");
   static_assert(std::is_same_v<std::decay_t<NodeCoordsDataType>, stk::mesh::Field<Scalar>>,
                 "NodeCoordsDataType must be either a const or non-const field of scalars");
 
   using scalar_t = Scalar;
   using node_coords_data_t = NodeCoordsDataType;
 
-  stk::topology::rank_t v_segment_rank;
+  static constexpr stk::topology::topology_t topology = OurTopology;
   node_coords_data_t& node_coords_data;
 };  // VSegmentData
 
 /// \brief A struct to hold the data for a collection of NGP-compatible line segments
 /// See the discussion for VSegmentData for more information. Only difference is NgpFields over Fields.
-template <typename Scalar, typename NodeCoordsDataType = stk::mesh::NgpField<Scalar>>
+template <typename Scalar,                        //
+          stk::topology::topology_t OurTopology,  //
+          typename NodeCoordsDataType = stk::mesh::NgpField<Scalar>>
 struct NgpVSegmentData {
+  static_assert(OurTopology == stk::topology::SPRING_3 || OurTopology == stk::topology::TRI_3 ||
+                    OurTopology == stk::topology::SHELL_TRI_3,
+                "The topology of a v segment must be SPRING_3, TRI_3, or SHELL_TRI_3");
   static_assert(std::is_same_v<std::decay_t<NodeCoordsDataType>, stk::mesh::NgpField<Scalar>>,
                 "NodeCoordsDataType must be either a const or non-const field of scalars");
 
   using scalar_t = Scalar;
   using node_coords_data_t = NodeCoordsDataType;
 
-  stk::topology::rank_t v_segment_rank;
+  static constexpr stk::topology::topology_t topology = OurTopology;
   node_coords_data_t& node_coords_data;
 };  // NgpVSegmentData
 
@@ -72,20 +91,24 @@ struct NgpVSegmentData {
 ///
 /// This function creates a VSegmentData object given its rank and data (be they shared or field data)
 /// and is used to automatically deduce the template parameters.
-template <typename Scalar, typename NodeCoordsDataType>
-auto create_v_segment_data(stk::topology::rank_t v_segment_rank, NodeCoordsDataType& node_coords_data) {
+template <typename Scalar,                        // Must be provided
+          stk::topology::topology_t OurTopology,  // Must be provided
+          typename NodeCoordsDataType>            // deduced
+auto create_v_segment_data(NodeCoordsDataType& node_coords_data) {
   MUNDY_THROW_ASSERT(node_coords_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
-                      "The node_coords data must be a field of NODE_RANK");
-  return VSegmentData<Scalar, NodeCoordsDataType>{v_segment_rank, node_coords_data};
+                     "The node_coords data must be a field of NODE_RANK");
+  return VSegmentData<Scalar, OurTopology, NodeCoordsDataType>{node_coords_data};
 }
 
 /// \brief A helper function to create a NgpVSegmentData object
 /// See the discussion for create_v_segment_data for more information. Only difference is NgpFields over Fields.
-template <typename Scalar, typename NodeCoordsDataType>
-auto create_ngp_v_segment_data(stk::topology::rank_t v_segment_rank, NodeCoordsDataType& node_coords_data) {
+template <typename Scalar,                        // Must be provided
+          stk::topology::topology_t OurTopology,  // Must be provided
+          typename NodeCoordsDataType>            // deduced
+auto create_ngp_v_segment_data(NodeCoordsDataType& node_coords_data) {
   MUNDY_THROW_ASSERT(node_coords_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
-                      "The node_coords data must be a field of NODE_RANK");
-  return NgpVSegmentData<Scalar, NodeCoordsDataType>{v_segment_rank, node_coords_data};
+                     "The node_coords data must be a field of NODE_RANK");
+  return NgpVSegmentData<Scalar, OurTopology, NodeCoordsDataType>{node_coords_data};
 }
 
 /// \brief A concept to check if a type provides the same data as VSegmentData
@@ -94,7 +117,7 @@ concept ValidDefaultVSegmentDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::node_coords_data_t;
   std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  { agg.v_segment_rank } -> std::convertible_to<stk::topology::rank_t>;
+  { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
   { agg.node_coords_data } -> std::convertible_to<typename Agg::node_coords_data_t&>;
 };  // ValidDefaultVSegmentDataType
 
@@ -104,16 +127,24 @@ concept ValidDefaultNgpVSegmentDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::node_coords_data_t;
   std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { agg.v_segment_rank } -> std::convertible_to<stk::topology::rank_t>;
+  { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
   { agg.node_coords_data } -> std::convertible_to<typename Agg::node_coords_data_t&>;
 };  // ValidDefaultNgpVSegmentDataType
 
-static_assert(ValidDefaultVSegmentDataType<VSegmentData<float, stk::mesh::Field<float>>> &&
-                  ValidDefaultVSegmentDataType<VSegmentData<float, const stk::mesh::Field<float>>>,
+static_assert(ValidDefaultVSegmentDataType<VSegmentData<float,                    //
+                                                        stk::topology::SPRING_3,  //
+                                                        stk::mesh::Field<float>>> &&
+                  ValidDefaultVSegmentDataType<VSegmentData<float,                 //
+                                                            stk::topology::TRI_3,  //
+                                                            stk::mesh::Field<float>>>,
               "VSegmentData must satisfy the ValidDefaultVSegmentDataType concept");
 
-static_assert(ValidDefaultNgpVSegmentDataType<NgpVSegmentData<float, stk::mesh::NgpField<float>>> &&
-                  ValidDefaultNgpVSegmentDataType<NgpVSegmentData<float, const stk::mesh::NgpField<float>>>,
+static_assert(ValidDefaultNgpVSegmentDataType<NgpVSegmentData<float,                    //
+                                                              stk::topology::SPRING_3,  //
+                                                              stk::mesh::NgpField<float>>> &&
+                  ValidDefaultNgpVSegmentDataType<NgpVSegmentData<float,                 //
+                                                                  stk::topology::TRI_3,  //
+                                                                  stk::mesh::NgpField<float>>>,
               "NgpVSegmentData must satisfy the ValidDefaultNgpVSegmentDataType concept");
 
 /// \brief A helper function to get an updated NgpVSegmentData object from a VSegmentData object
@@ -121,8 +152,10 @@ static_assert(ValidDefaultNgpVSegmentDataType<NgpVSegmentData<float, stk::mesh::
 template <ValidDefaultVSegmentDataType VSegmentDataType>
 auto get_updated_ngp_data(VSegmentDataType data) {
   using scalar_t = typename VSegmentDataType::scalar_t;
-  return create_ngp_v_segment_data<scalar_t>(data.v_segment_rank,  //
-                                        stk::mesh::get_updated_ngp_field<scalar_t>(data.node_coords_data));
+  constexpr stk::topology::topology_t our_topology = VSegmentDataType::topology;
+
+  return create_ngp_v_segment_data<scalar_t, our_topology>(  //
+      stk::mesh::get_updated_ngp_field<scalar_t>(data.node_coords_data));
 }
 
 /// \brief A traits class to provide abstracted access to a v_segment's data via an aggregate
@@ -136,6 +169,8 @@ struct VSegmentDataTraits {
 
   using scalar_t = typename Agg::scalar_t;
   using node_coords_data_t = typename Agg::node_coords_data_t;
+
+  static constexpr stk::topology::topology_t topology = Agg::topology;
 
   static decltype(auto) node_coords(Agg agg, stk::mesh::Entity v_segment_node) {
     return mundy::mesh::vector3_field_data(agg.node_coords_data, v_segment_node);
@@ -155,38 +190,73 @@ struct NgpVSegmentDataTraits {
   using scalar_t = typename Agg::scalar_t;
   using node_coords_data_t = typename Agg::node_coords_data_t;
 
+  static constexpr stk::topology::topology_t topology = Agg::topology;
+
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) node_coords(Agg agg, stk::mesh::FastMeshIndex v_segment_index) {
     return mundy::mesh::vector3_field_data(agg.node_coords_data, v_segment_index);
   }
 };  // NgpVSegmentDataTraits
 
-/// @brief A view of an STK entity meant to represent a v_segment
-/// If the v_segment_rank is ELEM_RANK, then the v_segment is a particle entity with node node_coords.
-template <typename VSegmentDataType>
-class ElemVSegmentView {
+/// @brief A view of a TRI_3, SHELL_TRI_3, or SPRING_3 STK entity meant to represent a v_segment
+///
+/// Use \ref create_v_segment_entity_view to build an VSegmentEntityView object with automatic template deduction.
+template <stk::topology::topology_t OurTopology, typename VSegmentDataType>
+class VSegmentEntityView {
+  static_assert(OurTopology == stk::topology::TRI_3 || OurTopology == stk::topology::SHELL_TRI_3 ||
+                    OurTopology == stk::topology::SPRING_3,
+                "The topology of the v_segment entity must be TRI_3, SHELL_TRI_3, or SPRING_3");
+  static_assert(VSegmentDataType::topology == OurTopology, "The topology of the v_segment data must match the view");
+
  public:
   using data_access_t = VSegmentDataTraits<VSegmentDataType>;
   using scalar_t = typename data_access_t::scalar_t;
-  using point_t = decltype(data_access_t::node_coords(std::declval<VSegmentDataType>(), std::declval<stk::mesh::Entity>()));
+  using point_t =
+      decltype(data_access_t::node_coords(std::declval<VSegmentDataType>(), std::declval<stk::mesh::Entity>()));
 
-  ElemVSegmentView(const stk::mesh::BulkData& bulk_data, VSegmentDataType data, stk::mesh::Entity v_segment)
-      : data_(data), v_segment_(v_segment), 
-      start_node_(bulk_data.begin_nodes(v_segment_)[0]), 
-      middle_node_(bulk_data.begin_nodes(v_segment_)[1]),      // WARNING for when we switch to topologies: A TRI_3 has the middle as 1 and a SPRING_3 has the middle as 2.
-      end_node_(bulk_data.begin_nodes(v_segment_)[2]) {
-    MUNDY_THROW_ASSERT(
-        bulk_data.entity_rank(v_segment_) == stk::topology::ELEM_RANK && data_.v_segment_rank == stk::topology::ELEM_RANK,
-        std::invalid_argument, "Both the v_segment entity rank and the v_segment data rank must be ELEM_RANK");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(v_segment_), std::invalid_argument, "The given v_segment entity is not valid");
-    MUNDY_THROW_ASSERT(bulk_data.num_nodes(v_segment_) == 3, std::invalid_argument,
-                       "The given v_segment entity must have exactly one node");
+  static constexpr stk::topology::topology_t topology = OurTopology;
+  static constexpr stk::topology::rank_t rank = stk::topology_detail::topology_data<OurTopology>::rank;
+
+  VSegmentEntityView(const stk::mesh::BulkData& bulk_data, VSegmentDataType data, stk::mesh::Entity v_segment)
+    requires(OurTopology == stk::topology::TRI_3 || OurTopology == stk::topology::SHELL_TRI_3)
+      : data_(data),
+        v_segment_(v_segment),
+        start_node_(bulk_data.begin_nodes(v_segment_)[0]),
+        middle_node_(bulk_data.begin_nodes(v_segment_)[1]),
+        end_node_(bulk_data.begin_nodes(v_segment_)[2]) {
+    MUNDY_THROW_ASSERT(bulk_data.entity_rank(v_segment_) == stk::topology::ELEM_RANK, std::invalid_argument,
+                       "Both the v_segment entity rank and the v_segment data rank must be ELEM_RANK");
+    MUNDY_THROW_ASSERT(bulk_data.is_valid(v_segment_), std::invalid_argument,
+                       "The given v_segment entity is not valid");
+    MUNDY_THROW_ASSERT(bulk_data.num_nodes(v_segment_) >= 3, std::invalid_argument,
+                       "The given v_segment entity must have at least three nodes.");
     MUNDY_THROW_ASSERT(bulk_data.is_valid(start_node_), std::invalid_argument,
                        "The start node entity associated with the v_segment is not valid");
     MUNDY_THROW_ASSERT(bulk_data.is_valid(middle_node_), std::invalid_argument,
-                        "The middle node entity associated with the v_segment is not valid");
+                       "The middle node entity associated with the v_segment is not valid");
     MUNDY_THROW_ASSERT(bulk_data.is_valid(end_node_), std::invalid_argument,
-                        "The end node entity associated with the v_segment is not valid");
+                       "The end node entity associated with the v_segment is not valid");
+  }
+
+  VSegmentEntityView(const stk::mesh::BulkData& bulk_data, VSegmentDataType data, stk::mesh::Entity v_segment)
+    requires(OurTopology == stk::topology::SPRING_3)
+      : data_(data),
+        v_segment_(v_segment),
+        start_node_(bulk_data.begin_nodes(v_segment_)[0]),
+        middle_node_(bulk_data.begin_nodes(v_segment_)[2]),
+        end_node_(bulk_data.begin_nodes(v_segment_)[1]) {
+    MUNDY_THROW_ASSERT(bulk_data.entity_rank(v_segment_) == rank, std::invalid_argument,
+                       "Both the v_segment entity rank and the v_segment data rank must match the view's topology");
+    MUNDY_THROW_ASSERT(bulk_data.is_valid(v_segment_), std::invalid_argument,
+                       "The given v_segment entity is not valid");
+    MUNDY_THROW_ASSERT(bulk_data.num_nodes(v_segment_) >= 3, std::invalid_argument,
+                       "The given v_segment entity must have at least three nodes.");
+    MUNDY_THROW_ASSERT(bulk_data.is_valid(start_node_), std::invalid_argument,
+                       "The start node entity associated with the v_segment is not valid");
+    MUNDY_THROW_ASSERT(bulk_data.is_valid(middle_node_), std::invalid_argument,
+                       "The middle node entity associated with the v_segment is not valid");
+    MUNDY_THROW_ASSERT(bulk_data.is_valid(end_node_), std::invalid_argument,
+                       "The end node entity associated with the v_segment is not valid");
   }
 
   decltype(auto) start() {
@@ -219,24 +289,44 @@ class ElemVSegmentView {
   stk::mesh::Entity start_node_;
   stk::mesh::Entity middle_node_;
   stk::mesh::Entity end_node_;
-};  // ElemVSegmentView
+};  // VSegmentEntityView<OurTopology, VSegmentDataType>
 
-/// @brief An ngp-compatible view of an ELEM_RANK STK entity meant to represent a v_segment
-/// See the discussion for ElemVSegmentView for more information. The only difference is ngp-compatible data access.
-template <typename NgpVSegmentDataType>
-class NgpElemVSegmentView {
+/// @brief An ngp-compatible view of an STK entity meant to represent a v_segment
+/// See the discussion for VSegmentEntityView for more information. The only difference is ngp-compatible data access.
+template <stk::topology::topology_t OurTopology, typename NgpVSegmentDataType>
+class NgpVSegmentEntityView {
+  static_assert(OurTopology == stk::topology::TRI_3 || OurTopology == stk::topology::SHELL_TRI_3 ||
+                    OurTopology == stk::topology::SPRING_3,
+                "The topology of the v_segment entity must be TRI_3, SHELL_TRI_3, or SPRING_3");
+  static_assert(NgpVSegmentDataType::topology == OurTopology, "The topology of the v_segment data must match the view");
+
  public:
   using data_access_t = NgpVSegmentDataTraits<NgpVSegmentDataType>;
   using scalar_t = typename data_access_t::scalar_t;
-  using point_t = decltype(data_access_t::node_coords(std::declval<NgpVSegmentDataType>(), std::declval<stk::mesh::FastMeshIndex>()));
+  using point_t = decltype(data_access_t::node_coords(std::declval<NgpVSegmentDataType>(),
+                                                      std::declval<stk::mesh::FastMeshIndex>()));
+
+  static constexpr stk::topology::topology_t topology = OurTopology;
+  static constexpr stk::topology::rank_t rank = stk::topology_detail::topology_data<OurTopology>::rank;
 
   KOKKOS_INLINE_FUNCTION
-  NgpElemVSegmentView(stk::mesh::NgpMesh ngp_mesh, NgpVSegmentDataType data, stk::mesh::FastMeshIndex v_segment_index)
+  NgpVSegmentEntityView(stk::mesh::NgpMesh ngp_mesh, NgpVSegmentDataType data, stk::mesh::FastMeshIndex v_segment_index)
+    requires(OurTopology == stk::topology::TRI_3 || OurTopology == stk::topology::SHELL_TRI_3)
       : data_(data),
         v_segment_index_(v_segment_index),
-        start_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(data_.v_segment_rank, v_segment_index_)[0])),
-        middle_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(data_.v_segment_rank, v_segment_index_)[1])),
-        end_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(data_.v_segment_rank, v_segment_index_)[2])) {
+        start_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(rank, v_segment_index_)[0])),
+        middle_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(rank, v_segment_index_)[1])),
+        end_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(rank, v_segment_index_)[2])) {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  NgpVSegmentEntityView(stk::mesh::NgpMesh ngp_mesh, NgpVSegmentDataType data, stk::mesh::FastMeshIndex v_segment_index)
+    requires(OurTopology == stk::topology::SPRING_3)
+      : data_(data),
+        v_segment_index_(v_segment_index),
+        start_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(rank, v_segment_index_)[0])),
+        middle_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(rank, v_segment_index_)[2])),
+        end_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(rank, v_segment_index_)[1])) {
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -275,25 +365,40 @@ class NgpElemVSegmentView {
   stk::mesh::FastMeshIndex start_node_index_;
   stk::mesh::FastMeshIndex middle_node_index_;
   stk::mesh::FastMeshIndex end_node_index_;
-};  // NgpElemVSegmentView
+};  // NgpVSegmentEntityView<OurTopology, NgpVSegmentDataType>
 
-static_assert(ValidVSegmentType<ElemVSegmentView<VSegmentData<float, stk::mesh::Field<float>>>> &&
-              ValidVSegmentType<ElemVSegmentView<VSegmentData<float, const stk::mesh::Field<float>>>> &&
-              ValidVSegmentType<NgpElemVSegmentView<NgpVSegmentData<float, stk::mesh::NgpField<float>>>> &&
-              ValidVSegmentType<NgpElemVSegmentView<NgpVSegmentData<float, const stk::mesh::NgpField<float>>>>,
-              "ElemVSegmentView and NgpElemVSegmentView must be valid VSegment types");
+static_assert(ValidVSegmentType<VSegmentEntityView<stk::topology::SPRING_3,
+                                                   VSegmentData<float,                    //
+                                                                stk::topology::SPRING_3,  //
+                                                                stk::mesh::Field<float>>>> &&
+                  ValidVSegmentType<VSegmentEntityView<stk::topology::TRI_3,
+                                                       VSegmentData<float,                 //
+                                                                    stk::topology::TRI_3,  //
+                                                                    stk::mesh::Field<float>>>> &&
+                  ValidVSegmentType<NgpVSegmentEntityView<stk::topology::SPRING_3,
+                                                          NgpVSegmentData<float,                    //
+                                                                          stk::topology::SPRING_3,  //
+                                                                          stk::mesh::NgpField<float>>>> &&
+                  ValidVSegmentType<NgpVSegmentEntityView<stk::topology::TRI_3,
+                                                          NgpVSegmentData<float,                 //
+                                                                          stk::topology::TRI_3,  //
+                                                                          stk::mesh::NgpField<float>>>>,
+              "VSegmentEntityView and NgpVSegmentEntityView must be valid VSegment types");
 
-/// \brief A helper function to create a ElemVSegmentView object with type deduction
-template <typename VSegmentDataType>
-auto create_elem_v_segment_view(const stk::mesh::BulkData& bulk_data, VSegmentDataType& data, stk::mesh::Entity v_segment) {
-  return ElemVSegmentView<VSegmentDataType>(bulk_data, data, v_segment);
+/// \brief A helper function to create a VSegmentEntityView object with type deduction
+template <stk::topology::topology_t OurTopology,  // Must be provided
+          typename VSegmentDataType>              // deduced
+auto create_v_segment_entity_view(const stk::mesh::BulkData& bulk_data, VSegmentDataType& data,
+                                  stk::mesh::Entity v_segment) {
+  return VSegmentEntityView<OurTopology, VSegmentDataType>(bulk_data, data, v_segment);
 }
 
-/// \brief A helper function to create a NgpElemVSegmentView object with type deduction
-template <typename NgpVSegmentDataType>
-auto create_ngp_elem_v_segment_view(stk::mesh::NgpMesh ngp_mesh, NgpVSegmentDataType data,
-                                stk::mesh::FastMeshIndex v_segment_index) {
-  return NgpElemVSegmentView<NgpVSegmentDataType>(ngp_mesh, data, v_segment_index);
+/// \brief A helper function to create a NgpVSegmentEntityView object with type deduction
+template <stk::topology::topology_t OurTopology,  // Must be provided
+          typename NgpVSegmentDataType>           // deduced
+auto create_ngp_v_segment_entity_view(stk::mesh::NgpMesh ngp_mesh, NgpVSegmentDataType data,
+                                      stk::mesh::FastMeshIndex v_segment_index) {
+  return NgpVSegmentEntityView<OurTopology, NgpVSegmentDataType>(ngp_mesh, data, v_segment_index);
 }
 //@}
 
