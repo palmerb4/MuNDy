@@ -21,6 +21,12 @@
 #include <functional>  // for std::function
 #include <memory>      // for std::unique_ptr
 #include <vector>      // for std::vector
+#include <iostream>    // for std::cout, std::endl
+
+// Trilinos libs
+#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
+
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
 
 // Kokkos
 #include <Kokkos_Core.hpp>  // for Kokkos::initialize, Kokkos::finalize, etc
@@ -52,6 +58,7 @@
 // Mundy
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_REQUIRE
 #include <mundy_mesh/NgpFieldBLAS.hpp>  // for mundy::mesh::field_fill, mundy::mesh::field_copy, etc
+
 
 namespace mundy {
 
@@ -304,10 +311,10 @@ class FetchNgpObjTest : public PerfTestFieldBLAS {
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
     for (size_t i = 0; i < num_iterations; ++i) {
-      auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-      stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
-      stk::mesh::NgpField<double>& ngp_field2 = stk::mesh::get_updated_ngp_field<double>(*field2_ptr_);
-      stk::mesh::NgpField<double>& ngp_field3 = stk::mesh::get_updated_ngp_field<double>(*field3_ptr_);
+      [[maybe_unused]] auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
+      [[maybe_unused]] stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
+      [[maybe_unused]] stk::mesh::NgpField<double>& ngp_field2 = stk::mesh::get_updated_ngp_field<double>(*field2_ptr_);
+      [[maybe_unused]] stk::mesh::NgpField<double>& ngp_field3 = stk::mesh::get_updated_ngp_field<double>(*field3_ptr_);
     }
   }
 };  // class FetchNgpObjTest
@@ -325,10 +332,10 @@ class FieldFillTest : public PerfTestFieldBLAS {
   static constexpr double fill_value = 3.14159;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      field_fill(ngp_mesh, fill_value, ngp_field1, block1_selector_ - block2_selector_);
+      field_fill(fill_value, *field1_ptr_, selector, exec_space);
     }
   }
 
@@ -354,7 +361,7 @@ class FieldFillTest : public PerfTestFieldBLAS {
       // Instead of using stk's field_fill, write if from scratch using a host for_each_entity_run loop
       stk::mesh::for_each_entity_run(
           bulk, field.entity_rank(), selector,
-          [&field, fill_value]([[maybe_unused]] const stk::mesh::BulkData& bulk, const stk::mesh::Entity entity) {
+          [&field, &fill_value]([[maybe_unused]] const stk::mesh::BulkData& bulk, const stk::mesh::Entity entity) {
             const int num_components = stk::mesh::field_scalars_per_entity(field, entity);
             double* raw_field_data = stk::mesh::field_data(field, entity);
             for (int i = 0; i < num_components; ++i) {
@@ -376,11 +383,10 @@ class FieldCopyTest : public PerfTestFieldBLAS {
   static constexpr bool has_our_stk_test = true;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
-    stk::mesh::NgpField<double>& ngp_field2 = stk::mesh::get_updated_ngp_field<double>(*field2_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      field_copy(ngp_mesh, ngp_field1, ngp_field2, block1_selector_ - block2_selector_);
+      field_copy<double>(*field1_ptr_, *field2_ptr_, selector, exec_space);
     }
   }
 
@@ -430,11 +436,10 @@ class FieldSwapTest : public PerfTestFieldBLAS {
   static constexpr bool has_our_stk_test = false;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
-    stk::mesh::NgpField<double>& ngp_field2 = stk::mesh::get_updated_ngp_field<double>(*field2_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      field_swap(ngp_mesh, ngp_field1, ngp_field2, block1_selector_ - block2_selector_);
+      field_swap<double>(*field1_ptr_, *field2_ptr_, selector, exec_space);
     }
   }
 
@@ -489,10 +494,10 @@ class FieldScaleTest : public PerfTestFieldBLAS {
   static constexpr double alpha = 3.14159;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      field_scale(ngp_mesh, alpha, ngp_field1, block1_selector_ - block2_selector_);
+      field_scale(alpha, *field1_ptr_, selector, exec_space);
     }
   }
 
@@ -519,7 +524,7 @@ class FieldScaleTest : public PerfTestFieldBLAS {
       // Instead of using stk's field_scale, write if from scratch using a host for_each_entity_run loop
       stk::mesh::for_each_entity_run(
           bulk, field.entity_rank(), selector,
-          [&field, alpha]([[maybe_unused]] const stk::mesh::BulkData& bulk, const stk::mesh::Entity entity) {
+          [&field]([[maybe_unused]] const stk::mesh::BulkData& bulk, const stk::mesh::Entity entity) {
             const int num_components = stk::mesh::field_scalars_per_entity(field, entity);
             double* raw_field_data = stk::mesh::field_data(field, entity);
             for (int i = 0; i < num_components; ++i) {
@@ -541,12 +546,10 @@ class FieldProductTest : public PerfTestFieldBLAS {
   static constexpr bool has_our_stk_test = true;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
-    stk::mesh::NgpField<double>& ngp_field2 = stk::mesh::get_updated_ngp_field<double>(*field2_ptr_);
-    stk::mesh::NgpField<double>& ngp_field3 = stk::mesh::get_updated_ngp_field<double>(*field3_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      field_product(ngp_mesh, ngp_field1, ngp_field2, ngp_field3, block1_selector_ - block2_selector_);
+      field_product<double>(*field1_ptr_, *field2_ptr_, *field3_ptr_, selector, exec_space);
     }
   }
 
@@ -602,11 +605,10 @@ class FieldAxpyTest : public PerfTestFieldBLAS {
   static constexpr double alpha = 3.14159;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
-    stk::mesh::NgpField<double>& ngp_field2 = stk::mesh::get_updated_ngp_field<double>(*field2_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      field_axpy(ngp_mesh, alpha, ngp_field1, ngp_field2, block1_selector_ - block2_selector_);
+      field_axpy(alpha, *field1_ptr_, *field2_ptr_, selector, exec_space);
     }
   }
 
@@ -634,7 +636,7 @@ class FieldAxpyTest : public PerfTestFieldBLAS {
       // Instead of using stk's field_axpy, write if from scratch using a host for_each_entity_run loop
       stk::mesh::for_each_entity_run(
           bulk, field1.entity_rank(), selector,
-          [&field1, &field2, alpha]([[maybe_unused]] const stk::mesh::BulkData& bulk, const stk::mesh::Entity entity) {
+          [&field1, &field2]([[maybe_unused]] const stk::mesh::BulkData& bulk, const stk::mesh::Entity entity) {
             const int num_components = stk::mesh::field_scalars_per_entity(field1, entity);
             double* raw_field1_data = stk::mesh::field_data(field1, entity);
             double* raw_field2_data = stk::mesh::field_data(field2, entity);
@@ -660,11 +662,10 @@ class FieldAxpbyTest : public PerfTestFieldBLAS {
   static constexpr double beta = 0.3333333;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
-    stk::mesh::NgpField<double>& ngp_field2 = stk::mesh::get_updated_ngp_field<double>(*field2_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      field_axpby(ngp_mesh, alpha, ngp_field1, beta, ngp_field2, block1_selector_ - block2_selector_);
+      field_axpby(alpha, *field1_ptr_, beta, *field2_ptr_, selector, exec_space);
     }
   }
 
@@ -691,7 +692,7 @@ class FieldAxpbyTest : public PerfTestFieldBLAS {
     for (size_t i = 0; i < num_iterations; ++i) {
       // Instead of using stk's field_axpby, write if from scratch using a host for_each_entity_run loop
       stk::mesh::for_each_entity_run(bulk, field1.entity_rank(), selector,
-                                     [&field1, &field2, alpha, beta]([[maybe_unused]] const stk::mesh::BulkData& bulk,
+                                     [&field1, &field2]([[maybe_unused]] const stk::mesh::BulkData& bulk,
                                                                      const stk::mesh::Entity entity) {
                                        const int num_components = stk::mesh::field_scalars_per_entity(field1, entity);
                                        double* raw_field1_data = stk::mesh::field_data(field1, entity);
@@ -718,12 +719,10 @@ class FieldAxpbyzTest : public PerfTestFieldBLAS {
   static constexpr double beta = 0.3333333;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
-    stk::mesh::NgpField<double>& ngp_field2 = stk::mesh::get_updated_ngp_field<double>(*field2_ptr_);
-    stk::mesh::NgpField<double>& ngp_field3 = stk::mesh::get_updated_ngp_field<double>(*field3_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      field_axpbyz(ngp_mesh, alpha, ngp_field1, beta, ngp_field2, ngp_field3, block1_selector_ - block2_selector_);
+      field_axpbyz(alpha, *field1_ptr_, beta, *field2_ptr_, *field3_ptr_, selector, exec_space);
     }
   }
 
@@ -748,7 +747,7 @@ class FieldAxpbyzTest : public PerfTestFieldBLAS {
       // Instead of using stk's field_axpbyz, write if from scratch using a host for_each_entity_run loop
       stk::mesh::for_each_entity_run(
           bulk, field1.entity_rank(), selector,
-          [&field1, &field2, &field3, alpha, beta]([[maybe_unused]] const stk::mesh::BulkData& bulk,
+          [&field1, &field2, &field3]([[maybe_unused]] const stk::mesh::BulkData& bulk,
                                                    const stk::mesh::Entity entity) {
             const int num_components = stk::mesh::field_scalars_per_entity(field1, entity);
             double* raw_field1_data = stk::mesh::field_data(field1, entity);
@@ -773,11 +772,10 @@ class FieldDotTest : public PerfTestFieldBLAS {
   static constexpr bool has_our_stk_test = true;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
-    stk::mesh::NgpField<double>& ngp_field2 = stk::mesh::get_updated_ngp_field<double>(*field2_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      double ngp_dot = field_dot(ngp_mesh, ngp_field1, ngp_field2, block1_selector_ - block2_selector_);
+      double ngp_dot = field_dot<double>(*field1_ptr_, *field2_ptr_, selector, exec_space);
     }
   }
 
@@ -826,10 +824,10 @@ class FieldNorm2Test : public PerfTestFieldBLAS {
   static constexpr bool has_our_stk_test = true;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      double ngp_nrm2 = field_nrm2(ngp_mesh, ngp_field1, block1_selector_ - block2_selector_);
+      double ngp_nrm2 = field_nrm2<double>(*field1_ptr_, selector, exec_space);
     }
   }
 
@@ -876,10 +874,10 @@ class FieldSumTest : public PerfTestFieldBLAS {
   static constexpr bool has_our_stk_test = true;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      double ngp_sum = field_sum(ngp_mesh, ngp_field1, block1_selector_ - block2_selector_);
+      double ngp_sum = field_sum<double>(*field1_ptr_, selector, exec_space);
     }
   }
 
@@ -928,16 +926,16 @@ class FieldAbsSumTest : public PerfTestFieldBLAS {
   static constexpr bool has_our_stk_test = true;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      double ngp_asum = field_asum(ngp_mesh, ngp_field1, block1_selector_ - block2_selector_);
+      double ngp_asum = field_asum<double>(*field1_ptr_, selector, exec_space);
     }
   }
 
   void run_stk(const size_t num_iterations = 1) {
     for (size_t i = 0; i < num_iterations; ++i) {
-      double stk_asum = stk::mesh::field_asum(*field1_ptr_, block1_selector_ - block2_selector_);
+      double stk_asum = stk::mesh::field_asum<double>(*field1_ptr_, block1_selector_ - block2_selector_);
     }
   }
 
@@ -977,10 +975,10 @@ class FieldMaxTest : public PerfTestFieldBLAS {
   static constexpr bool has_our_stk_test = true;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      double ngp_max = field_max(ngp_mesh, ngp_field1, block1_selector_ - block2_selector_);
+      double ngp_max = field_max<double>(*field1_ptr_, selector, exec_space);
     }
   }
 
@@ -1028,10 +1026,10 @@ class FieldAbsMaxTest : public PerfTestFieldBLAS {
   static constexpr bool has_our_stk_test = true;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      double ngp_amax = field_amax(ngp_mesh, ngp_field1, block1_selector_ - block2_selector_);
+      double ngp_amax = field_amax<double>(*field1_ptr_, selector, exec_space);
     }
   }
 
@@ -1046,7 +1044,6 @@ class FieldAbsMaxTest : public PerfTestFieldBLAS {
     const stk::mesh::BulkData& bulk = get_bulk();
     DoubleField& field = *field1_ptr_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      // Instead of using stk's field_amax, write if from scratch using a host for_each_entity_run loop
       double local_amax = 0.0;
       stk::mesh::for_each_entity_run(
           bulk, field.entity_rank(), selector,
@@ -1076,10 +1073,10 @@ class FieldMinTest : public PerfTestFieldBLAS {
   static constexpr bool has_our_stk_test = true;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      double ngp_min = field_min(ngp_mesh, ngp_field1, block1_selector_ - block2_selector_);
+      double ngp_min = field_min<double>(*field1_ptr_, selector, exec_space);
     }
   }
 
@@ -1097,7 +1094,6 @@ class FieldMinTest : public PerfTestFieldBLAS {
     const stk::mesh::BulkData& bulk = get_bulk();
     DoubleField& field = *field1_ptr_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      // Instead of using stk's field_min, write if from scratch using a host for_each_entity_run loop
       double local_min = std::numeric_limits<double>::max();
       stk::mesh::for_each_entity_run(
           bulk, field.entity_rank(), selector,
@@ -1127,10 +1123,10 @@ class FieldAbsMinTest : public PerfTestFieldBLAS {
   static constexpr bool has_our_stk_test = true;
 
   void run_mundy_ngp(const size_t num_iterations = 1) {
-    auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(get_bulk());
-    stk::mesh::NgpField<double>& ngp_field1 = stk::mesh::get_updated_ngp_field<double>(*field1_ptr_);
+    const auto& exec_space = stk::ngp::ExecSpace();
+    const stk::mesh::Selector selector = block1_selector_ - block2_selector_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      double ngp_amin = field_amin(ngp_mesh, ngp_field1, block1_selector_ - block2_selector_);
+      double ngp_amin = field_amin<double>(*field1_ptr_, selector, exec_space);
     }
   }
 
@@ -1145,7 +1141,6 @@ class FieldAbsMinTest : public PerfTestFieldBLAS {
     const stk::mesh::BulkData& bulk = get_bulk();
     DoubleField& field = *field1_ptr_;
     for (size_t i = 0; i < num_iterations; ++i) {
-      // Instead of using stk's field_amin, write if from scratch using a host for_each_entity_run loop
       double local_amin = std::numeric_limits<double>::max();
       stk::mesh::for_each_entity_run(
           bulk, field.entity_rank(), selector,
@@ -1282,3 +1277,13 @@ int main(int argc, char** argv) {
 
   return 0;
 }
+
+
+#else
+
+int main() {
+  std::cout << "TEST DISABLED. Trilinos version must be at least 16.0.0." << std::endl;
+  return 0;
+}
+
+#endif  // TRILINOS_MAJOR_MINOR_VERSION

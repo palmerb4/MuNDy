@@ -34,10 +34,26 @@ tribits_copy_files_to_binary_dir(
         EXEDEPS PerfTestDeclareEntities
     )
 
-# TODO(palmerb4): This tests is designed for Trilinos 16.0.0. We currently use 14.2.0
-# tribits_add_executable(
-#     PerfTestFieldBLAS
-#     SOURCES
-#     PerfTestFieldBLAS.cpp
-#     CATEGORIES PERFORMANCE
-#     )
+
+# These tests require Trilinos 16.0.0 or later
+# They still get built but will simply print a warning and return
+tribits_add_executable(
+    PerfTestFieldBLAS
+    SOURCES
+    PerfTestFieldBLAS.cpp
+    CATEGORIES PERFORMANCE
+    )
+
+tribits_add_executable(
+    NGPSpheresHertz
+    SOURCES
+    NGPSpheresHertz.cpp
+    CATEGORIES PERFORMANCE
+    )
+
+tribits_add_executable(
+    NGPSpheresLCP
+    SOURCES
+    NGPSpheresLCP.cpp
+    CATEGORIES PERFORMANCE
+    )

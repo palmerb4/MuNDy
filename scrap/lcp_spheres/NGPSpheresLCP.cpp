@@ -1004,15 +1004,11 @@ int main(int argc, char **argv) {
         stk::search::SearchMethod search_method = stk::search::MORTON_LBVH;
 
         // WARNING: auto_swap_domain_and_range must be true to avoid double counting forces.
-        const bool results_parallel_symmetry = true;      // create source -> target and target -> source pairs
-        const bool auto_swap_domain_and_range = true;     // swap source and target if target is owned and source is not
-        const bool sort_search_results = true;            // sort the search results by source id
-        stk::search::coarse_search(search_spheres,        //
-                                   search_spheres,        //
-                                   search_method,         //
-                                   bulk_data.parallel(),  //
-                                   search_results, DeviceExecutionSpace{},  //
-                                   results_parallel_symmetry);
+        const bool results_parallel_symmetry = true;   // create source -> target and target -> source pairs
+        const bool auto_swap_domain_and_range = true;  // swap source and target if target is owned and source is not
+        const bool sort_search_results = true;         // sort the search results by source id
+        stk::search::coarse_search(search_spheres, search_spheres, search_method, bulk_data.parallel(), search_results,
+                                   DeviceExecutionSpace{}, results_parallel_symmetry);
         num_neighbor_pairs = search_results.extent(0);
         std::cout << "Search time: " << search_timer.seconds() << " with " << num_neighbor_pairs << " results."
                   << std::endl;
@@ -1043,6 +1039,7 @@ int main(int argc, char **argv) {
           ngp_mesh, viscosity, time_step_size, max_allowable_overlap, max_col_iterations, local_search_results,
           ngp_element_radius, ngp_node_force, ngp_node_velocity, signed_sep_dist, con_normal_ij, lagrange_multipliers);
       std::cout << std::setprecision(8) << "Contact time: " << contact_timer.seconds() << std::endl;
+
 
       std::cout << "Result: " << std::endl;
       std::cout << "  Max abs projected sep: " << result.max_abs_projected_sep << std::endl;
