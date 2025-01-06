@@ -37,6 +37,7 @@ namespace mesh {
 /*
 List of available field operations:
   - field_fill
+  - field_randomize
   - field_copy
   - field_swap
   - field_scale
@@ -88,6 +89,93 @@ void field_fill(const Scalar alpha,           //
                 stk::mesh::FieldBase &field,  //
                 const ExecSpace &exec_space) {
   impl::ngp_field_fill(alpha, field, nullptr, exec_space);
+}
+
+/// \brief Randomize a component of a field (uniform between 0 and 1)
+/// \note This function uses the a counter-based random number generator (Philox) from OpenRAND
+///   to draw random number in a performance portable way. Will increment the counter for all
+///   entities in the selector that own the field.
+template <typename Scalar, typename ExecSpace>
+void field_randomize(size_t seed,                          //
+                     stk::mesh::FieldBase &counter_field,  //
+                     stk::mesh::FieldBase &field,          //
+                     int component,                        //
+                     const stk::mesh::Selector &selector,  //
+                     const ExecSpace &exec_space) {
+  impl::ngp_field_randomize_component(seed, counter_field, field, component, &selector, exec_space);
+}
+
+/// \brief Randomize a component of a field (uniform between 0 and 1)
+template <typename Scalar, typename ExecSpace>
+void field_randomize(size_t seed,                          //
+                     stk::mesh::FieldBase &counter_field,  //
+                     stk::mesh::FieldBase &field,          //
+                     int component,                        //
+                     const ExecSpace &exec_space) {
+  impl::ngp_field_randomize_component(seed, counter_field, field, component, nullptr, exec_space);
+}
+
+/// \brief Randomize all components of a field (uniform between 0 and 1)
+template <typename Scalar, typename ExecSpace>
+void field_randomize(size_t seed,                          //
+                     stk::mesh::FieldBase &counter_field,  //
+                     stk::mesh::FieldBase &field,          //
+                     const stk::mesh::Selector &selector,  //
+                     const ExecSpace &exec_space) {
+  impl::ngp_field_randomize(seed, counter_field, field, &selector, exec_space);
+}
+
+/// \brief Randomize all components of a field (uniform between 0 and 1)
+template <typename Scalar, typename ExecSpace>
+void field_randomize(size_t seed,                          //
+                     stk::mesh::FieldBase &counter_field,  //
+                     stk::mesh::FieldBase &field,          //
+                     const ExecSpace &exec_space) {
+  impl::ngp_field_randomize(seed, counter_field, field, nullptr, exec_space);
+}
+
+/// \brief Randomize a component of a field (between given min and max)
+template <typename Scalar, typename ExecSpace>
+void field_randomize(size_t seed,                          //
+                     Scalar min, Scalar max,               //
+                     stk::mesh::FieldBase &counter_field,  //
+                     stk::mesh::FieldBase &field,          //
+                     int component,                        //
+                     const stk::mesh::Selector &selector,  //
+                     const ExecSpace &exec_space) {
+  impl::ngp_field_randomize_component(seed, min, max, counter_field, field, component, &selector, exec_space);
+}
+
+/// \brief Randomize a component of a field (between given min and max)
+template <typename Scalar, typename ExecSpace>
+void field_randomize(size_t seed,                          //
+                     Scalar min, Scalar max,               //
+                     stk::mesh::FieldBase &counter_field,  //
+                     stk::mesh::FieldBase &field,          //
+                     int component,                        //
+                     const ExecSpace &exec_space) {
+  impl::ngp_field_randomize_component(seed, min, max, counter_field, field, component, nullptr, exec_space);
+}
+
+/// \brief Randomize all components of a field (between given min and max)
+template <typename Scalar, typename ExecSpace>
+void field_randomize(size_t seed,                          //
+                     Scalar min, Scalar max,               //
+                     stk::mesh::FieldBase &counter_field,  //
+                     stk::mesh::FieldBase &field,          //
+                     const stk::mesh::Selector &selector,  //
+                     const ExecSpace &exec_space) {
+  impl::ngp_field_randomize(seed, min, max, counter_field, field, &selector, exec_space);
+}
+
+/// \brief Randomize all components of a field (between given min and max)
+template <typename Scalar, typename ExecSpace>
+void field_randomize(size_t seed,                          //
+                     Scalar min, Scalar max,               //
+                     stk::mesh::FieldBase &counter_field,  //
+                     stk::mesh::FieldBase &field,          //
+                     const ExecSpace &exec_space) {
+  impl::ngp_field_randomize(seed, min, max, counter_field, field, nullptr, exec_space);
 }
 
 /// \brief Deep copy y = x
@@ -328,7 +416,7 @@ inline Scalar field_min(stk::mesh::FieldBase &x,              //
 /// \brief Compute the minimum value of a field
 template <typename Scalar, typename ExecSpace>
 inline Scalar field_min(stk::mesh::FieldBase &x,  //
-                                const ExecSpace &exec_space) {
+                        const ExecSpace &exec_space) {
   return impl::ngp_field_min<Scalar>(x, nullptr, exec_space);
 }
 

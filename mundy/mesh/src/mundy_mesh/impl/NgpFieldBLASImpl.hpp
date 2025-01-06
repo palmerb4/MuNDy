@@ -29,6 +29,9 @@
 #include <iostream>
 #include <string>
 
+// External
+#include <openrand/philox.h>  // for openrand::Philox
+
 // Kokkos
 #include <Kokkos_Core.hpp>
 
@@ -103,6 +106,130 @@ struct FieldFillComponent {
   Field field_;
   const value_type alpha_;
   const int component_;
+};
+
+template <class Field, class CounterField>
+struct FieldRandomize {
+  using value_type = typename Field::value_type;
+  static_assert(is_ngp_field<Field>, "FieldRandomize requires an stk::mesh::NgpField");
+
+  KOKKOS_FUNCTION
+  FieldRandomize(Field& field, const size_t seed, CounterField& counter_field)
+      : field_(field), seed_(seed), counter_field_(counter_field) {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const stk::mesh::FastMeshIndex& f) const {
+    auto& counter = counter_field_(f, 0);
+    openrand::Philox rng(seed_, counter);
+
+    const int num_components = field_.get_num_components_per_entity(f);
+    for (int d = 0; d < num_components; ++d) {
+      field_(f, d) = rng.rand<value_type>();
+    }
+
+    counter++;
+  }
+
+ private:
+  Field field_;
+  const size_t seed_;
+  CounterField counter_field_;
+};
+
+template <class Field, class CounterField>
+struct FieldRandomizeMinMax {
+  using value_type = typename Field::value_type;
+  static_assert(is_ngp_field<Field>, "FieldRandomizeMinMax requires an stk::mesh::NgpField");
+
+  KOKKOS_FUNCTION
+  FieldRandomizeMinMax(Field& field, const size_t seed, CounterField& counter_field, const value_type min,
+                       const value_type max)
+      : field_(field), seed_(seed), counter_field_(counter_field), min_(min), max_(max) {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const stk::mesh::FastMeshIndex& f) const {
+    auto& counter = counter_field_(f, 0);
+    openrand::Philox rng(seed_, counter);
+
+    const int num_components = field_.get_num_components_per_entity(f);
+    for (int d = 0; d < num_components; ++d) {
+      field_(f, d) = rng.uniform<value_type>(min_, max_);
+    }
+
+    counter++;
+  }
+
+ private:
+  Field field_;
+  const size_t seed_;
+  CounterField counter_field_;
+  const value_type min_;
+  const value_type max_;
+};
+
+template <class Field, class CounterField>
+struct FieldRandomizeComponent {
+  using value_type = typename Field::value_type;
+  static_assert(is_ngp_field<Field>, "FieldRandomizeComponent requires an stk::mesh::NgpField");
+
+  KOKKOS_FUNCTION
+  FieldRandomizeComponent(Field& field, const size_t seed, CounterField& counter_field, const int component)
+      : field_(field), seed_(seed), counter_field_(counter_field), component_(component) {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const stk::mesh::FastMeshIndex& f) const {
+    const int num_components = field_.get_num_components_per_entity(f);
+    MUNDY_THROW_ASSERT(component_ < num_components, std::out_of_range,
+                       "Component index " << component_ << " is out of bounds for field " << field_.get_name());
+
+    auto& counter = counter_field_(f, 0);
+    openrand::Philox rng(seed_, counter);
+
+    field_(f, component_) = rng.rand<value_type>();
+    counter++;
+  }
+
+ private:
+  Field field_;
+  const size_t seed_;
+  CounterField counter_field_;
+  const int component_;
+};
+
+template <class Field, class CounterField>
+struct FieldRandomizeComponentMinMax {
+  using value_type = typename Field::value_type;
+  static_assert(is_ngp_field<Field>, "FieldRandomizeComponent requires an stk::mesh::NgpField");
+
+  KOKKOS_FUNCTION
+  FieldRandomizeComponentMinMax(Field& field, const size_t seed, CounterField& counter_field, const int component,
+                                const value_type min, const value_type max)
+      : field_(field), seed_(seed), counter_field_(counter_field), component_(component), min_(min), max_(max) {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const stk::mesh::FastMeshIndex& f) const {
+    const int num_components = field_.get_num_components_per_entity(f);
+    MUNDY_THROW_ASSERT(component_ < num_components, std::out_of_range,
+                       "Component index " << component_ << " is out of bounds for field " << field_.get_name());
+
+    auto& counter = counter_field_(f, 0);
+    openrand::Philox rng(seed_, counter);
+
+    field_(f, component_) = rng.uniform<value_type>(min_, max_);
+    counter++;
+  }
+
+ private:
+  Field field_;
+  const size_t seed_;
+  CounterField counter_field_;
+  const int component_;
+  const value_type min_;
+  const value_type max_;
 };
 
 template <class Field>
@@ -452,6 +579,107 @@ void ngp_field_fill(const Scalar alpha,                             //
   stk::mesh::for_each_entity_run(ngp_mesh, ngp_field.get_rank(), field_selector, functor);
 
   mark_field_modified_on_space(field, exec_space);
+}
+
+/// \brief Randomize a component of a field (uniform between 0 and 1)
+template <typename Scalar, typename ExecSpace>
+void ngp_field_randomize_component(const size_t seed,                              //
+                                   stk::mesh::FieldBase& counter_field,            //
+                                   stk::mesh::FieldBase& field,                    //
+                                   int component,                                  //
+                                   const stk::mesh::Selector* const selector_ptr,  //
+                                   const ExecSpace& exec_space) {
+  sync_field_to_space(field, exec_space);
+  sync_field_to_space(counter_field, exec_space);
+  stk::mesh::Selector field_selector = if_nullptr_select_fields(selector_ptr, field, counter_field);
+
+  using NgpScalarField = stk::mesh::NgpField<Scalar>;
+  using NgpCounterField = stk::mesh::NgpField<size_t>;
+  NgpScalarField ngp_field = stk::mesh::get_updated_ngp_field<Scalar>(field);
+  NgpCounterField ngp_counter_field = stk::mesh::get_updated_ngp_field<size_t>(counter_field);
+  stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(field.get_mesh());
+
+  FieldRandomizeComponent<NgpScalarField, NgpCounterField> functor(ngp_field, seed, ngp_counter_field, component);
+  stk::mesh::for_each_entity_run(ngp_mesh, ngp_field.get_rank(), field_selector, functor);
+
+  mark_field_modified_on_space(field, exec_space);
+  mark_field_modified_on_space(counter_field, exec_space);
+}
+
+// \brief Randomize a component of a field (between given min and max)
+template <typename Scalar, typename ExecSpace>
+void ngp_field_randomize_component(const size_t seed,                              //
+                                   const Scalar min, const Scalar max,             //
+                                   stk::mesh::FieldBase& counter_field,            //
+                                   stk::mesh::FieldBase& field,                    //
+                                   int component,                                  //
+                                   const stk::mesh::Selector* const selector_ptr,  //
+                                   const ExecSpace& exec_space) {
+  sync_field_to_space(field, exec_space);
+  sync_field_to_space(counter_field, exec_space);
+  stk::mesh::Selector field_selector = if_nullptr_select_fields(selector_ptr, field, counter_field);
+
+  using NgpScalarField = stk::mesh::NgpField<Scalar>;
+  using NgpCounterField = stk::mesh::NgpField<size_t>;
+  NgpScalarField ngp_field = stk::mesh::get_updated_ngp_field<Scalar>(field);
+  NgpCounterField ngp_counter_field = stk::mesh::get_updated_ngp_field<size_t>(counter_field);
+  stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(field.get_mesh());
+
+  FieldRandomizeComponentMinMax<NgpScalarField, NgpCounterField> functor(ngp_field, seed, ngp_counter_field, component,
+                                                                         min, max);
+  stk::mesh::for_each_entity_run(ngp_mesh, ngp_field.get_rank(), field_selector, functor);
+
+  mark_field_modified_on_space(field, exec_space);
+  mark_field_modified_on_space(counter_field, exec_space);
+}
+
+/// \brief Randomize a field (uniform between 0 and 1)
+template <typename Scalar, typename ExecSpace>
+void ngp_field_randomize(const size_t seed,                              //
+                         stk::mesh::FieldBase& counter_field,            //
+                         stk::mesh::FieldBase& field,                    //
+                         const stk::mesh::Selector* const selector_ptr,  //
+                         const ExecSpace& exec_space) {
+  sync_field_to_space(field, exec_space);
+  sync_field_to_space(counter_field, exec_space);
+  stk::mesh::Selector field_selector = if_nullptr_select_fields(selector_ptr, field, counter_field);
+
+  using NgpScalarField = stk::mesh::NgpField<Scalar>;
+  using NgpCounterField = stk::mesh::NgpField<size_t>;
+  NgpScalarField ngp_field = stk::mesh::get_updated_ngp_field<Scalar>(field);
+  NgpCounterField ngp_counter_field = stk::mesh::get_updated_ngp_field<size_t>(counter_field);
+  stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(field.get_mesh());
+
+  FieldRandomize<NgpScalarField, NgpCounterField> functor(ngp_field, seed, ngp_counter_field);
+  stk::mesh::for_each_entity_run(ngp_mesh, ngp_field.get_rank(), field_selector, functor);
+
+  mark_field_modified_on_space(field, exec_space);
+  mark_field_modified_on_space(counter_field, exec_space);
+}
+
+// \brief Randomize a field (between given min and max)
+template <typename Scalar, typename ExecSpace>
+void ngp_field_randomize(const size_t seed,                              //
+                         const Scalar min, const Scalar max,             //
+                         stk::mesh::FieldBase& counter_field,            //
+                         stk::mesh::FieldBase& field,                    //
+                         const stk::mesh::Selector* const selector_ptr,  //
+                         const ExecSpace& exec_space) {
+  sync_field_to_space(field, exec_space);
+  sync_field_to_space(counter_field, exec_space);
+  stk::mesh::Selector field_selector = if_nullptr_select_fields(selector_ptr, field, counter_field);
+
+  using NgpScalarField = stk::mesh::NgpField<Scalar>;
+  using NgpCounterField = stk::mesh::NgpField<size_t>;
+  NgpScalarField ngp_field = stk::mesh::get_updated_ngp_field<Scalar>(field);
+  NgpCounterField ngp_counter_field = stk::mesh::get_updated_ngp_field<size_t>(counter_field);
+  stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(field.get_mesh());
+
+  FieldRandomizeMinMax<NgpScalarField, NgpCounterField> functor(ngp_field, seed, ngp_counter_field, min, max);
+  stk::mesh::for_each_entity_run(ngp_mesh, ngp_field.get_rank(), field_selector, functor);
+
+  mark_field_modified_on_space(field, exec_space);
+  mark_field_modified_on_space(counter_field, exec_space);
 }
 
 /// \brief Deep copy y = x
