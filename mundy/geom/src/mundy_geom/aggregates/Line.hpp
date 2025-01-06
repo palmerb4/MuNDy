@@ -66,6 +66,8 @@ struct LineData {
   using direction_data_t = DirectionDataType;
 
   static constexpr stk::topology::topology_t topology = OurTopology;
+
+  stk::mesh::BulkData& bulk_data;
   center_data_t& center_data;
   direction_data_t& direction_data;
 };  // LineData
@@ -90,6 +92,8 @@ struct NgpLineData {
   using direction_data_t = DirectionDataType;
 
   static constexpr stk::topology::topology_t topology = OurTopology;
+
+  stk::mesh::NgpMesh ngp_mesh;
   center_data_t& center_data;
   direction_data_t& direction_data;
 };  // NgpLineData
@@ -102,7 +106,7 @@ template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
           typename CenterDataType,                // deduced
           typename DirectionDataType>             // deduced
-auto create_line_data(CenterDataType& center_data, DirectionDataType& direction_data) {
+auto create_line_data(stk::mesh::BulkData& bulk_data, CenterDataType& center_data, DirectionDataType& direction_data) {
   constexpr bool is_direction_a_field = std::is_same_v<std::decay_t<DirectionDataType>, stk::mesh::Field<Scalar>>;
   stk::topology our_topology = OurTopology;
   MUNDY_THROW_ASSERT(center_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
@@ -111,7 +115,7 @@ auto create_line_data(CenterDataType& center_data, DirectionDataType& direction_
     MUNDY_THROW_ASSERT(direction_data.entity_rank() == our_topology.rank(), std::invalid_argument,
                        "The direction data must have the same rank as the line rank.");
   }
-  return LineData<Scalar, OurTopology, CenterDataType, DirectionDataType>{center_data, direction_data};
+  return LineData<Scalar, OurTopology, CenterDataType, DirectionDataType>{bulk_data, center_data, direction_data};
 }
 
 /// \brief A helper function to create a NgpLineData object
@@ -120,7 +124,7 @@ template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
           typename CenterDataType,                // deduced
           typename DirectionDataType>             // deduced
-auto create_ngp_line_data(CenterDataType& center_data, DirectionDataType& direction_data) {
+auto create_ngp_line_data(stk::mesh::NgpMesh ngp_mesh, CenterDataType& center_data, DirectionDataType& direction_data) {
   constexpr bool is_direction_a_field = std::is_same_v<std::decay_t<DirectionDataType>, stk::mesh::NgpField<Scalar>>;
   stk::topology our_topology = OurTopology;
   MUNDY_THROW_ASSERT(center_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
@@ -129,7 +133,7 @@ auto create_ngp_line_data(CenterDataType& center_data, DirectionDataType& direct
     MUNDY_THROW_ASSERT(direction_data.get_rank() == our_topology.rank(), std::invalid_argument,
                        "The direction data must have the same rank as the line rank.");
   }
-  return NgpLineData<Scalar, OurTopology, CenterDataType, DirectionDataType>{center_data, direction_data};
+  return NgpLineData<Scalar, OurTopology, CenterDataType, DirectionDataType>{ngp_mesh, center_data, direction_data};
 }
 
 /// \brief A concept to check if a type provides the same data as LineData
@@ -142,6 +146,7 @@ concept ValidDefaultLineDataType = requires(Agg agg) {
   mundy::math::is_vector3_v<std::decay_t<typename Agg::direction_data_t>> ||
       std::is_same_v<std::decay_t<typename Agg::direction_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
   { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
+  { agg.bulk_data } -> std::convertible_to<stk::mesh::BulkData&>;
   { agg.center_data } -> std::convertible_to<typename Agg::center_data_t&>;
   { agg.direction_data } -> std::convertible_to<typename Agg::direction_data_t&>;
 };  // ValidDefaultLineDataType
@@ -156,6 +161,7 @@ concept ValidDefaultNgpLineDataType = requires(Agg agg) {
   mundy::math::is_vector3_v<std::decay_t<typename Agg::direction_data_t>> ||
       std::is_same_v<std::decay_t<typename Agg::direction_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
   { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
+  { agg.ngp_mesh } -> std::convertible_to<stk::mesh::NgpMesh>;
   { agg.center_data } -> std::convertible_to<typename Agg::center_data_t&>;
   { agg.direction_data } -> std::convertible_to<typename Agg::direction_data_t&>;
 };  // ValidDefaultNgpLineDataType
@@ -192,10 +198,12 @@ auto get_updated_ngp_data(LineDataType data) {
   constexpr stk::topology::topology_t our_topology = LineDataType::topology;
   if constexpr (is_direction_a_field) {
     return create_ngp_line_data<scalar_t, our_topology>(               //
+        stk::mesh::get_updated_ngp_mesh(data.bulk_data),               //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data),  //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.direction_data));
   } else {
     return create_ngp_line_data<scalar_t, our_topology>(               //
+        stk::mesh::get_updated_ngp_mesh(data.bulk_data),               //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data),  //
         data.direction_data);
   }
@@ -322,11 +330,10 @@ class LineEntityView<stk::topology::NODE, LineDataType> {
   static constexpr stk::topology::topology_t topology = stk::topology::NODE;
   static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
 
-  LineEntityView([[maybe_unused]] const stk::mesh::BulkData& bulk_data, LineDataType data, stk::mesh::Entity line)
-      : data_(data), line_(line) {
-    MUNDY_THROW_ASSERT(bulk_data.entity_rank(line_) == stk::topology::NODE_RANK, std::invalid_argument,
+  LineEntityView(LineDataType data, stk::mesh::Entity line) : data_(data), line_(line) {
+    MUNDY_THROW_ASSERT(data_.bulk_data.entity_rank(line_) == stk::topology::NODE_RANK, std::invalid_argument,
                        "The line entity rank must be NODE_RANK");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(line_), std::invalid_argument, "The given line entity is not valid");
+    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(line_), std::invalid_argument, "The given line entity is not valid");
   }
 
   decltype(auto) center() {
@@ -365,14 +372,14 @@ class LineEntityView<stk::topology::PARTICLE, LineDataType> {
   static constexpr stk::topology::topology_t topology = stk::topology::PARTICLE;
   static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
 
-  LineEntityView(const stk::mesh::BulkData& bulk_data, LineDataType data, stk::mesh::Entity line)
-      : data_(data), line_(line), node_(bulk_data.begin_nodes(line_)[0]) {
-    MUNDY_THROW_ASSERT(bulk_data.entity_rank(line_) == stk::topology::ELEM_RANK, std::invalid_argument,
+  LineEntityView(LineDataType data, stk::mesh::Entity line)
+      : data_(data), line_(line), node_(data_.bulk_data.begin_nodes(line_)[0]) {
+    MUNDY_THROW_ASSERT(data_.bulk_data.entity_rank(line_) == stk::topology::ELEM_RANK, std::invalid_argument,
                        "The line entity rank must be ELEM_RANK");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(line_), std::invalid_argument, "The given line entity is not valid");
-    MUNDY_THROW_ASSERT(bulk_data.num_nodes(line_) >= 1, std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(line_), std::invalid_argument, "The given line entity is not valid");
+    MUNDY_THROW_ASSERT(data_.bulk_data.num_nodes(line_) >= 1, std::invalid_argument,
                        "The given line entity must have at least one node");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(node_), std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(node_), std::invalid_argument,
                        "The node entity associated with the line is not valid");
   }
 
@@ -420,9 +427,7 @@ class NgpLineEntityView<stk::topology::NODE, NgpLineDataType> {
   static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
 
   KOKKOS_INLINE_FUNCTION
-  NgpLineEntityView([[maybe_unused]] stk::mesh::NgpMesh ngp_mesh, NgpLineDataType data,
-                    stk::mesh::FastMeshIndex line_index)
-      : data_(data), line_index_(line_index) {
+  NgpLineEntityView(NgpLineDataType data, stk::mesh::FastMeshIndex line_index) : data_(data), line_index_(line_index) {
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -468,10 +473,10 @@ class NgpLineEntityView<stk::topology::PARTICLE, NgpLineDataType> {
   static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
 
   KOKKOS_INLINE_FUNCTION
-  NgpLineEntityView(stk::mesh::NgpMesh ngp_mesh, NgpLineDataType data, stk::mesh::FastMeshIndex line_index)
+  NgpLineEntityView(NgpLineDataType data, stk::mesh::FastMeshIndex line_index)
       : data_(data),
         line_index_(line_index),
-        node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(rank, line_index_)[0])) {
+        node_index_(data_.ngp_mesh.fast_mesh_index(data_.ngp_mesh.get_nodes(rank, line_index_)[0])) {
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -512,29 +517,28 @@ static_assert(ValidLineType<LineEntityView<stk::topology::NODE,
                                                         stk::mesh::Field<float>>>> &&
                   ValidLineType<NgpLineEntityView<stk::topology::NODE,
                                                   NgpLineData<float,                       //
-                                                           stk::topology::NODE,         //
-                                                           stk::mesh::NgpField<float>,  //
-                                                           mundy::math::Vector3<float>>>> &&
+                                                              stk::topology::NODE,         //
+                                                              stk::mesh::NgpField<float>,  //
+                                                              mundy::math::Vector3<float>>>> &&
                   ValidLineType<NgpLineEntityView<stk::topology::PARTICLE,
                                                   NgpLineData<float,                       //
-                                                           stk::topology::PARTICLE,     //
-                                                           stk::mesh::NgpField<float>,  //
-                                                           stk::mesh::NgpField<float>>>>,
+                                                              stk::topology::PARTICLE,     //
+                                                              stk::mesh::NgpField<float>,  //
+                                                              stk::mesh::NgpField<float>>>>,
               "LineEntityView and NgpLineEntityView must be valid Line types");
 
 /// \brief A helper function to create a LineEntityView object with type deduction
 template <stk::topology::topology_t OurTopology,  // Must be provided
           typename LineDataType>                  // deduced
-auto create_line_entity_view(const stk::mesh::BulkData& bulk_data, LineDataType& data, stk::mesh::Entity line) {
-  return LineEntityView<OurTopology, LineDataType>(bulk_data, data, line);
+auto create_line_entity_view(LineDataType& data, stk::mesh::Entity line) {
+  return LineEntityView<OurTopology, LineDataType>(data, line);
 }
 
 /// \brief A helper function to create a NgpLineEntityView object with type deduction
 template <stk::topology::topology_t OurTopology,  // Must be provided
           typename NgpLineDataType>               // deduced
-auto create_ngp_line_entity_view(stk::mesh::NgpMesh ngp_mesh, NgpLineDataType data,
-                                 stk::mesh::FastMeshIndex line_index) {
-  return NgpLineEntityView<OurTopology, NgpLineDataType>(ngp_mesh, data, line_index);
+auto create_ngp_line_entity_view(NgpLineDataType data, stk::mesh::FastMeshIndex line_index) {
+  return NgpLineEntityView<OurTopology, NgpLineDataType>(data, line_index);
 }
 //@}
 

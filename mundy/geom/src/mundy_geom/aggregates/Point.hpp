@@ -60,6 +60,8 @@ struct PointData {
   using node_coords_data_t = NodeCoordsType;
 
   static constexpr stk::topology::topology_t topology = OurTopology;
+
+  stk::mesh::BulkData& bulk_data;
   node_coords_data_t& node_coords_data;
 };  // PointData
 
@@ -79,6 +81,8 @@ struct NgpPointData {
   using node_coords_data_t = NodeCoordsType;
 
   static constexpr stk::topology::topology_t topology = OurTopology;
+
+  stk::mesh::NgpMesh ngp_mesh;
   node_coords_data_t& node_coords_data;
 };  // NgpPointData
 
@@ -86,10 +90,10 @@ struct NgpPointData {
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
           typename NodeCoordsType>                // deduced
-auto create_point_data(NodeCoordsType& node_coords_data) {
+auto create_point_data(stk::mesh::BulkData& bulk_data, NodeCoordsType& node_coords_data) {
   MUNDY_THROW_ASSERT(node_coords_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                      "The center data must be a field of NODE_RANK");
-  return PointData<Scalar, OurTopology, NodeCoordsType>{node_coords_data};
+  return PointData<Scalar, OurTopology, NodeCoordsType>{bulk_data, node_coords_data};
 }
 
 /// \brief A helper function to create a NgpPointData object
@@ -97,10 +101,10 @@ auto create_point_data(NodeCoordsType& node_coords_data) {
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
           typename NodeCoordsType>                // deduced
-auto create_ngp_point_data(NodeCoordsType& node_coords_data) {
+auto create_ngp_point_data(stk::mesh::NgpMesh ngp_mesh, NodeCoordsType& node_coords_data) {
   MUNDY_THROW_ASSERT(node_coords_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                      "The center data must be a field of NODE_RANK");
-  return NgpPointData<Scalar, OurTopology, NodeCoordsType>{node_coords_data};
+  return NgpPointData<Scalar, OurTopology, NodeCoordsType>{ngp_mesh, node_coords_data};
 }
 
 /// \brief A concept to check if a type provides the same data as PointData
@@ -110,6 +114,7 @@ concept ValidDefaultPointDataType = requires(Agg agg) {
   typename Agg::node_coords_data_t;
   std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
   { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
+  { agg.bulk_data } -> std::convertible_to<stk::mesh::BulkData&>;
   { agg.node_coords_data } -> std::convertible_to<typename Agg::node_coords_data_t&>;
 };  // ValidDefaultPointDataType
 
@@ -120,6 +125,7 @@ concept ValidDefaultNgpPointDataType = requires(Agg agg) {
   typename Agg::node_coords_data_t;
   std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
   { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
+  { agg.ngp_mesh } -> std::convertible_to<stk::mesh::NgpMesh>;
   { agg.node_coords_data } -> std::convertible_to<typename Agg::node_coords_data_t&>;
 };  // ValidDefaultNgpPointDataType
 
@@ -147,7 +153,8 @@ auto get_updated_ngp_data(PointDataType data) {
   using node_coords_data_t = typename PointDataType::node_coords_data_t;
   constexpr stk::topology::topology_t our_topology = PointDataType::topology;
 
-  return create_ngp_point_data<scalar_t, our_topology>(stk::mesh::get_updated_ngp_field<scalar_t>(data.node_coords_data));
+  return create_ngp_point_data<scalar_t, our_topology>(
+      stk::mesh::get_updated_ngp_field<scalar_t>(data.node_coords_data));
 }
 
 /// \brief A traits class to provide abstracted access to a point's data via an aggregate
@@ -212,11 +219,10 @@ class PointEntityView<stk::topology::NODE, PointDataType> {
   static constexpr stk::topology::topology_t topology = stk::topology::NODE;
   static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
 
-  PointEntityView([[maybe_unused]] const stk::mesh::BulkData& bulk_data, PointDataType data, stk::mesh::Entity point)
-      : data_(data), point_(point) {
-    MUNDY_THROW_ASSERT(bulk_data.entity_rank(point_) == stk::topology::NODE_RANK, std::invalid_argument,
+  PointEntityView(PointDataType data, stk::mesh::Entity point) : data_(data), point_(point) {
+    MUNDY_THROW_ASSERT(data_.bulk_data.entity_rank(point_) == stk::topology::NODE_RANK, std::invalid_argument,
                        "The point entity rank must be NODE_RANK");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(point_), std::invalid_argument, "The given point entity is not valid");
+    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(point_), std::invalid_argument, "The given point entity is not valid");
   }
 
   decltype(auto) center() {
@@ -253,14 +259,14 @@ class PointEntityView<stk::topology::PARTICLE, PointDataType> {
   static constexpr stk::topology::topology_t topology = stk::topology::PARTICLE;
   static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
 
-  PointEntityView(const stk::mesh::BulkData& bulk_data, PointDataType data, stk::mesh::Entity point)
-      : data_(data), point_(point), node_(bulk_data.begin_nodes(point_)[0]) {
-    MUNDY_THROW_ASSERT(bulk_data.entity_rank(point_) == stk::topology::ELEM_RANK, std::invalid_argument,
+  PointEntityView(PointDataType data, stk::mesh::Entity point)
+      : data_(data), point_(point), node_(data_.bulk_data.begin_nodes(point_)[0]) {
+    MUNDY_THROW_ASSERT(data_.bulk_data.entity_rank(point_) == stk::topology::ELEM_RANK, std::invalid_argument,
                        "The point entity rank must be ELEM_RANK");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(point_), std::invalid_argument, "The given point entity is not valid");
-    MUNDY_THROW_ASSERT(bulk_data.num_nodes(point_) >= 1, std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(point_), std::invalid_argument, "The given point entity is not valid");
+    MUNDY_THROW_ASSERT(data_.bulk_data.num_nodes(point_) >= 1, std::invalid_argument,
                        "The given point entity must have at least one node");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(node_), std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(node_), std::invalid_argument,
                        "The node entity associated with the point is not valid");
   }
 
@@ -307,7 +313,7 @@ class NgpPointEntityView<stk::topology::NODE, NgpPointDataType> {
   static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
 
   KOKKOS_INLINE_FUNCTION
-  NgpPointEntityView([[maybe_unused]] stk::mesh::NgpMesh ngp_mesh, NgpPointDataType data,
+  NgpPointEntityView(NgpPointDataType data,
                      stk::mesh::FastMeshIndex point_index)
       : data_(data), point_index_(point_index) {
   }
@@ -351,10 +357,10 @@ class NgpPointEntityView<stk::topology::PARTICLE, NgpPointDataType> {
   static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
 
   KOKKOS_INLINE_FUNCTION
-  NgpPointEntityView(stk::mesh::NgpMesh ngp_mesh, NgpPointDataType data, stk::mesh::FastMeshIndex point_index)
+  NgpPointEntityView(NgpPointDataType data, stk::mesh::FastMeshIndex point_index)
       : data_(data),
         point_index_(point_index),
-        node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(rank, point_index_)[0])) {
+        node_index_(data_.ngp_mesh.fast_mesh_index(data_.ngp_mesh.get_nodes(rank, point_index_)[0])) {
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -402,16 +408,16 @@ static_assert(ValidPointType<PointEntityView<stk::topology::NODE,
 /// \brief A helper function to create a PointEntityView object with type deduction
 template <stk::topology::topology_t OurTopology,  // Must be provided
           typename PointDataType>                 // deduced
-auto create_point_entity_view(const stk::mesh::BulkData& bulk_data, PointDataType& data, stk::mesh::Entity point) {
-  return PointEntityView<OurTopology, PointDataType>(bulk_data, data, point);
+auto create_point_entity_view(PointDataType& data, stk::mesh::Entity point) {
+  return PointEntityView<OurTopology, PointDataType>(data, point);
 }
 
 /// \brief A helper function to create a NgpPointEntityView object with type deduction
 template <stk::topology::topology_t OurTopology,  // Must be provided
           typename NgpPointDataType>              // deduced
-auto create_ngp_point_entity_view(stk::mesh::NgpMesh ngp_mesh, NgpPointDataType data,
-                                stk::mesh::FastMeshIndex point_index) {
-  return NgpPointEntityView<OurTopology, NgpPointDataType>(ngp_mesh, data, point_index);
+auto create_ngp_point_entity_view(NgpPointDataType data,
+                                  stk::mesh::FastMeshIndex point_index) {
+  return NgpPointEntityView<OurTopology, NgpPointDataType>(data, point_index);
 }
 //@}
 

@@ -64,7 +64,7 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
 
   // Test the regular sphere data to ensure that the stored shared data/fields are as expected
   auto sphere_data = create_sphere_data<double, OurTopology>(
-      center_field, get_first_or_second<is_radius_shared>(radius, radius_field));
+      bulk_data, center_field, get_first_or_second<is_radius_shared>(radius, radius_field));
   ASSERT_EQ(&sphere_data.center_data, &center_field);
   if constexpr (is_radius_shared) {
     ASSERT_EQ(&sphere_data.radius_data, &radius);
@@ -77,7 +77,7 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
   stk::mesh::NgpField<double>& ngp_center_field = stk::mesh::get_updated_ngp_field<double>(center_field);
   stk::mesh::NgpField<double>& ngp_radius_field = stk::mesh::get_updated_ngp_field<double>(radius_field);
   auto ngp_sphere_data = create_ngp_sphere_data<double, OurTopology>(
-      ngp_center_field, get_first_or_second<is_radius_shared>(radius, ngp_radius_field));
+      ngp_mesh, ngp_center_field, get_first_or_second<is_radius_shared>(radius, ngp_radius_field));
 
   ASSERT_EQ(&ngp_sphere_data.center_data, &ngp_center_field);
   if constexpr (is_radius_shared) {
@@ -117,7 +117,7 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
   // Add and then remove a constant value to the center and radius
   const double add_value = 1.1;
   if (sphere_rank == stk::topology::NODE_RANK) {
-    auto sphere_view = create_sphere_entity_view<OurTopology>(bulk_data, sphere_data, sphere);
+    auto sphere_view = create_sphere_entity_view<OurTopology>(sphere_data, sphere);
     ASSERT_DOUBLE_EQ(sphere_view.center()[0], non_shared_center[0]);
     ASSERT_DOUBLE_EQ(sphere_view.center()[1], non_shared_center[1]);
     ASSERT_DOUBLE_EQ(sphere_view.center()[2], non_shared_center[2]);
@@ -146,7 +146,7 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
     sphere_view.center()[2] /= add_value;
     sphere_view.radius() -= 2 * add_value;
   } else {
-    auto sphere_view = create_sphere_entity_view<OurTopology>(bulk_data, sphere_data, sphere);
+    auto sphere_view = create_sphere_entity_view<OurTopology>(sphere_data, sphere);
     ASSERT_DOUBLE_EQ(sphere_view.center()[0], non_shared_center[0]);
     ASSERT_DOUBLE_EQ(sphere_view.center()[1], non_shared_center[1]);
     ASSERT_DOUBLE_EQ(sphere_view.center()[2], non_shared_center[2]);
@@ -182,7 +182,7 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
   // Test that the NGP sphere data properly views the updated fields
   stk::mesh::FastMeshIndex sphere_index = ngp_mesh.fast_mesh_index(sphere);
   if (sphere_rank == stk::topology::NODE_RANK) {
-    auto ngp_sphere_view = create_ngp_sphere_entity_view<OurTopology>(ngp_mesh, ngp_sphere_data, sphere_index);
+    auto ngp_sphere_view = create_ngp_sphere_entity_view<OurTopology>(ngp_sphere_data, sphere_index);
     ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[0], non_shared_center[0]);
     ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[1], non_shared_center[1]);
     ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[2], non_shared_center[2]);
@@ -207,7 +207,7 @@ void test_sphere_data(stk::mesh::BulkData& bulk_data,          //
       ASSERT_DOUBLE_EQ(ngp_radius_field(sphere_index, 0), old_non_shared_radius + 2 * add_value);
     }
   } else {
-    auto ngp_sphere_view = create_ngp_sphere_entity_view<OurTopology>(ngp_mesh, ngp_sphere_data, sphere_index);
+    auto ngp_sphere_view = create_ngp_sphere_entity_view<OurTopology>(ngp_sphere_data, sphere_index);
     ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[0], non_shared_center[0]);
     ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[1], non_shared_center[1]);
     ASSERT_DOUBLE_EQ(ngp_sphere_view.center()[2], non_shared_center[2]);
@@ -255,7 +255,7 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
 
   // Test the regular ellipsoid data to ensure that the stored shared data/fields are as expected
   auto ellipsoid_data = create_ellipsoid_data<double, OurTopology>(
-      center_field, get_first_or_second<is_orientation_shared>(orientation, orientation_field),
+      bulk_data, center_field, get_first_or_second<is_orientation_shared>(orientation, orientation_field),
       get_first_or_second<is_axis_lengths_shared>(axis_lengths, axis_lengths_field));
   ASSERT_EQ(&ellipsoid_data.center_data, &center_field);
   if constexpr (is_orientation_shared) {
@@ -275,7 +275,7 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
   stk::mesh::NgpField<double>& ngp_orientation_field = stk::mesh::get_updated_ngp_field<double>(orientation_field);
   stk::mesh::NgpField<double>& ngp_axis_lengths_field = stk::mesh::get_updated_ngp_field<double>(axis_lengths_field);
   auto ngp_ellipsoid_data = create_ngp_ellipsoid_data<double, OurTopology>(
-      ngp_center_field, get_first_or_second<is_orientation_shared>(orientation, ngp_orientation_field),
+      ngp_mesh, ngp_center_field, get_first_or_second<is_orientation_shared>(orientation, ngp_orientation_field),
       get_first_or_second<is_axis_lengths_shared>(axis_lengths, ngp_axis_lengths_field));
 
   ASSERT_EQ(&ngp_ellipsoid_data.center_data, &ngp_center_field);
@@ -341,7 +341,7 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
   // Test that the data is modifiable
   const double add_value = 1.1;
   if (ellipsoid_rank == stk::topology::NODE_RANK) {
-    auto ellipsoid_view = create_ellipsoid_entity_view<OurTopology>(bulk_data, ellipsoid_data, ellipsoid);
+    auto ellipsoid_view = create_ellipsoid_entity_view<OurTopology>(ellipsoid_data, ellipsoid);
     ASSERT_DOUBLE_EQ(ellipsoid_view.center()[0], non_shared_center[0]);
     ASSERT_DOUBLE_EQ(ellipsoid_view.center()[1], non_shared_center[1]);
     ASSERT_DOUBLE_EQ(ellipsoid_view.center()[2], non_shared_center[2]);
@@ -419,7 +419,7 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
     ellipsoid_view.axis_lengths()[1] += 4 * add_value;
     ellipsoid_view.axis_lengths()[2] /= 5 * add_value;
   } else {
-    auto ellipsoid_view = create_ellipsoid_entity_view<OurTopology>(bulk_data, ellipsoid_data, ellipsoid);
+    auto ellipsoid_view = create_ellipsoid_entity_view<OurTopology>(ellipsoid_data, ellipsoid);
     ASSERT_DOUBLE_EQ(ellipsoid_view.center()[0], non_shared_center[0]);
     ASSERT_DOUBLE_EQ(ellipsoid_view.center()[1], non_shared_center[1]);
     ASSERT_DOUBLE_EQ(ellipsoid_view.center()[2], non_shared_center[2]);
@@ -504,8 +504,7 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
   // Test that the NGP ellipsoid data properly views the updated fields
   stk::mesh::FastMeshIndex ellipsoid_index = ngp_mesh.fast_mesh_index(ellipsoid);
   if (ellipsoid_rank == stk::topology::NODE_RANK) {
-    auto ngp_ellipsoid_view =
-        create_ngp_ellipsoid_entity_view<OurTopology>(ngp_mesh, ngp_ellipsoid_data, ellipsoid_index);
+    auto ngp_ellipsoid_view = create_ngp_ellipsoid_entity_view<OurTopology>(ngp_ellipsoid_data, ellipsoid_index);
     ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[0], non_shared_center[0]);
     ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[1], non_shared_center[1]);
     ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[2], non_shared_center[2]);
@@ -566,8 +565,7 @@ void test_ellipsoid_data(stk::mesh::BulkData& bulk_data,               //
       ASSERT_DOUBLE_EQ(ngp_axis_lengths_field(ellipsoid_index, 2), old_non_shared_axis_lengths[2] * 5 * add_value);
     }
   } else {
-    auto ngp_ellipsoid_view =
-        create_ngp_ellipsoid_entity_view<OurTopology>(ngp_mesh, ngp_ellipsoid_data, ellipsoid_index);
+    auto ngp_ellipsoid_view = create_ngp_ellipsoid_entity_view<OurTopology>(ngp_ellipsoid_data, ellipsoid_index);
     ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[0], non_shared_center[0]);
     ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[1], non_shared_center[1]);
     ASSERT_DOUBLE_EQ(ngp_ellipsoid_view.center()[2], non_shared_center[2]);
@@ -643,13 +641,13 @@ void test_aabb_data(stk::mesh::BulkData& bulk_data,   //
   AABB<double> aabb{Point<double>{1.1, 2.2, 3.3}, Point<double>{4.4, 5.5, 6.6}};
 
   // Test the regular aabb data to ensure that the stored shared data/fields are as expected
-  auto aabb_data = create_aabb_data<double>(aabb_rank, aabb_field);
+  auto aabb_data = create_aabb_data<double>(bulk_data, aabb_rank, aabb_field);
   ASSERT_EQ(&aabb_data.aabb_data, &aabb_field);
 
   // Same test for the NGP aabb data
   stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
   stk::mesh::NgpField<double>& ngp_aabb_field = stk::mesh::get_updated_ngp_field<double>(aabb_field);
-  auto ngp_aabb_data = create_ngp_aabb_data<double>(aabb_rank, ngp_aabb_field);
+  auto ngp_aabb_data = create_ngp_aabb_data<double>(bulk_data, aabb_rank, ngp_aabb_field);
   ASSERT_EQ(&ngp_aabb_data.aabb_data, &ngp_aabb_field);
 
   // Set the center and radius data for the aabb directly via their fields
@@ -668,7 +666,7 @@ void test_aabb_data(stk::mesh::BulkData& bulk_data,   //
 
   // Test that the data is modifiable
   const double add_value = 1.1;
-  auto aabb_view = create_aabb_entity_view(bulk_data, aabb_data, aabb_entity);
+  auto aabb_view = create_aabb_entity_view(aabb_data, aabb_entity);
   ASSERT_NEAR(aabb_view.min_corner()[0], non_shared_aabb.min_corner()[0], 1e-12);
   ASSERT_NEAR(aabb_view.min_corner()[1], non_shared_aabb.min_corner()[1], 1e-12);
   ASSERT_NEAR(aabb_view.min_corner()[2], non_shared_aabb.min_corner()[2], 1e-12);
@@ -706,7 +704,7 @@ void test_aabb_data(stk::mesh::BulkData& bulk_data,   //
 
   // Test that the NGP aabb data properly views the updated fields
   stk::mesh::FastMeshIndex aabb_index = ngp_mesh.fast_mesh_index(aabb_entity);
-  auto ngp_aabb_view = create_ngp_aabb_entity_view(ngp_mesh, ngp_aabb_data, aabb_index);
+  auto ngp_aabb_view = create_ngp_aabb_entity_view(ngp_aabb_data, aabb_index);
   ASSERT_NEAR(ngp_aabb_view.min_corner()[0], non_shared_aabb.min_corner()[0], 1e-12);
   ASSERT_NEAR(ngp_aabb_view.min_corner()[1], non_shared_aabb.min_corner()[1], 1e-12);
   ASSERT_NEAR(ngp_aabb_view.min_corner()[2], non_shared_aabb.min_corner()[2], 1e-12);
@@ -743,13 +741,13 @@ void test_point_data(stk::mesh::BulkData& bulk_data,  //
   Point<double> center{1.1, 2.2, 3.3};
 
   // Test the regular point data to ensure that the stored shared data/fields are as expected
-  auto point_data = create_point_data<double, OurTopology>(center_field);
+  auto point_data = create_point_data<double, OurTopology>(bulk_data, center_field);
   ASSERT_EQ(&point_data.node_coords_data, &center_field);
 
   // Same test for the NGP point data
   stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
   stk::mesh::NgpField<double>& ngp_center_field = stk::mesh::get_updated_ngp_field<double>(center_field);
-  auto ngp_point_data = create_ngp_point_data<double, OurTopology>(ngp_center_field);
+  auto ngp_point_data = create_ngp_point_data<double, OurTopology>(bulk_data, ngp_center_field);
 
   ASSERT_EQ(&ngp_point_data.node_coords_data, &ngp_center_field);
 
@@ -775,7 +773,7 @@ void test_point_data(stk::mesh::BulkData& bulk_data,  //
   const double add_value = 1.1;
   if (point_rank == stk::topology::NODE_RANK) {
     // Test that the data is modifiable
-    auto point_view = create_point_entity_view<OurTopology>(bulk_data, point_data, point_entity);
+    auto point_view = create_point_entity_view<OurTopology>(point_data, point_entity);
     ASSERT_NEAR(point_view[0], non_shared_center[0], 1e-12);
     ASSERT_NEAR(point_view[1], non_shared_center[1], 1e-12);
     ASSERT_NEAR(point_view[2], non_shared_center[2], 1e-12);
@@ -794,7 +792,7 @@ void test_point_data(stk::mesh::BulkData& bulk_data,  //
     point_view[2] /= add_value;
   } else {
     // Test that the data is modifiable
-    auto point_view = create_point_entity_view<OurTopology>(bulk_data, point_data, point_entity);
+    auto point_view = create_point_entity_view<OurTopology>(point_data, point_entity);
     ASSERT_NEAR(point_view[0], non_shared_center[0], 1e-12);
     ASSERT_NEAR(point_view[1], non_shared_center[1], 1e-12);
     ASSERT_NEAR(point_view[2], non_shared_center[2], 1e-12);
@@ -818,7 +816,7 @@ void test_point_data(stk::mesh::BulkData& bulk_data,  //
   if (point_rank == stk::topology::NODE_RANK) {
     // Test that the NGP point data properly views the updated fields
     stk::mesh::FastMeshIndex point_index = ngp_mesh.fast_mesh_index(point_entity);
-    auto ngp_point_view = create_ngp_point_entity_view<OurTopology>(ngp_mesh, ngp_point_data, point_index);
+    auto ngp_point_view = create_ngp_point_entity_view<OurTopology>(ngp_point_data, point_index);
     ASSERT_NEAR(ngp_point_view[0], non_shared_center[0], 1e-12);
     ASSERT_NEAR(ngp_point_view[1], non_shared_center[1], 1e-12);
     ASSERT_NEAR(ngp_point_view[2], non_shared_center[2], 1e-12);
@@ -836,7 +834,7 @@ void test_point_data(stk::mesh::BulkData& bulk_data,  //
     stk::mesh::FastMeshIndex point_index = ngp_mesh.fast_mesh_index(point_entity);
     stk::mesh::Entity node = bulk_data.begin_nodes(point_entity)[0];
     stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
-    auto ngp_point_view = create_ngp_point_entity_view<OurTopology>(ngp_mesh, ngp_point_data, point_index);
+    auto ngp_point_view = create_ngp_point_entity_view<OurTopology>(ngp_point_data, point_index);
     ASSERT_NEAR(ngp_point_view[0], non_shared_center[0], 1e-12);
     ASSERT_NEAR(ngp_point_view[1], non_shared_center[1], 1e-12);
     ASSERT_NEAR(ngp_point_view[2], non_shared_center[2], 1e-12);
@@ -869,7 +867,7 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
 
   // Test the regular line data to ensure that the stored shared data/fields are as expected
   auto line_data = create_line_data<double, OurTopology>(
-      center_field, get_first_or_second<is_direction_shared>(direction, direction_field));
+      bulk_data, center_field, get_first_or_second<is_direction_shared>(direction, direction_field));
   ASSERT_EQ(&line_data.center_data, &center_field);
   if constexpr (is_direction_shared) {
     ASSERT_EQ(&line_data.direction_data, &direction);
@@ -882,7 +880,7 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
   stk::mesh::NgpField<double>& ngp_center_field = stk::mesh::get_updated_ngp_field<double>(center_field);
   stk::mesh::NgpField<double>& ngp_direction_field = stk::mesh::get_updated_ngp_field<double>(direction_field);
   auto ngp_line_data = create_ngp_line_data<double, OurTopology>(
-      ngp_center_field, get_first_or_second<is_direction_shared>(direction, ngp_direction_field));
+      ngp_mesh, ngp_center_field, get_first_or_second<is_direction_shared>(direction, ngp_direction_field));
 
   ASSERT_EQ(&ngp_line_data.center_data, &ngp_center_field);
   if constexpr (is_direction_shared) {
@@ -928,7 +926,7 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
   // Add and then remove a constant value to the center and direction
   const double add_value = 1.1;
   if (line_rank == stk::topology::NODE_RANK) {
-    auto line_view = create_line_entity_view<OurTopology>(bulk_data, line_data, line);
+    auto line_view = create_line_entity_view<OurTopology>(line_data, line);
     ASSERT_NEAR(line_view.center()[0], non_shared_center[0], 1e-12);
     ASSERT_NEAR(line_view.center()[1], non_shared_center[1], 1e-12);
     ASSERT_NEAR(line_view.center()[2], non_shared_center[2], 1e-12);
@@ -969,7 +967,7 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     line_view.direction()[1] += 2 * add_value;
     line_view.direction()[2] /= 2 * add_value;
   } else {
-    auto line_view = create_line_entity_view<OurTopology>(bulk_data, line_data, line);
+    auto line_view = create_line_entity_view<OurTopology>(line_data, line);
     ASSERT_NEAR(line_view.center()[0], non_shared_center[0], 1e-12);
     ASSERT_NEAR(line_view.center()[1], non_shared_center[1], 1e-12);
     ASSERT_NEAR(line_view.center()[2], non_shared_center[2], 1e-12);
@@ -1017,7 +1015,7 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
   // Test that the NGP line data properly views the updated fields
   stk::mesh::FastMeshIndex line_index = ngp_mesh.fast_mesh_index(line);
   if (line_rank == stk::topology::NODE_RANK) {
-    auto ngp_line_view = create_ngp_line_entity_view<OurTopology>(ngp_mesh, ngp_line_data, line_index);
+    auto ngp_line_view = create_ngp_line_entity_view<OurTopology>(ngp_line_data, line_index);
     ASSERT_NEAR(ngp_line_view.center()[0], non_shared_center[0], 1e-12);
     ASSERT_NEAR(ngp_line_view.center()[1], non_shared_center[1], 1e-12);
     ASSERT_NEAR(ngp_line_view.center()[2], non_shared_center[2], 1e-12);
@@ -1051,7 +1049,7 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
       ASSERT_NEAR(ngp_direction_field(line_index, 2), old_non_shared_direction[2] * 2 * add_value, 1e-12);
     }
   } else {
-    auto ngp_line_view = create_ngp_line_entity_view<OurTopology>(ngp_mesh, ngp_line_data, line_index);
+    auto ngp_line_view = create_ngp_line_entity_view<OurTopology>(ngp_line_data, line_index);
     ASSERT_NEAR(ngp_line_view.center()[0], non_shared_center[0], 1e-12);
     ASSERT_NEAR(ngp_line_view.center()[1], non_shared_center[1], 1e-12);
     ASSERT_NEAR(ngp_line_view.center()[2], non_shared_center[2], 1e-12);
@@ -1106,13 +1104,13 @@ void test_line_segment_data(stk::mesh::BulkData& bulk_data,  //
   ASSERT_TRUE(bulk_data.is_valid(end_node));
 
   // Test the regular line_segment data to ensure that the stored shared data/fields are as expected
-  auto line_segment_data = create_line_segment_data<double, OurTopology>(node_coords_field);
+  auto line_segment_data = create_line_segment_data<double, OurTopology>(bulk_data, node_coords_field);
   ASSERT_EQ(&line_segment_data.node_coords_data, &node_coords_field);
 
   // Same test for the NGP line_segment data
   stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
   stk::mesh::NgpField<double>& ngp_node_coords_field = stk::mesh::get_updated_ngp_field<double>(node_coords_field);
-  auto ngp_line_segment_data = create_ngp_line_segment_data<double, OurTopology>(ngp_node_coords_field);
+  auto ngp_line_segment_data = create_ngp_line_segment_data<double, OurTopology>(ngp_mesh, ngp_node_coords_field);
   ASSERT_EQ(&ngp_line_segment_data.node_coords_data, &ngp_node_coords_field);
 
   // Set the node_coords for the line_segment directly via their fields
@@ -1133,7 +1131,7 @@ void test_line_segment_data(stk::mesh::BulkData& bulk_data,  //
   // Test that the data is modifiable
   // Add and then remove a constant value to the node_coords
   const double add_value = 1.1;
-  auto line_segment_view = create_line_segment_entity_view<OurTopology>(bulk_data, line_segment_data, line_segment);
+  auto line_segment_view = create_line_segment_entity_view<OurTopology>(line_segment_data, line_segment);
   ASSERT_NEAR(line_segment_view.start()[0], non_shared_start_node_coords[0], 1e-12);
   ASSERT_NEAR(line_segment_view.start()[1], non_shared_start_node_coords[1], 1e-12);
   ASSERT_NEAR(line_segment_view.start()[2], non_shared_start_node_coords[2], 1e-12);
@@ -1173,7 +1171,7 @@ void test_line_segment_data(stk::mesh::BulkData& bulk_data,  //
   stk::mesh::FastMeshIndex start_node_index = ngp_mesh.fast_mesh_index(start_node);
   stk::mesh::FastMeshIndex end_node_index = ngp_mesh.fast_mesh_index(end_node);
   auto ngp_line_segment_view =
-      create_ngp_line_segment_entity_view<OurTopology>(ngp_mesh, ngp_line_segment_data, line_segment_index);
+      create_ngp_line_segment_entity_view<OurTopology>(ngp_line_segment_data, line_segment_index);
   ASSERT_NEAR(ngp_line_segment_view.start()[0], non_shared_start_node_coords[0], 1e-12);
   ASSERT_NEAR(ngp_line_segment_view.start()[1], non_shared_start_node_coords[1], 1e-12);
   ASSERT_NEAR(ngp_line_segment_view.start()[2], non_shared_start_node_coords[2], 1e-12);
@@ -1215,13 +1213,13 @@ void test_v_segment_data(stk::mesh::BulkData& bulk_data,  //
   ASSERT_TRUE(bulk_data.is_valid(end_node));
 
   // Test the regular v_segment data to ensure that the stored shared data/fields are as expected
-  auto v_segment_data = create_v_segment_data<double, OurTopology>(node_coords_field);
+  auto v_segment_data = create_v_segment_data<double, OurTopology>(bulk_data, node_coords_field);
   ASSERT_EQ(&v_segment_data.node_coords_data, &node_coords_field);
 
   // Same test for the NGP v_segment data
   stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
   stk::mesh::NgpField<double>& ngp_node_coords_field = stk::mesh::get_updated_ngp_field<double>(node_coords_field);
-  auto ngp_v_segment_data = create_ngp_v_segment_data<double, OurTopology>(ngp_node_coords_field);
+  auto ngp_v_segment_data = create_ngp_v_segment_data<double, OurTopology>(ngp_mesh, ngp_node_coords_field);
   ASSERT_EQ(&ngp_v_segment_data.node_coords_data, &ngp_node_coords_field);
 
   // Set the node_coords for the v_segment directly via their fields
@@ -1247,7 +1245,7 @@ void test_v_segment_data(stk::mesh::BulkData& bulk_data,  //
   // Test that the data is modifiable
   // Add and then remove a constant value to the node_coords
   const double add_value = 1.1;
-  auto v_segment_view = create_v_segment_entity_view<OurTopology>(bulk_data, v_segment_data, v_segment);
+  auto v_segment_view = create_v_segment_entity_view<OurTopology>(v_segment_data, v_segment);
   ASSERT_NEAR(v_segment_view.start()[0], non_shared_start_node_coords[0], 1e-12);
   ASSERT_NEAR(v_segment_view.start()[1], non_shared_start_node_coords[1], 1e-12);
   ASSERT_NEAR(v_segment_view.start()[2], non_shared_start_node_coords[2], 1e-12);
@@ -1302,8 +1300,7 @@ void test_v_segment_data(stk::mesh::BulkData& bulk_data,  //
   stk::mesh::FastMeshIndex start_node_index = ngp_mesh.fast_mesh_index(start_node);
   stk::mesh::FastMeshIndex middle_node_index = ngp_mesh.fast_mesh_index(middle_node);
   stk::mesh::FastMeshIndex end_node_index = ngp_mesh.fast_mesh_index(end_node);
-  auto ngp_v_segment_view =
-      create_ngp_v_segment_entity_view<OurTopology>(ngp_mesh, ngp_v_segment_data, v_segment_index);
+  auto ngp_v_segment_view = create_ngp_v_segment_entity_view<OurTopology>(ngp_v_segment_data, v_segment_index);
   ASSERT_NEAR(ngp_v_segment_view.start()[0], non_shared_start_node_coords[0], 1e-12);
   ASSERT_NEAR(ngp_v_segment_view.start()[1], non_shared_start_node_coords[1], 1e-12);
   ASSERT_NEAR(ngp_v_segment_view.start()[2], non_shared_start_node_coords[2], 1e-12);
@@ -1357,6 +1354,7 @@ void test_spherocylinder_data(stk::mesh::BulkData& bulk_data,               //
 
   // Test the regular spherocylinder data to ensure that the stored shared data/fields are as expected
   auto spherocylinder_data = create_spherocylinder_data<double, OurTopology>(
+      bulk_data,                                                                   //
       center_field,                                                                //
       get_first_or_second<is_orientation_shared>(orientation, orientation_field),  //
       get_first_or_second<is_radius_shared>(radius, radius_field),                 //
@@ -1385,6 +1383,7 @@ void test_spherocylinder_data(stk::mesh::BulkData& bulk_data,               //
   stk::mesh::NgpField<double>& ngp_radius_field = stk::mesh::get_updated_ngp_field<double>(radius_field);
   stk::mesh::NgpField<double>& ngp_length_field = stk::mesh::get_updated_ngp_field<double>(length_field);
   auto ngp_spherocylinder_data = create_ngp_spherocylinder_data<double, OurTopology>(
+      ngp_mesh,                                                                        //
       ngp_center_field,                                                                //
       get_first_or_second<is_orientation_shared>(orientation, ngp_orientation_field),  //
       get_first_or_second<is_radius_shared>(radius, ngp_radius_field),                 //
@@ -1463,8 +1462,7 @@ void test_spherocylinder_data(stk::mesh::BulkData& bulk_data,               //
   // Test that the data is modifiable
   const double add_value = 1.1;
   if (spherocylinder_rank == stk::topology::NODE_RANK) {
-    auto spherocylinder_view =
-        create_spherocylinder_entity_view<OurTopology>(bulk_data, spherocylinder_data, spherocylinder);
+    auto spherocylinder_view = create_spherocylinder_entity_view<OurTopology>(spherocylinder_data, spherocylinder);
     ASSERT_DOUBLE_EQ(spherocylinder_view.center()[0], non_shared_center[0]);
     ASSERT_DOUBLE_EQ(spherocylinder_view.center()[1], non_shared_center[1]);
     ASSERT_DOUBLE_EQ(spherocylinder_view.center()[2], non_shared_center[2]);
@@ -1540,8 +1538,7 @@ void test_spherocylinder_data(stk::mesh::BulkData& bulk_data,               //
     spherocylinder_view.radius() -= 3 * add_value;
     spherocylinder_view.length() -= 4 * add_value;
   } else {
-    auto spherocylinder_view =
-        create_spherocylinder_entity_view<OurTopology>(bulk_data, spherocylinder_data, spherocylinder);
+    auto spherocylinder_view = create_spherocylinder_entity_view<OurTopology>(spherocylinder_data, spherocylinder);
     ASSERT_DOUBLE_EQ(spherocylinder_view.center()[0], non_shared_center[0]);
     ASSERT_DOUBLE_EQ(spherocylinder_view.center()[1], non_shared_center[1]);
     ASSERT_DOUBLE_EQ(spherocylinder_view.center()[2], non_shared_center[2]);
@@ -1625,7 +1622,7 @@ void test_spherocylinder_data(stk::mesh::BulkData& bulk_data,               //
   stk::mesh::FastMeshIndex spherocylinder_index = ngp_mesh.fast_mesh_index(spherocylinder);
   if (spherocylinder_rank == stk::topology::NODE_RANK) {
     auto ngp_spherocylinder_view =
-        create_ngp_spherocylinder_entity_view<OurTopology>(ngp_mesh, ngp_spherocylinder_data, spherocylinder_index);
+        create_ngp_spherocylinder_entity_view<OurTopology>(ngp_spherocylinder_data, spherocylinder_index);
     ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.center()[0], non_shared_center[0]);
     ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.center()[1], non_shared_center[1]);
     ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.center()[2], non_shared_center[2]);
@@ -1688,7 +1685,7 @@ void test_spherocylinder_data(stk::mesh::BulkData& bulk_data,               //
     }
   } else {
     auto ngp_spherocylinder_view =
-        create_ngp_spherocylinder_entity_view<OurTopology>(ngp_mesh, ngp_spherocylinder_data, spherocylinder_index);
+        create_ngp_spherocylinder_entity_view<OurTopology>(ngp_spherocylinder_data, spherocylinder_index);
     ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.center()[0], non_shared_center[0]);
     ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.center()[1], non_shared_center[1]);
     ASSERT_DOUBLE_EQ(ngp_spherocylinder_view.center()[2], non_shared_center[2]);
@@ -1778,7 +1775,7 @@ void test_spherocylinder_segment_data(stk::mesh::BulkData& bulk_data,           
 
   // Test the regular spherocylinder_segment data to ensure that the stored shared data/fields are as expected
   auto spherocylinder_segment_data = create_spherocylinder_segment_data<double, OurTopology>(
-      node_coords_field, get_first_or_second<is_radius_shared>(radius, radius_field));
+      bulk_data, node_coords_field, get_first_or_second<is_radius_shared>(radius, radius_field));
   ASSERT_EQ(&spherocylinder_segment_data.node_coords_data, &node_coords_field);
   if constexpr (is_radius_shared) {
     ASSERT_EQ(&spherocylinder_segment_data.radius_data, &radius);
@@ -1791,7 +1788,7 @@ void test_spherocylinder_segment_data(stk::mesh::BulkData& bulk_data,           
   stk::mesh::NgpField<double>& ngp_node_coords_field = stk::mesh::get_updated_ngp_field<double>(node_coords_field);
   stk::mesh::NgpField<double>& ngp_radius_field = stk::mesh::get_updated_ngp_field<double>(radius_field);
   auto ngp_spherocylinder_segment_data = create_ngp_spherocylinder_segment_data<double, OurTopology>(
-      ngp_node_coords_field, get_first_or_second<is_radius_shared>(radius, ngp_radius_field));
+      ngp_mesh, ngp_node_coords_field, get_first_or_second<is_radius_shared>(radius, ngp_radius_field));
   ASSERT_EQ(&ngp_spherocylinder_segment_data.node_coords_data, &ngp_node_coords_field);
   if constexpr (is_radius_shared) {
     ASSERT_EQ(&ngp_spherocylinder_segment_data.radius_data, &radius);
@@ -1823,8 +1820,8 @@ void test_spherocylinder_segment_data(stk::mesh::BulkData& bulk_data,           
   // Test that the data is modifiable
   // Add and then remove a constant value to the node_coords
   const double add_value = 1.1;
-  auto spherocylinder_segment_view = create_spherocylinder_segment_entity_view<OurTopology>(
-      bulk_data, spherocylinder_segment_data, spherocylinder_segment);
+  auto spherocylinder_segment_view =
+      create_spherocylinder_segment_entity_view<OurTopology>(spherocylinder_segment_data, spherocylinder_segment);
   ASSERT_NEAR(spherocylinder_segment_view.start()[0], non_shared_start_node_coords[0], 1e-12);
   ASSERT_NEAR(spherocylinder_segment_view.start()[1], non_shared_start_node_coords[1], 1e-12);
   ASSERT_NEAR(spherocylinder_segment_view.start()[2], non_shared_start_node_coords[2], 1e-12);
@@ -1878,7 +1875,7 @@ void test_spherocylinder_segment_data(stk::mesh::BulkData& bulk_data,           
   stk::mesh::FastMeshIndex start_node_index = ngp_mesh.fast_mesh_index(start_node);
   stk::mesh::FastMeshIndex end_node_index = ngp_mesh.fast_mesh_index(end_node);
   auto ngp_spherocylinder_segment_view = create_ngp_spherocylinder_segment_entity_view<OurTopology>(
-      ngp_mesh, ngp_spherocylinder_segment_data, spherocylinder_segment_index);
+      ngp_spherocylinder_segment_data, spherocylinder_segment_index);
   ASSERT_NEAR(ngp_spherocylinder_segment_view.start()[0], non_shared_start_node_coords[0], 1e-12);
   ASSERT_NEAR(ngp_spherocylinder_segment_view.start()[1], non_shared_start_node_coords[1], 1e-12);
   ASSERT_NEAR(ngp_spherocylinder_segment_view.start()[2], non_shared_start_node_coords[2], 1e-12);

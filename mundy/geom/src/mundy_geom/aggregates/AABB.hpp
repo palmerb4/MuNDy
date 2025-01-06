@@ -43,7 +43,7 @@ namespace geom {
 
 /// \brief A struct to hold the data for a collection of aabbs
 ///
-/// The rank of an AABB does not change the access pattern for the underlying data, so we need not store it 
+/// The rank of an AABB does not change the access pattern for the underlying data, so we need not store it
 /// as a constexpr. It only enforces a single check that the aabb data is of the same rank as the aabb.
 ///
 /// \note Typically, aabb data will be augmented on top of other data, such as adding aabb data to a collection of
@@ -59,6 +59,7 @@ struct AABBData {
   using scalar_t = Scalar;
   using aabb_data_t = AABBDataType;
 
+  stk::mesh::BulkData& bulk_data;
   stk::topology::rank_t aabb_rank;
   aabb_data_t& aabb_data;
 };  // AABBData
@@ -73,6 +74,7 @@ struct NgpAABBData {
   using scalar_t = Scalar;
   using aabb_data_t = AABBDataType;
 
+  stk::mesh::NgpMesh ngp_mesh;
   stk::topology::rank_t aabb_rank;
   aabb_data_t& aabb_data;
 };  // NgpAABBData
@@ -82,19 +84,19 @@ struct NgpAABBData {
 /// This function creates a AABBData object given its rank and data
 /// and is used to automatically deduce the template parameters.
 template <typename Scalar, typename AABBDataType>
-auto create_aabb_data(stk::topology::rank_t aabb_rank, AABBDataType& aabb_data) {
+auto create_aabb_data(stk::mesh::BulkData& bulk_data, stk::topology::rank_t aabb_rank, AABBDataType& aabb_data) {
   MUNDY_THROW_ASSERT(aabb_data.entity_rank() == aabb_rank, std::invalid_argument,
-                      "The aabb_data must be a field of the same rank as the aabb");
-  return AABBData<Scalar, AABBDataType>{aabb_rank, aabb_data};
+                     "The aabb_data must be a field of the same rank as the aabb");
+  return AABBData<Scalar, AABBDataType>{bulk_data, aabb_rank, aabb_data};
 }
 
 /// \brief A helper function to create a NgpAABBData object
 /// See the discussion for create_aabb_data for more information. Only difference is NgpFields over Fields.
 template <typename Scalar, typename AABBDataType>
-auto create_ngp_aabb_data(stk::topology::rank_t aabb_rank, AABBDataType& aabb_data) {
+auto create_ngp_aabb_data(stk::mesh::NgpMesh ngp_mesh, stk::topology::rank_t aabb_rank, AABBDataType& aabb_data) {
   MUNDY_THROW_ASSERT(aabb_data.get_rank() == aabb_rank, std::invalid_argument,
-                      "The aabb_data must be a field of the same rank as the aabb");
-  return NgpAABBData<Scalar, AABBDataType>{aabb_rank, aabb_data};
+                     "The aabb_data must be a field of the same rank as the aabb");
+  return NgpAABBData<Scalar, AABBDataType>{ngp_mesh, aabb_rank, aabb_data};
 }
 
 /// \brief A concept to check if a type provides the same data as AABBData
@@ -103,6 +105,7 @@ concept ValidDefaultAABBDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::aabb_data_t;
   std::is_same_v<std::decay_t<typename Agg::aabb_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
+  { agg.bulk_data } -> std::convertible_to<stk::mesh::BulkData&>;
   { agg.aabb_rank } -> std::convertible_to<stk::topology::rank_t>;
   { agg.aabb_data } -> std::convertible_to<typename Agg::aabb_data_t&>;
 };  // ValidDefaultAABBDataType
@@ -113,17 +116,18 @@ concept ValidDefaultNgpAABBDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::aabb_data_t;
   std::is_same_v<std::decay_t<typename Agg::aabb_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
+  { agg.ngp_mesh } -> std::convertible_to<stk::mesh::NgpMesh>;
   { agg.aabb_rank } -> std::convertible_to<stk::topology::rank_t>;
   { agg.aabb_data } -> std::convertible_to<typename Agg::aabb_data_t&>;
 };  // ValidDefaultNgpAABBDataType
 
-static_assert(ValidDefaultAABBDataType<AABBData<float, stk::mesh::Field<float>>> && ValidDefaultAABBDataType<AABBData<float, const stk::mesh::Field<float>>>,
+static_assert(ValidDefaultAABBDataType<AABBData<float, stk::mesh::Field<float>>> &&
+                  ValidDefaultAABBDataType<AABBData<float, const stk::mesh::Field<float>>>,
               "AABBData must satisfy the ValidDefaultAABBDataType concept");
 
-static_assert(
-    ValidDefaultNgpAABBDataType<NgpAABBData<float, stk::mesh::NgpField<float>>> &&
-        ValidDefaultNgpAABBDataType<NgpAABBData<float, const stk::mesh::NgpField<float>>>,
-    "NgpAABBData must satisfy the ValidDefaultNgpAABBDataType concept");
+static_assert(ValidDefaultNgpAABBDataType<NgpAABBData<float, stk::mesh::NgpField<float>>> &&
+                  ValidDefaultNgpAABBDataType<NgpAABBData<float, const stk::mesh::NgpField<float>>>,
+              "NgpAABBData must satisfy the ValidDefaultNgpAABBDataType concept");
 
 /// \brief A helper function to get an updated NgpAABBData object from a AABBData object
 /// \param data The AABBData object to convert
@@ -131,7 +135,8 @@ template <ValidDefaultAABBDataType AABBDataType>
 auto get_updated_ngp_data(AABBDataType data) {
   using scalar_t = typename AABBDataType::scalar_t;
   using aabb_data_t = typename AABBDataType::aabb_data_t;
-  return create_ngp_aabb_data<scalar_t>(data.aabb_rank,  //
+  return create_ngp_aabb_data<scalar_t>(stk::mesh::get_updated_ngp_mesh(data.bulk_data),  //
+                                        data.aabb_rank,                                   //
                                         stk::mesh::get_updated_ngp_field<scalar_t>(data.aabb_data));
 }
 
@@ -170,7 +175,7 @@ struct AABBDataTraits {
   }
 
   static decltype(auto) z_min(Agg agg, stk::mesh::Entity aabb_entity) {
-      return stk::mesh::field_data(agg.aabb_data, aabb_entity)[2];
+    return stk::mesh::field_data(agg.aabb_data, aabb_entity)[2];
   }
 
   static decltype(auto) x_max(Agg agg, stk::mesh::Entity aabb_entity) {
@@ -250,8 +255,7 @@ class AABBEntityView {
   using scalar_t = typename data_access_t::scalar_t;
   using point_t = decltype(data_access_t::min_corner(std::declval<AABBDataType>(), std::declval<stk::mesh::Entity>()));
 
-  AABBEntityView([[maybe_unused]] const stk::mesh::BulkData& bulk_data, AABBDataType data, stk::mesh::Entity aabb_entity)
-      : data_(data), aabb_entity_(aabb_entity) {
+  AABBEntityView(AABBDataType data, stk::mesh::Entity aabb_entity) : data_(data), aabb_entity_(aabb_entity) {
   }
 
   decltype(auto) min_corner() {
@@ -334,8 +338,7 @@ class NgpAABBEntityView {
       decltype(data_access_t::min_corner(std::declval<NgpAABBDataType>(), std::declval<stk::mesh::FastMeshIndex>()));
 
   KOKKOS_INLINE_FUNCTION
-  NgpAABBEntityView([[maybe_unused]] stk::mesh::NgpMesh ngp_mesh, NgpAABBDataType data, stk::mesh::FastMeshIndex aabb_index)
-      : data_(data), aabb_index_(aabb_index) {
+  NgpAABBEntityView(NgpAABBDataType data, stk::mesh::FastMeshIndex aabb_index) : data_(data), aabb_index_(aabb_index) {
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -431,15 +434,14 @@ static_assert(ValidAABBType<AABBEntityView<AABBData<float, stk::mesh::Field<floa
 
 /// \brief A helper function to create a AABBEntityView object with type deduction
 template <typename AABBDataType>
-auto create_aabb_entity_view(const stk::mesh::BulkData& bulk_data, AABBDataType& data, stk::mesh::Entity aabb_entity) {
-  return AABBEntityView<AABBDataType>(bulk_data, data, aabb_entity);
+auto create_aabb_entity_view(AABBDataType& data, stk::mesh::Entity aabb_entity) {
+  return AABBEntityView<AABBDataType>(data, aabb_entity);
 }
 
 /// \brief A helper function to create a NgpAABBEntityView object with type deduction
 template <typename NgpAABBDataType>
-auto create_ngp_aabb_entity_view(stk::mesh::NgpMesh ngp_mesh, NgpAABBDataType data,
-                                 stk::mesh::FastMeshIndex aabb_index) {
-  return NgpAABBEntityView<NgpAABBDataType>(ngp_mesh, data, aabb_index);
+auto create_ngp_aabb_entity_view(NgpAABBDataType data, stk::mesh::FastMeshIndex aabb_index) {
+  return NgpAABBEntityView<NgpAABBDataType>(data, aabb_index);
 }
 //@}
 

@@ -67,6 +67,8 @@ struct SpherocylinderSegmentData {
   using radius_data_t = RadiusDataType;
 
   static constexpr stk::topology::topology_t topology = OurTopology;
+
+  stk::mesh::BulkData& bulk_data;
   node_coords_data_t& node_coords_data;
   radius_data_t& radius_data;
 };  // SpherocylinderSegmentData
@@ -93,6 +95,8 @@ struct NgpSpherocylinderSegmentData {
   using radius_data_t = RadiusDataType;
 
   static constexpr stk::topology::topology_t topology = OurTopology;
+
+  stk::mesh::NgpMesh ngp_mesh;
   node_coords_data_t& node_coords_data;
   radius_data_t& radius_data;
 };  // NgpSpherocylinderSegmentData
@@ -105,7 +109,8 @@ template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
           typename NodeCoordsDataType,            // deduced
           typename RadiusDataType>                // deduced
-auto create_spherocylinder_segment_data(NodeCoordsDataType& node_coords_data, RadiusDataType& radius_data) {
+auto create_spherocylinder_segment_data(stk::mesh::BulkData& bulk_data, NodeCoordsDataType& node_coords_data,
+                                        RadiusDataType& radius_data) {
   MUNDY_THROW_ASSERT(node_coords_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                      "The node_coords data must be a field of NODE_RANK");
   constexpr bool is_radius_a_field = std::is_same_v<std::decay_t<RadiusDataType>, stk::mesh::Field<Scalar>>;
@@ -114,7 +119,7 @@ auto create_spherocylinder_segment_data(NodeCoordsDataType& node_coords_data, Ra
     MUNDY_THROW_ASSERT(radius_data.entity_rank() == our_topology.rank(), std::invalid_argument,
                        "The radius data must be a field of the same rank as the segment");
   }
-  return SpherocylinderSegmentData<Scalar, OurTopology, NodeCoordsDataType, RadiusDataType>{node_coords_data,
+  return SpherocylinderSegmentData<Scalar, OurTopology, NodeCoordsDataType, RadiusDataType>{bulk_data, node_coords_data,
                                                                                             radius_data};
 }
 
@@ -125,7 +130,8 @@ template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
           typename NodeCoordsDataType,            // deduced
           typename RadiusDataType>                // deduced
-auto create_ngp_spherocylinder_segment_data(NodeCoordsDataType& node_coords_data, RadiusDataType& radius_data) {
+auto create_ngp_spherocylinder_segment_data(stk::mesh::NgpMesh ngp_mesh, NodeCoordsDataType& node_coords_data,
+                                            RadiusDataType& radius_data) {
   MUNDY_THROW_ASSERT(node_coords_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                      "The node_coords data must be a field of NODE_RANK");
   constexpr bool is_radius_a_field = std::is_same_v<std::decay_t<RadiusDataType>, stk::mesh::NgpField<Scalar>>;
@@ -134,8 +140,8 @@ auto create_ngp_spherocylinder_segment_data(NodeCoordsDataType& node_coords_data
     MUNDY_THROW_ASSERT(radius_data.get_rank() == our_topology.rank(), std::invalid_argument,
                        "The radius data must be a field of the same rank as the segment");
   }
-  return NgpSpherocylinderSegmentData<Scalar, OurTopology, NodeCoordsDataType, RadiusDataType>{node_coords_data,
-                                                                                               radius_data};
+  return NgpSpherocylinderSegmentData<Scalar, OurTopology, NodeCoordsDataType, RadiusDataType>{
+      ngp_mesh, node_coords_data, radius_data};
 }
 
 /// \brief A concept to check if a type provides the same data as SpherocylinderSegmentData
@@ -148,6 +154,7 @@ concept ValidDefaultSpherocylinderSegmentDataType = requires(Agg agg) {
   std::is_same_v<std::decay_t<typename Agg::radius_data_t>, typename Agg::scalar_t> ||
       std::is_same_v<std::decay_t<typename Agg::radius_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
   { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
+  { agg.bulk_data } -> std::convertible_to<stk::mesh::BulkData&>;
   { agg.node_coords_data } -> std::convertible_to<typename Agg::node_coords_data_t&>;
   { agg.radius_data } -> std::convertible_to<typename Agg::radius_data_t&>;
 };  // ValidDefaultSpherocylinderSegmentDataType
@@ -161,6 +168,7 @@ concept ValidDefaultNgpSpherocylinderSegmentDataType = requires(Agg agg) {
   std::is_same_v<std::decay_t<typename Agg::radius_data_t>, typename Agg::scalar_t> ||
       std::is_same_v<std::decay_t<typename Agg::radius_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
   { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
+  { agg.ngp_mesh } -> std::convertible_to<stk::mesh::NgpMesh>;
   { agg.node_coords_data } -> std::convertible_to<typename Agg::node_coords_data_t&>;
   { agg.radius_data } -> std::convertible_to<typename Agg::radius_data_t&>;
 };  // ValidDefaultNgpSpherocylinderSegmentDataType
@@ -197,10 +205,12 @@ auto get_updated_ngp_data(SpherocylinderSegmentDataType data) {
   constexpr stk::topology::topology_t our_topology = SpherocylinderSegmentDataType::topology;
   if constexpr (is_radius_a_field) {
     return create_ngp_sphere_data<scalar_t, our_topology>(                  //
+        stk::mesh::get_updated_ngp_mesh(data.bulk_data),                    //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.node_coords_data),  //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.radius_data));
   } else {
     return create_ngp_sphere_data<scalar_t, our_topology>(                  //
+        stk::mesh::get_updated_ngp_mesh(data.bulk_data),                    //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.node_coords_data),  //
         data.radius_data);
   }
@@ -300,21 +310,21 @@ class SpherocylinderSegmentEntityView {
   static constexpr stk::topology::topology_t topology = OurTopology;
   static constexpr stk::topology::rank_t rank = stk::topology_detail::topology_data<OurTopology>::rank;
 
-  SpherocylinderSegmentEntityView(const stk::mesh::BulkData& bulk_data, SpherocylinderSegmentDataType data,
+  SpherocylinderSegmentEntityView(SpherocylinderSegmentDataType data,
                                   stk::mesh::Entity spherocylinder_segment)
       : data_(data),
         spherocylinder_segment_(spherocylinder_segment),
-        start_node_(bulk_data.begin_nodes(spherocylinder_segment_)[0]),
-        end_node_(bulk_data.begin_nodes(spherocylinder_segment_)[1]) {
-    MUNDY_THROW_ASSERT(bulk_data.entity_rank(spherocylinder_segment_) == rank, std::invalid_argument,
+        start_node_(data_.bulk_data.begin_nodes(spherocylinder_segment_)[0]),
+        end_node_(data_.bulk_data.begin_nodes(spherocylinder_segment_)[1]) {
+    MUNDY_THROW_ASSERT(data_.bulk_data.entity_rank(spherocylinder_segment_) == rank, std::invalid_argument,
                        "The spherocylinder_segment's entity rank must match that of the view's topology");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(spherocylinder_segment_), std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(spherocylinder_segment_), std::invalid_argument,
                        "The given spherocylinder_segment entity is not valid");
-    MUNDY_THROW_ASSERT(bulk_data.num_nodes(spherocylinder_segment_) >= 2, std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data.num_nodes(spherocylinder_segment_) >= 2, std::invalid_argument,
                        "The given spherocylinder_segment entity must have at least two nodes.");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(start_node_), std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(start_node_), std::invalid_argument,
                        "The start node entity associated with the spherocylinder_segment is not valid");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(end_node_), std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(end_node_), std::invalid_argument,
                        "The end node entity associated with the spherocylinder_segment is not valid");
   }
 
@@ -372,12 +382,12 @@ class NgpSpherocylinderSegmentEntityView {
   static constexpr stk::topology::rank_t rank = stk::topology_detail::topology_data<OurTopology>::rank;
 
   KOKKOS_INLINE_FUNCTION
-  NgpSpherocylinderSegmentEntityView(stk::mesh::NgpMesh ngp_mesh, NgpSpherocylinderSegmentDataType data,
+  NgpSpherocylinderSegmentEntityView(NgpSpherocylinderSegmentDataType data,
                                      stk::mesh::FastMeshIndex spherocylinder_segment_index)
       : data_(data),
         spherocylinder_segment_index_(spherocylinder_segment_index),
-        start_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(rank, spherocylinder_segment_index_)[0])),
-        end_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(rank, spherocylinder_segment_index_)[1])) {
+        start_node_index_(data_.ngp_mesh.fast_mesh_index(data_.ngp_mesh.get_nodes(rank, spherocylinder_segment_index_)[0])),
+        end_node_index_(data_.ngp_mesh.fast_mesh_index(data_.ngp_mesh.get_nodes(rank, spherocylinder_segment_index_)[1])) {
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -447,20 +457,19 @@ static_assert(
 /// \brief A helper function to create a SpherocylinderSegmentEntityView object with type deduction
 template <stk::topology::topology_t OurTopology,   // Must be provided
           typename SpherocylinderSegmentDataType>  // deduced
-auto create_spherocylinder_segment_entity_view(const stk::mesh::BulkData& bulk_data,
-                                               SpherocylinderSegmentDataType& data,
+auto create_spherocylinder_segment_entity_view(SpherocylinderSegmentDataType& data,
                                                stk::mesh::Entity spherocylinder_segment) {
-  return SpherocylinderSegmentEntityView<OurTopology, SpherocylinderSegmentDataType>(bulk_data, data,
+  return SpherocylinderSegmentEntityView<OurTopology, SpherocylinderSegmentDataType>(data,
                                                                                      spherocylinder_segment);
 }
 
 /// \brief A helper function to create a NgpSpherocylinderSegmentEntityView object with type deduction
 template <stk::topology::topology_t OurTopology,      // Must be provided
           typename NgpSpherocylinderSegmentDataType>  // deduced
-auto create_ngp_spherocylinder_segment_entity_view(stk::mesh::NgpMesh ngp_mesh, NgpSpherocylinderSegmentDataType data,
+auto create_ngp_spherocylinder_segment_entity_view(NgpSpherocylinderSegmentDataType data,
                                                    stk::mesh::FastMeshIndex spherocylinder_segment_index) {
   return NgpSpherocylinderSegmentEntityView<OurTopology, NgpSpherocylinderSegmentDataType>(
-      ngp_mesh, data, spherocylinder_segment_index);
+      data, spherocylinder_segment_index);
 }
 //@}
 

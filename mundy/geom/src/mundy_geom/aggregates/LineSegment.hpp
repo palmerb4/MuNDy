@@ -47,7 +47,7 @@ namespace geom {
 /// Regardless of the topology, the node coordinates are stored on all nodes of the line segment.
 /// However, how we access those nodes changes based on the rank of the line segment. Allowable topologies are:
 ///   - LINE_2, LINE_3, BEAM_2, BEAM_3, SPRING_2, SPRING_3
-template <typename Scalar,                         //
+template <typename Scalar,                        //
           stk::topology::topology_t OurTopology,  //
           typename NodeCoordsDataType = stk::mesh::Field<Scalar>>
 struct LineSegmentData {
@@ -62,12 +62,14 @@ struct LineSegmentData {
   using node_coords_data_t = NodeCoordsDataType;
 
   static constexpr stk::topology::topology_t topology = OurTopology;
+
+  stk::mesh::BulkData& bulk_data;
   node_coords_data_t& node_coords_data;
 };  // LineSegmentData
 
 /// \brief A struct to hold the data for a collection of NGP-compatible line segments
 /// See the discussion for LineSegmentData for more information. Only difference is NgpFields over Fields.
-template <typename Scalar,                         //
+template <typename Scalar,                        //
           stk::topology::topology_t OurTopology,  //
           typename NodeCoordsDataType = stk::mesh::NgpField<Scalar>>
 struct NgpLineSegmentData {
@@ -82,6 +84,8 @@ struct NgpLineSegmentData {
   using node_coords_data_t = NodeCoordsDataType;
 
   static constexpr stk::topology::topology_t topology = OurTopology;
+
+  stk::mesh::NgpMesh ngp_mesh;
   node_coords_data_t& node_coords_data;
 };  // NgpLineSegmentData
 
@@ -92,10 +96,10 @@ struct NgpLineSegmentData {
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
           typename NodeCoordsDataType>            // deduced
-auto create_line_segment_data(NodeCoordsDataType& node_coords_data) {
+auto create_line_segment_data(stk::mesh::BulkData& bulk_data, NodeCoordsDataType& node_coords_data) {
   MUNDY_THROW_ASSERT(node_coords_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                      "The node_coords data must be a field of NODE_RANK");
-  return LineSegmentData<Scalar, OurTopology, NodeCoordsDataType>{node_coords_data};
+  return LineSegmentData<Scalar, OurTopology, NodeCoordsDataType>{bulk_data, node_coords_data};
 }
 
 /// \brief A helper function to create a NgpLineSegmentData object
@@ -103,10 +107,10 @@ auto create_line_segment_data(NodeCoordsDataType& node_coords_data) {
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
           typename NodeCoordsDataType>            // deduced
-auto create_ngp_line_segment_data(NodeCoordsDataType& node_coords_data) {
+auto create_ngp_line_segment_data(stk::mesh::NgpMesh ngp_mesh, NodeCoordsDataType& node_coords_data) {
   MUNDY_THROW_ASSERT(node_coords_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                      "The node_coords data must be a field of NODE_RANK");
-  return NgpLineSegmentData<Scalar, OurTopology, NodeCoordsDataType>{node_coords_data};
+  return NgpLineSegmentData<Scalar, OurTopology, NodeCoordsDataType>{ngp_mesh, node_coords_data};
 }
 
 /// \brief A concept to check if a type provides the same data as LineSegmentData
@@ -116,6 +120,7 @@ concept ValidDefaultLineSegmentDataType = requires(Agg agg) {
   typename Agg::node_coords_data_t;
   std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
   { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
+  { agg.bulk_data } -> std::convertible_to<stk::mesh::BulkData&>;
   { agg.node_coords_data } -> std::convertible_to<typename Agg::node_coords_data_t&>;
 };  // ValidDefaultLineSegmentDataType
 
@@ -126,6 +131,7 @@ concept ValidDefaultNgpLineSegmentDataType = requires(Agg agg) {
   typename Agg::node_coords_data_t;
   std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
   { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
+  { agg.ngp_mesh } -> std::convertible_to<stk::mesh::NgpMesh>;
   { agg.node_coords_data } -> std::convertible_to<typename Agg::node_coords_data_t&>;
 };  // ValidDefaultNgpLineSegmentDataType
 
@@ -152,6 +158,7 @@ auto get_updated_ngp_data(LineSegmentDataType data) {
   using scalar_t = typename LineSegmentDataType::scalar_t;
   constexpr stk::topology::topology_t our_topology = LineSegmentDataType::topology;
   return create_ngp_line_segment_data<scalar_t, our_topology>(
+      stk::mesh::get_updated_ngp_mesh(data.bulk_data),  //
       stk::mesh::get_updated_ngp_field<scalar_t>(data.node_coords_data));
 }
 
@@ -210,7 +217,8 @@ class LineSegmentEntityView {
                     OurTopology == stk::topology::BEAM_2 || OurTopology == stk::topology::BEAM_3 ||
                     OurTopology == stk::topology::SPRING_2 || OurTopology == stk::topology::SPRING_3,
                 "The topology of a line segment must be LINE_2, LINE_3, BEAM_2, BEAM_3, SPRING_2, or SPRING_3");
-  static_assert(LineSegmentDataType::topology == OurTopology, "The topology of the line segment data must match the view");
+  static_assert(LineSegmentDataType::topology == OurTopology,
+                "The topology of the line segment data must match the view");
 
  public:
   using data_access_t = LineSegmentDataTraits<LineSegmentDataType>;
@@ -221,20 +229,20 @@ class LineSegmentEntityView {
   static constexpr stk::topology::topology_t topology = OurTopology;
   static constexpr stk::topology::rank_t rank = stk::topology_detail::topology_data<OurTopology>::rank;
 
-  LineSegmentEntityView(const stk::mesh::BulkData& bulk_data, LineSegmentDataType data, stk::mesh::Entity line_segment)
+  LineSegmentEntityView(LineSegmentDataType data, stk::mesh::Entity line_segment)
       : data_(data),
         line_segment_(line_segment),
-        start_node_(bulk_data.begin_nodes(line_segment_)[0]),
-        end_node_(bulk_data.begin_nodes(line_segment_)[1]) {
-    MUNDY_THROW_ASSERT(bulk_data.entity_rank(line_segment_) == rank, std::invalid_argument,
+        start_node_(data_.bulk_data.begin_nodes(line_segment_)[0]),
+        end_node_(data_.bulk_data.begin_nodes(line_segment_)[1]) {
+    MUNDY_THROW_ASSERT(data_.bulk_data.entity_rank(line_segment_) == rank, std::invalid_argument,
                        "The line_segment entity rank must match the given topology");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(line_segment_), std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(line_segment_), std::invalid_argument,
                        "The given line_segment entity is not valid");
-    MUNDY_THROW_ASSERT(bulk_data.num_nodes(line_segment_) >= 2, std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data.num_nodes(line_segment_) >= 2, std::invalid_argument,
                        "The given line_segment entity must have at least two nodes");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(start_node_), std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(start_node_), std::invalid_argument,
                        "The start node entity associated with the line_segment is not valid");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(end_node_), std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(end_node_), std::invalid_argument,
                        "The end node entity associated with the line_segment is not valid");
   }
 
@@ -274,7 +282,8 @@ class NgpLineSegmentEntityView {
                     OurTopology == stk::topology::BEAM_2 || OurTopology == stk::topology::BEAM_3 ||
                     OurTopology == stk::topology::SPRING_2 || OurTopology == stk::topology::SPRING_3,
                 "The topology of a line segment must be LINE_2, LINE_3, BEAM_2, BEAM_3, SPRING_2, or SPRING_3");
-  static_assert(NgpLineSegmentDataType::topology == OurTopology, "The topology of the line segment data must match the view");
+  static_assert(NgpLineSegmentDataType::topology == OurTopology,
+                "The topology of the line segment data must match the view");
 
  public:
   using data_access_t = NgpLineSegmentDataTraits<NgpLineSegmentDataType>;
@@ -286,12 +295,11 @@ class NgpLineSegmentEntityView {
   static constexpr stk::topology::rank_t rank = stk::topology_detail::topology_data<OurTopology>::rank;
 
   KOKKOS_INLINE_FUNCTION
-  NgpLineSegmentEntityView(stk::mesh::NgpMesh ngp_mesh, NgpLineSegmentDataType data,
-                           stk::mesh::FastMeshIndex line_segment_index)
+  NgpLineSegmentEntityView(NgpLineSegmentDataType data, stk::mesh::FastMeshIndex line_segment_index)
       : data_(data),
         line_segment_index_(line_segment_index),
-        start_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(rank, line_segment_index_)[0])),
-        end_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(rank, line_segment_index_)[1])) {
+        start_node_index_(data_.ngp_mesh.fast_mesh_index(data_.ngp_mesh.get_nodes(rank, line_segment_index_)[0])),
+        end_node_index_(data_.ngp_mesh.fast_mesh_index(data_.ngp_mesh.get_nodes(rank, line_segment_index_)[1])) {
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -331,28 +339,26 @@ static_assert(ValidLineSegmentType<LineSegmentEntityView<stk::topology::LINE_2,
                                                                              stk::mesh::Field<float>>>> &&
                   ValidLineSegmentType<NgpLineSegmentEntityView<stk::topology::LINE_2,
                                                                 NgpLineSegmentData<float,                  //
-                                                                                stk::topology::LINE_2,  //
-                                                                                stk::mesh::NgpField<float>>>> &&
+                                                                                   stk::topology::LINE_2,  //
+                                                                                   stk::mesh::NgpField<float>>>> &&
                   ValidLineSegmentType<NgpLineSegmentEntityView<stk::topology::BEAM_2,
                                                                 NgpLineSegmentData<float,                  //
-                                                                                stk::topology::BEAM_2,  //
-                                                                                stk::mesh::NgpField<float>>>>,
+                                                                                   stk::topology::BEAM_2,  //
+                                                                                   stk::mesh::NgpField<float>>>>,
               "LineSegmentEntityView and NgpLineSegmentEntityView must be valid LineSegment types");
 
 /// \brief A helper function to create a LineSegmentEntityView object with type deduction
 template <stk::topology::topology_t OurTopology,  // Must be provided
           typename LineSegmentDataType>           // deduced
-auto create_line_segment_entity_view(const stk::mesh::BulkData& bulk_data, LineSegmentDataType& data,
-                                     stk::mesh::Entity line_segment) {
-  return LineSegmentEntityView<OurTopology, LineSegmentDataType>(bulk_data, data, line_segment);
+auto create_line_segment_entity_view(LineSegmentDataType& data, stk::mesh::Entity line_segment) {
+  return LineSegmentEntityView<OurTopology, LineSegmentDataType>(data, line_segment);
 }
 
 /// \brief A helper function to create a NgpLineSegmentEntityView object with type deduction
 template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename NgpLineSegmentDataType>           // deduced
-auto create_ngp_line_segment_entity_view(stk::mesh::NgpMesh ngp_mesh, NgpLineSegmentDataType data,
-                                       stk::mesh::FastMeshIndex line_segment_index) {
-  return NgpLineSegmentEntityView<OurTopology, NgpLineSegmentDataType>(ngp_mesh, data, line_segment_index);
+          typename NgpLineSegmentDataType>        // deduced
+auto create_ngp_line_segment_entity_view(NgpLineSegmentDataType data, stk::mesh::FastMeshIndex line_segment_index) {
+  return NgpLineSegmentEntityView<OurTopology, NgpLineSegmentDataType>(data, line_segment_index);
 }
 //@}
 
