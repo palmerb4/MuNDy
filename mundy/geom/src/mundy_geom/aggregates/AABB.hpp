@@ -41,7 +41,7 @@ namespace geom {
 //! \name Aggregate traits
 //@{
 
-/// \brief A struct to hold the data for a collection of aabbs
+/// \brief Aggregate to hold the data for a collection of aabbs
 ///
 /// The rank of an AABB does not change the access pattern for the underlying data, so we need not store it
 /// as a constexpr. It only enforces a single check that the aabb data is of the same rank as the aabb.
@@ -52,31 +52,67 @@ namespace geom {
 /// \tparam Scalar The scalar type of the aabb's aabb.
 /// \tparam AABBDataType The type of the aabb data. Can be a const or non-const stk::mesh::Field of scalars.
 template <typename Scalar, typename AABBDataType = stk::mesh::Field<Scalar>>
-struct AABBData {
+class AABBData {
   static_assert(std::is_same_v<std::decay_t<AABBDataType>, stk::mesh::Field<Scalar>>,
                 "AABBDataType must be a const or non-const field of scalars");
 
+ public:
   using scalar_t = Scalar;
   using aabb_data_t = AABBDataType;
 
-  stk::mesh::BulkData& bulk_data;
-  stk::topology::rank_t aabb_rank;
-  aabb_data_t& aabb_data;
+  AABBData(stk::mesh::BulkData& bulk_data, aabb_data_t& aabb_data) : bulk_data_(bulk_data), aabb_data_(aabb_data) {
+  }
+
+  const stk::mesh::BulkData& bulk_data() const {
+    return bulk_data_;
+  }
+
+  stk::mesh::BulkData& bulk_data() {
+    return bulk_data_;
+  }
+
+  const aabb_data_t& aabb_data() const {
+    return aabb_data_;
+  }
+
+  aabb_data_t& aabb_data() {
+    return aabb_data_;
+  }
+
+ private:
+  stk::mesh::BulkData& bulk_data_;
+  aabb_data_t& aabb_data_;
 };  // AABBData
 
 /// \brief A struct to hold the data for a collection of NGP-compatible aabbs
 /// See the discussion for AABBData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar, typename AABBDataType = stk::mesh::NgpField<Scalar>>
-struct NgpAABBData {
+class NgpAABBData {
   static_assert(std::is_same_v<std::decay_t<AABBDataType>, stk::mesh::NgpField<Scalar>>,
                 "AABBDataType must be a const or non-const ngp field of scalars");
 
+ public:
   using scalar_t = Scalar;
   using aabb_data_t = AABBDataType;
 
-  stk::mesh::NgpMesh ngp_mesh;
-  stk::topology::rank_t aabb_rank;
-  aabb_data_t& aabb_data;
+  NgpAABBData(stk::mesh::NgpMesh ngp_mesh, aabb_data_t& aabb_data) : ngp_mesh_(ngp_mesh), aabb_data_(aabb_data) {
+  }
+
+  stk::mesh::NgpMesh ngp_mesh() const {
+    return ngp_mesh_;
+  }
+
+  const aabb_data_t& aabb_data() const {
+    return aabb_data_;
+  }
+
+  aabb_data_t& aabb_data() {
+    return aabb_data_;
+  }
+
+ private:
+  stk::mesh::NgpMesh ngp_mesh_;
+  aabb_data_t& aabb_data_;
 };  // NgpAABBData
 
 /// \brief A helper function to create a AABBData object
@@ -84,110 +120,102 @@ struct NgpAABBData {
 /// This function creates a AABBData object given its rank and data
 /// and is used to automatically deduce the template parameters.
 template <typename Scalar, typename AABBDataType>
-auto create_aabb_data(stk::mesh::BulkData& bulk_data, stk::topology::rank_t aabb_rank, AABBDataType& aabb_data) {
-  MUNDY_THROW_ASSERT(aabb_data.entity_rank() == aabb_rank, std::invalid_argument,
-                     "The aabb_data must be a field of the same rank as the aabb");
-  return AABBData<Scalar, AABBDataType>{bulk_data, aabb_rank, aabb_data};
+auto create_aabb_data(stk::mesh::BulkData& bulk_data, AABBDataType& aabb_data) {
+  return AABBData<Scalar, AABBDataType>{bulk_data, aabb_data};
 }
 
 /// \brief A helper function to create a NgpAABBData object
 /// See the discussion for create_aabb_data for more information. Only difference is NgpFields over Fields.
 template <typename Scalar, typename AABBDataType>
-auto create_ngp_aabb_data(stk::mesh::NgpMesh ngp_mesh, stk::topology::rank_t aabb_rank, AABBDataType& aabb_data) {
-  MUNDY_THROW_ASSERT(aabb_data.get_rank() == aabb_rank, std::invalid_argument,
-                     "The aabb_data must be a field of the same rank as the aabb");
-  return NgpAABBData<Scalar, AABBDataType>{ngp_mesh, aabb_rank, aabb_data};
+auto create_ngp_aabb_data(stk::mesh::NgpMesh ngp_mesh, AABBDataType& aabb_data) {
+  return NgpAABBData<Scalar, AABBDataType>{ngp_mesh, aabb_data};
 }
 
 /// \brief A concept to check if a type provides the same data as AABBData
 template <typename Agg>
-concept ValidDefaultAABBDataType = requires(Agg agg) {
+concept ValidAABBDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::aabb_data_t;
   std::is_same_v<std::decay_t<typename Agg::aabb_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  { agg.bulk_data } -> std::convertible_to<stk::mesh::BulkData&>;
-  { agg.aabb_rank } -> std::convertible_to<stk::topology::rank_t>;
-  { agg.aabb_data } -> std::convertible_to<typename Agg::aabb_data_t&>;
-};  // ValidDefaultAABBDataType
+  { agg.bulk_data() } -> std::convertible_to<stk::mesh::BulkData&>;
+  { agg.aabb_data() } -> std::convertible_to<typename Agg::aabb_data_t&>;
+};  // ValidAABBDataType
 
 /// \brief A concept to check if a type provides the same data as NgpAABBData
 template <typename Agg>
-concept ValidDefaultNgpAABBDataType = requires(Agg agg) {
+concept ValidNgpAABBDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::aabb_data_t;
   std::is_same_v<std::decay_t<typename Agg::aabb_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { agg.ngp_mesh } -> std::convertible_to<stk::mesh::NgpMesh>;
-  { agg.aabb_rank } -> std::convertible_to<stk::topology::rank_t>;
-  { agg.aabb_data } -> std::convertible_to<typename Agg::aabb_data_t&>;
-};  // ValidDefaultNgpAABBDataType
+  { agg.ngp_mesh() } -> std::convertible_to<stk::mesh::NgpMesh>;
+  { agg.aabb_data() } -> std::convertible_to<typename Agg::aabb_data_t&>;
+};  // ValidNgpAABBDataType
 
-static_assert(ValidDefaultAABBDataType<AABBData<float, stk::mesh::Field<float>>> &&
-                  ValidDefaultAABBDataType<AABBData<float, const stk::mesh::Field<float>>>,
-              "AABBData must satisfy the ValidDefaultAABBDataType concept");
+static_assert(ValidAABBDataType<AABBData<float, stk::mesh::Field<float>>> &&
+                  ValidAABBDataType<AABBData<float, const stk::mesh::Field<float>>>,
+              "AABBData must satisfy the ValidAABBDataType concept");
 
-static_assert(ValidDefaultNgpAABBDataType<NgpAABBData<float, stk::mesh::NgpField<float>>> &&
-                  ValidDefaultNgpAABBDataType<NgpAABBData<float, const stk::mesh::NgpField<float>>>,
-              "NgpAABBData must satisfy the ValidDefaultNgpAABBDataType concept");
+static_assert(ValidNgpAABBDataType<NgpAABBData<float, stk::mesh::NgpField<float>>> &&
+                  ValidNgpAABBDataType<NgpAABBData<float, const stk::mesh::NgpField<float>>>,
+              "NgpAABBData must satisfy the ValidNgpAABBDataType concept");
 
 /// \brief A helper function to get an updated NgpAABBData object from a AABBData object
 /// \param data The AABBData object to convert
-template <ValidDefaultAABBDataType AABBDataType>
+template <ValidAABBDataType AABBDataType>
 auto get_updated_ngp_data(AABBDataType data) {
   using scalar_t = typename AABBDataType::scalar_t;
-  using aabb_data_t = typename AABBDataType::aabb_data_t;
-  return create_ngp_aabb_data<scalar_t>(stk::mesh::get_updated_ngp_mesh(data.bulk_data),  //
-                                        data.aabb_rank,                                   //
-                                        stk::mesh::get_updated_ngp_field<scalar_t>(data.aabb_data));
+  return create_ngp_aabb_data<scalar_t>(stk::mesh::get_updated_ngp_mesh(data.bulk_data()),  //
+                                        stk::mesh::get_updated_ngp_field<scalar_t>(data.aabb_data()));
 }
 
 /// \brief A traits class to provide abstracted access to a aabb's data via an aggregate
 ///
-/// By default, this class is compatible with AABBData or any class the meets the ValidDefaultAABBDataType concept.
+/// By default, this class is compatible with AABBData or any class the meets the ValidAABBDataType concept.
 /// Users can specialize this class to support other aggregate types.
 template <typename Agg>
 struct AABBDataTraits {
   static_assert(
-      ValidDefaultAABBDataType<Agg>,
-      "Agg must satisfy the ValidDefaultAABBDataType concept.\n"
-      "Basically, Agg must have all the same things as NgpAABBData but is free to extend it as needed without "
+      ValidAABBDataType<Agg>,
+      "Agg must satisfy the ValidAABBDataType concept.\n"
+      "Basically, Agg must have the same getters and types aliases as NgpAABBData but is free to extend it as needed without "
       "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
   using aabb_data_t = typename Agg::aabb_data_t;
 
   static decltype(auto) min_corner(Agg agg, stk::mesh::Entity aabb_entity) {
-    return mundy::math::get_vector3_view<scalar_t>(stk::mesh::field_data(agg.aabb_data, aabb_entity));
+    return mundy::math::get_vector3_view<scalar_t>(stk::mesh::field_data(agg.aabb_data(), aabb_entity));
   }
 
   static decltype(auto) max_corner(Agg agg, stk::mesh::Entity aabb_entity) {
     constexpr size_t shift = 3;
     auto shifted_data_accessor =
-        mundy::math::get_shifted_view<scalar_t, shift>(stk::mesh::field_data(agg.aabb_data, aabb_entity));
+        mundy::math::get_shifted_view<scalar_t, shift>(stk::mesh::field_data(agg.aabb_data(), aabb_entity));
     return mundy::math::get_owning_vector3<scalar_t>(std::move(shifted_data_accessor));
   }
 
   static decltype(auto) x_min(Agg agg, stk::mesh::Entity aabb_entity) {
-    return stk::mesh::field_data(agg.aabb_data, aabb_entity)[0];
+    return stk::mesh::field_data(agg.aabb_data(), aabb_entity)[0];
   }
 
   static decltype(auto) y_min(Agg agg, stk::mesh::Entity aabb_entity) {
-    return stk::mesh::field_data(agg.aabb_data, aabb_entity)[1];
+    return stk::mesh::field_data(agg.aabb_data(), aabb_entity)[1];
   }
 
   static decltype(auto) z_min(Agg agg, stk::mesh::Entity aabb_entity) {
-    return stk::mesh::field_data(agg.aabb_data, aabb_entity)[2];
+    return stk::mesh::field_data(agg.aabb_data(), aabb_entity)[2];
   }
 
   static decltype(auto) x_max(Agg agg, stk::mesh::Entity aabb_entity) {
-    return stk::mesh::field_data(agg.aabb_data, aabb_entity)[3];
+    return stk::mesh::field_data(agg.aabb_data(), aabb_entity)[3];
   }
 
   static decltype(auto) y_max(Agg agg, stk::mesh::Entity aabb_entity) {
-    return stk::mesh::field_data(agg.aabb_data, aabb_entity)[4];
+    return stk::mesh::field_data(agg.aabb_data(), aabb_entity)[4];
   }
 
   static decltype(auto) z_max(Agg agg, stk::mesh::Entity aabb_entity) {
-    return stk::mesh::field_data(agg.aabb_data, aabb_entity)[5];
+    return stk::mesh::field_data(agg.aabb_data(), aabb_entity)[5];
   }
 };  // AABBDataTraits
 
@@ -196,9 +224,9 @@ struct AABBDataTraits {
 template <typename Agg>
 struct NgpAABBDataTraits {
   static_assert(
-      ValidDefaultNgpAABBDataType<Agg>,
-      "Agg must satisfy the ValidDefaultNgpAABBDataType concept.\n"
-      "Basically, Agg must have all the same things as NgpAABBData but is free to extend it as needed without "
+      ValidNgpAABBDataType<Agg>,
+      "Agg must satisfy the ValidNgpAABBDataType concept.\n"
+      "Basically, Agg must have the same getters and types aliases as NgpAABBData but is free to extend it as needed without "
       "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
@@ -206,44 +234,44 @@ struct NgpAABBDataTraits {
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) min_corner(Agg agg, stk::mesh::FastMeshIndex aabb_index) {
-    return mundy::math::get_owning_vector3<scalar_t>(agg.aabb_data(aabb_index));
+    return mundy::math::get_owning_vector3<scalar_t>(agg.aabb_data()(aabb_index));
   }
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) max_corner(Agg agg, stk::mesh::FastMeshIndex aabb_index) {
     constexpr size_t shift = 3;
-    auto shifted_data_accessor = mundy::math::get_owning_shifted_accessor<scalar_t, shift>(agg.aabb_data(aabb_index));
+    auto shifted_data_accessor = mundy::math::get_owning_shifted_accessor<scalar_t, shift>(agg.aabb_data()(aabb_index));
     return mundy::math::get_owning_vector3<scalar_t>(std::move(shifted_data_accessor));
   }
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) x_min(Agg agg, stk::mesh::FastMeshIndex aabb_index) {
-    return agg.aabb_data(aabb_index)[0];
+    return agg.aabb_data()(aabb_index)[0];
   }
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) y_min(Agg agg, stk::mesh::FastMeshIndex aabb_index) {
-    return agg.aabb_data(aabb_index)[1];
+    return agg.aabb_data()(aabb_index)[1];
   }
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) z_min(Agg agg, stk::mesh::FastMeshIndex aabb_index) {
-    return agg.aabb_data(aabb_index)[2];
+    return agg.aabb_data()(aabb_index)[2];
   }
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) x_max(Agg agg, stk::mesh::FastMeshIndex aabb_index) {
-    return agg.aabb_data(aabb_index)[3];
+    return agg.aabb_data()(aabb_index)[3];
   }
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) y_max(Agg agg, stk::mesh::FastMeshIndex aabb_index) {
-    return agg.aabb_data(aabb_index)[4];
+    return agg.aabb_data()(aabb_index)[4];
   }
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) z_max(Agg agg, stk::mesh::FastMeshIndex aabb_index) {
-    return agg.aabb_data(aabb_index)[5];
+    return agg.aabb_data()(aabb_index)[5];
   }
 };  // NgpAABBDataTraits
 

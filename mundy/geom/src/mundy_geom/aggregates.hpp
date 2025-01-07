@@ -34,7 +34,7 @@
 /// each, meant to be shared by all spheres. Use create_sphere_data to aid in creating the SphereData struct.
 ///
 /// If you wish to augment the SphereData struct with additional data, you can create a new struct that meets the
-/// ValidDefaultSphereDataType concept; aka, it has the same data members as SphereData. Alternatively, if you don't want
+/// ValidSphereDataType concept; aka, it has the same data members as SphereData. Alternatively, if you don't want
 /// to name your center and radius data members the same as SphereData or if you want to use a different access pattern,
 /// you can create a new struct and provide a specialization of SphereDataTraits for your new struct. Doing so allows you
 /// to seamlessly use our SphereEntityView view object with your new struct. Note, we suggest that augmentations only add

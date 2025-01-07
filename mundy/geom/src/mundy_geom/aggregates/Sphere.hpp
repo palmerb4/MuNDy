@@ -56,7 +56,7 @@ template <typename Scalar,                                     //
           stk::topology::topology_t OurTopology,               //
           typename CenterDataType = stk::mesh::Field<Scalar>,  //
           typename RadiusDataType = stk::mesh::Field<Scalar>>
-struct SphereData {
+class SphereData {
   static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
                 "The topology of a sphere must be either NODE or PARTICLE");
   static_assert((std::is_same_v<std::decay_t<RadiusDataType>, Scalar> ||
@@ -65,15 +65,53 @@ struct SphereData {
                 "RadiusDataType must be either a scalar or a field of scalars\n"
                 "CenterDataType must be either a const or non-const field of scalars");
 
+ public:
   using scalar_t = Scalar;
   using center_data_t = CenterDataType;
   using radius_data_t = RadiusDataType;
+  static constexpr stk::topology::topology_t topology_t = OurTopology;
 
-  static constexpr stk::topology::topology_t topology = OurTopology;
+  /// \brief Constructor
+  SphereData(stk::mesh::BulkData& bulk_data, center_data_t& center_data, radius_data_t& radius_data)
+      : bulk_data_(bulk_data), center_data_(center_data), radius_data_(radius_data) {
+    constexpr bool is_radius_a_field = std::is_same_v<std::decay_t<RadiusDataType>, stk::mesh::Field<Scalar>>;
+    stk::topology our_topology = OurTopology;
+    MUNDY_THROW_ASSERT(center_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
+                       "The center data must be a field of NODE_RANK");
+    if constexpr (is_radius_a_field) {
+      MUNDY_THROW_ASSERT(radius_data.entity_rank() == our_topology.rank(), std::invalid_argument,
+                         "The radius data must be a field of the same rank as the sphere");
+    }
+  }
 
-  stk::mesh::BulkData& bulk_data;
-  center_data_t& center_data;
-  radius_data_t& radius_data;
+  const stk::mesh::BulkData& bulk_data() const {
+    return bulk_data_;
+  }
+
+  stk::mesh::BulkData& bulk_data() {
+    return bulk_data_;
+  }
+
+  const center_data_t& center_data() const {
+    return center_data_;
+  }
+
+  center_data_t& center_data() {
+    return center_data_;
+  }
+
+  const radius_data_t& radius_data() const {
+    return radius_data_;
+  }
+
+  radius_data_t& radius_data() {
+    return radius_data_;
+  }
+
+ private:
+  stk::mesh::BulkData& bulk_data_;
+  center_data_t& center_data_;
+  radius_data_t& radius_data_;
 };  // SphereData
 
 /// \brief A struct to hold the data for a collection of NGP-compatible spheres
@@ -82,7 +120,7 @@ template <typename Scalar,                                        //
           stk::topology::topology_t OurTopology,                  //
           typename CenterDataType = stk::mesh::NgpField<Scalar>,  //
           typename RadiusDataType = stk::mesh::NgpField<Scalar>>
-struct NgpSphereData {
+class NgpSphereData {
   static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
                 "The topology of a sphere must be either NODE or PARTICLE");
   static_assert((std::is_same_v<std::decay_t<RadiusDataType>, Scalar> ||
@@ -91,15 +129,48 @@ struct NgpSphereData {
                 "RadiusDataType must be either a scalar or a field of scalars\n"
                 "CenterDataType must be either a const or non-const field of scalars");
 
+ public:
   using scalar_t = Scalar;
   using center_data_t = CenterDataType;
   using radius_data_t = RadiusDataType;
+  static constexpr stk::topology::topology_t topology_t = OurTopology;
 
-  static constexpr stk::topology::topology_t topology = OurTopology;
+  /// \brief Constructor
+  NgpSphereData(stk::mesh::NgpMesh ngp_mesh, center_data_t& center_data, radius_data_t& radius_data)
+      : ngp_mesh_(ngp_mesh), center_data_(center_data), radius_data_(radius_data) {
+    MUNDY_THROW_ASSERT(center_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
+                       "The center data must be a field of NODE_RANK");
+    stk::topology our_topology = OurTopology;
+    if constexpr (std::is_same_v<std::decay_t<RadiusDataType>, stk::mesh::NgpField<Scalar>>) {
+      MUNDY_THROW_ASSERT(radius_data.get_rank() == our_topology.rank(), std::invalid_argument,
+                         "The radius data must be a field of the same rank as the sphere");
+    }
+  }
 
-  stk::mesh::NgpMesh ngp_mesh;
-  center_data_t& center_data;
-  radius_data_t& radius_data;
+  stk::mesh::NgpMesh ngp_mesh() const {
+    return ngp_mesh_;
+  }
+
+  const center_data_t& center_data() const {
+    return center_data_;
+  }
+
+  center_data_t& center_data() {
+    return center_data_;
+  }
+
+  const radius_data_t& radius_data() const {
+    return radius_data_;
+  }
+
+  radius_data_t& radius_data() {
+    return radius_data_;
+  }
+
+ private:
+  stk::mesh::NgpMesh ngp_mesh_;
+  center_data_t& center_data_;
+  radius_data_t& radius_data_;
 };  // NgpSphereData
 
 /// \brief A helper function to create a SphereData object
@@ -111,14 +182,6 @@ template <typename Scalar,                        // Must be provided
           typename CenterDataType,                // deduced
           typename RadiusDataType>                // deduced
 auto create_sphere_data(stk::mesh::BulkData& bulk_data, CenterDataType& center_data, RadiusDataType& radius_data) {
-  MUNDY_THROW_ASSERT(center_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
-                     "The center data must be a field of NODE_RANK");
-  constexpr bool is_radius_a_field = std::is_same_v<std::decay_t<RadiusDataType>, stk::mesh::Field<Scalar>>;
-  stk::topology our_topology = OurTopology;
-  if constexpr (is_radius_a_field) {
-    MUNDY_THROW_ASSERT(radius_data.entity_rank() == our_topology.rank(), std::invalid_argument,
-                       "The radius data must be a field of the same rank as the sphere");
-  }
   return SphereData<Scalar, OurTopology, CenterDataType, RadiusDataType>{bulk_data, center_data, radius_data};
 }
 
@@ -129,119 +192,109 @@ template <typename Scalar,                        // Must be provided
           typename CenterDataType,                // deduced
           typename RadiusDataType>                // deduced
 auto create_ngp_sphere_data(stk::mesh::NgpMesh ngp_mesh, CenterDataType& center_data, RadiusDataType& radius_data) {
-  MUNDY_THROW_ASSERT(center_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
-                     "The center data must be a field of NODE_RANK");
-  constexpr bool is_radius_a_field = std::is_same_v<std::decay_t<RadiusDataType>, stk::mesh::NgpField<Scalar>>;
-  stk::topology our_topology = OurTopology;
-  if constexpr (is_radius_a_field) {
-    MUNDY_THROW_ASSERT(radius_data.get_rank() == our_topology.rank(), std::invalid_argument,
-                       "The radius data must be a field of the same rank as the sphere");
-  }
   return NgpSphereData<Scalar, OurTopology, CenterDataType, RadiusDataType>{ngp_mesh, center_data, radius_data};
 }
 
 /// \brief A concept to check if a type provides the same data as SphereData
 template <typename Agg>
-concept ValidDefaultSphereDataType = requires(Agg agg) {
+concept ValidSphereDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::center_data_t;
   typename Agg::radius_data_t;
   std::is_same_v<std::decay_t<typename Agg::radius_data_t>, typename Agg::scalar_t> ||
       std::is_same_v<std::decay_t<typename Agg::radius_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
   std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.bulk_data } -> std::convertible_to<stk::mesh::BulkData&>;
-  { agg.center_data } -> std::convertible_to<typename Agg::center_data_t&>;
-  { agg.radius_data } -> std::convertible_to<typename Agg::radius_data_t&>;
-};  // ValidDefaultSphereDataType
+  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+  { agg.bulk_data() } -> std::convertible_to<stk::mesh::BulkData&>;
+  { agg.center_data() } -> std::convertible_to<typename Agg::center_data_t&>;
+  { agg.radius_data() } -> std::convertible_to<typename Agg::radius_data_t&>;
+};  // ValidSphereDataType
 
 /// \brief A concept to check if a type provides the same data as NgpSphereData
 template <typename Agg>
-concept ValidDefaultNgpSphereDataType = requires(Agg agg) {
+concept ValidNgpSphereDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::center_data_t;
   typename Agg::radius_data_t;
   std::is_same_v<std::decay_t<typename Agg::radius_data_t>, typename Agg::scalar_t> ||
       std::is_same_v<std::decay_t<typename Agg::radius_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
   std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { Agg::topology } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.ngp_mesh } -> std::convertible_to<stk::mesh::NgpMesh>;
-  { agg.center_data } -> std::convertible_to<typename Agg::center_data_t&>;
-  { agg.radius_data } -> std::convertible_to<typename Agg::radius_data_t&>;
-};  // ValidDefaultNgpSphereDataType
+  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+  { agg.ngp_mesh() } -> std::convertible_to<stk::mesh::NgpMesh>;
+  { agg.center_data() } -> std::convertible_to<typename Agg::center_data_t&>;
+  { agg.radius_data() } -> std::convertible_to<typename Agg::radius_data_t&>;
+};  // ValidNgpSphereDataType
 
-static_assert(ValidDefaultSphereDataType<SphereData<float,                    //
-                                                    stk::topology::NODE,      //
-                                                    stk::mesh::Field<float>,  //
-                                                    float>> &&
-                  ValidDefaultSphereDataType<SphereData<float,                    //
-                                                        stk::topology::PARTICLE,  //
-                                                        stk::mesh::Field<float>,  //
-                                                        stk::mesh::Field<float>>>,
-              "SphereData must satisfy the ValidDefaultSphereDataType concept");
+static_assert(ValidSphereDataType<SphereData<float,                    //
+                                             stk::topology::NODE,      //
+                                             stk::mesh::Field<float>,  //
+                                             float>> &&
+                  ValidSphereDataType<SphereData<float,                    //
+                                                 stk::topology::PARTICLE,  //
+                                                 stk::mesh::Field<float>,  //
+                                                 stk::mesh::Field<float>>>,
+              "SphereData must satisfy the ValidSphereDataType concept");
 
-static_assert(ValidDefaultNgpSphereDataType<NgpSphereData<float,                       //
-                                                          stk::topology::NODE,         //
-                                                          stk::mesh::NgpField<float>,  //
-                                                          float>> &&
-                  ValidDefaultNgpSphereDataType<NgpSphereData<float,                       //
-                                                              stk::topology::PARTICLE,     //
-                                                              stk::mesh::NgpField<float>,  //
-                                                              stk::mesh::NgpField<float>>>,
-              "NgpSphereData must satisfy the ValidDefaultNgpSphereDataType concept");
+static_assert(ValidNgpSphereDataType<NgpSphereData<float,                       //
+                                                   stk::topology::NODE,         //
+                                                   stk::mesh::NgpField<float>,  //
+                                                   float>> &&
+                  ValidNgpSphereDataType<NgpSphereData<float,                       //
+                                                       stk::topology::PARTICLE,     //
+                                                       stk::mesh::NgpField<float>,  //
+                                                       stk::mesh::NgpField<float>>>,
+              "NgpSphereData must satisfy the ValidNgpSphereDataType concept");
 
 /// \brief A helper function to get an updated NgpSphereData object from a SphereData object
 /// \param data The SphereData object to convert
-template <ValidDefaultSphereDataType SphereDataType>
+template <ValidSphereDataType SphereDataType>
 auto get_updated_ngp_data(SphereDataType data) {
   using scalar_t = typename SphereDataType::scalar_t;
-  using center_data_t = typename SphereDataType::center_data_t;
   using radius_data_t = typename SphereDataType::radius_data_t;
 
   constexpr bool is_radius_a_field = std::is_same_v<std::decay_t<radius_data_t>, stk::mesh::Field<scalar_t>>;
-  constexpr stk::topology::topology_t our_topology = SphereDataType::topology;
+  constexpr stk::topology::topology_t topology_t = SphereDataType::topology_t;
   if constexpr (is_radius_a_field) {
-    return create_ngp_sphere_data<scalar_t, our_topology>(             //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data),  //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.radius_data));
+    return create_ngp_sphere_data<scalar_t, topology_t>(                 //
+        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),  //
+        stk::mesh::get_updated_ngp_field<scalar_t>(data.radius_data()));
   } else {
-    return create_ngp_sphere_data<scalar_t, our_topology>(             //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data),  //
-        data.radius_data);
+    return create_ngp_sphere_data<scalar_t, topology_t>(                 //
+        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),  //
+        data.radius_data());
   }
 }
 
 /// \brief A traits class to provide abstracted access to a sphere's data via an aggregate
 ///
-/// By default, this class is compatible with SphereData or any class the meets the ValidDefaultSphereDataType concept.
+/// By default, this class is compatible with SphereData or any class the meets the ValidSphereDataType concept.
 /// Users can specialize this class to support other aggregate types.
 template <typename Agg>
 struct SphereDataTraits {
-  static_assert(
-      ValidDefaultSphereDataType<Agg>,
-      "Agg must satisfy the ValidDefaultSphereDataType concept.\n"
-      "Basically, Agg must have all the same things as NgpSphereData but is free to extend it as needed without "
-      "having to rely on inheritance.");
+  static_assert(ValidSphereDataType<Agg>,
+                "Agg must satisfy the ValidSphereDataType concept.\n"
+                "Basically, Agg must have the same getters and types aliases as NgpSphereData but is free to extend it "
+                "as needed without "
+                "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
   using center_data_t = typename Agg::center_data_t;
   using radius_data_t = typename Agg::radius_data_t;
-
-  static constexpr stk::topology::topology_t topology = Agg::topology;
+  static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
 
   static constexpr bool has_shared_radius() {
     return std::is_same_v<std::decay_t<radius_data_t>, scalar_t>;
   }
 
   static decltype(auto) center(Agg agg, stk::mesh::Entity sphere_node) {
-    return mundy::mesh::vector3_field_data(agg.center_data, sphere_node);
+    return mundy::mesh::vector3_field_data(agg.center_data(), sphere_node);
   }
 
   static decltype(auto) radius(Agg agg, stk::mesh::Entity sphere) {
     if constexpr (has_shared_radius()) {
-      return agg.radius_data;
+      return agg.radius_data();
     } else {
-      return stk::mesh::field_data(agg.radius_data, sphere)[0];
+      return stk::mesh::field_data(agg.radius_data(), sphere)[0];
     }
   }
 };  // SphereDataTraits
@@ -250,17 +303,17 @@ struct SphereDataTraits {
 /// See the discussion for SphereDataTraits for more information. Only difference is Ngp-compatible data.
 template <typename Agg>
 struct NgpSphereDataTraits {
-  static_assert(
-      ValidDefaultNgpSphereDataType<Agg>,
-      "Agg must satisfy the ValidDefaultNgpSphereDataType concept.\n"
-      "Basically, Agg must have all the same things as NgpSphereData but is free to extend it as needed without "
-      "having to rely on inheritance.");
+  static_assert(ValidNgpSphereDataType<Agg>,
+                "Agg must satisfy the ValidNgpSphereDataType concept.\n"
+                "Basically, Agg must have the same getters and types aliases as NgpSphereData but is free to extend it "
+                "as needed without "
+                "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
   using center_data_t = typename Agg::center_data_t;
   using radius_data_t = typename Agg::radius_data_t;
 
-  static constexpr stk::topology::topology_t topology = Agg::topology;
+  static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
 
   KOKKOS_INLINE_FUNCTION
   static constexpr bool has_shared_radius() {
@@ -269,15 +322,15 @@ struct NgpSphereDataTraits {
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) center(Agg agg, stk::mesh::FastMeshIndex sphere_node_index) {
-    return mundy::mesh::vector3_field_data(agg.center_data, sphere_node_index);
+    return mundy::mesh::vector3_field_data(agg.center_data(), sphere_node_index);
   }
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) radius(Agg agg, stk::mesh::FastMeshIndex sphere_index) {
     if constexpr (has_shared_radius()) {
-      return agg.radius_data;
+      return agg.radius_data();
     } else {
-      return agg.radius_data(sphere_index, 0);
+      return agg.radius_data()(sphere_index, 0);
     }
   }
 };  // NgpSphereDataTraits
@@ -293,20 +346,21 @@ class SphereEntityView;
 /// @brief A view of a NODE STK entity meant to represent a sphere
 template <typename SphereDataType>
 class SphereEntityView<stk::topology::NODE, SphereDataType> {
-  static_assert(SphereDataType::topology == stk::topology::NODE, "The topology of the sphere data must match the view");
+  static_assert(SphereDataType::topology_t == stk::topology::NODE,
+                "The topology of the sphere data must match the view");
 
  public:
   using data_access_t = SphereDataTraits<SphereDataType>;
   using scalar_t = typename data_access_t::scalar_t;
   using point_t = decltype(data_access_t::center(std::declval<SphereDataType>(), std::declval<stk::mesh::Entity>()));
 
-  static constexpr stk::topology::topology_t topology = stk::topology::NODE;
+  static constexpr stk::topology::topology_t topology_t = stk::topology::NODE;
   static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
 
   SphereEntityView(SphereDataType data, stk::mesh::Entity sphere) : data_(data), sphere_(sphere) {
-    MUNDY_THROW_ASSERT(data_.bulk_data.entity_rank(sphere_) == stk::topology::NODE_RANK, std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data().entity_rank(sphere_) == stk::topology::NODE_RANK, std::invalid_argument,
                        "The sphere entity rank must be NODE_RANK");
-    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(sphere_), std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data().is_valid(sphere_), std::invalid_argument,
                        "The given sphere entity is not valid");
   }
 
@@ -335,7 +389,7 @@ class SphereEntityView<stk::topology::NODE, SphereDataType> {
 /// @brief A view of a PARTICLE STK entity meant to represent a sphere
 template <typename SphereDataType>
 class SphereEntityView<stk::topology::PARTICLE, SphereDataType> {
-  static_assert(SphereDataType::topology == stk::topology::PARTICLE,
+  static_assert(SphereDataType::topology_t == stk::topology::PARTICLE,
                 "The topology of the sphere data must match the view");
 
  public:
@@ -343,18 +397,18 @@ class SphereEntityView<stk::topology::PARTICLE, SphereDataType> {
   using scalar_t = typename data_access_t::scalar_t;
   using point_t = decltype(data_access_t::center(std::declval<SphereDataType>(), std::declval<stk::mesh::Entity>()));
 
-  static constexpr stk::topology::topology_t topology = stk::topology::PARTICLE;
+  static constexpr stk::topology::topology_t topology_t = stk::topology::PARTICLE;
   static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
 
   SphereEntityView(SphereDataType data, stk::mesh::Entity sphere)
-      : data_(data), sphere_(sphere), node_(data_.bulk_data.begin_nodes(sphere_)[0]) {
-    MUNDY_THROW_ASSERT(data_.bulk_data.entity_rank(sphere_) == stk::topology::ELEM_RANK, std::invalid_argument,
+      : data_(data), sphere_(sphere), node_(data_.bulk_data().begin_nodes(sphere_)[0]) {
+    MUNDY_THROW_ASSERT(data_.bulk_data().entity_rank(sphere_) == stk::topology::ELEM_RANK, std::invalid_argument,
                        "The sphere entity rank must be ELEM_RANK");
-    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(sphere_), std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data().is_valid(sphere_), std::invalid_argument,
                        "The given sphere entity is not valid");
-    MUNDY_THROW_ASSERT(data_.bulk_data.num_nodes(sphere_) >= 1, std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data().num_nodes(sphere_) >= 1, std::invalid_argument,
                        "The given sphere entity must have at least one node");
-    MUNDY_THROW_ASSERT(data_.bulk_data.is_valid(node_), std::invalid_argument,
+    MUNDY_THROW_ASSERT(data_.bulk_data().is_valid(node_), std::invalid_argument,
                        "The node entity associated with the sphere is not valid");
   }
 
@@ -389,7 +443,7 @@ class NgpSphereEntityView;
 /// @brief An ngp-compatible view of a NODE STK entity meant to represent a sphere
 template <typename NgpSphereDataType>
 class NgpSphereEntityView<stk::topology::NODE, NgpSphereDataType> {
-  static_assert(NgpSphereDataType::topology == stk::topology::NODE,
+  static_assert(NgpSphereDataType::topology_t == stk::topology::NODE,
                 "The topology of the sphere data must match the view");
 
  public:
@@ -398,7 +452,7 @@ class NgpSphereEntityView<stk::topology::NODE, NgpSphereDataType> {
   using point_t =
       decltype(data_access_t::center(std::declval<NgpSphereDataType>(), std::declval<stk::mesh::FastMeshIndex>()));
 
-  static constexpr stk::topology::topology_t topology = stk::topology::NODE;
+  static constexpr stk::topology::topology_t topology_t = stk::topology::NODE;
   static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
 
   KOKKOS_INLINE_FUNCTION
@@ -434,7 +488,7 @@ class NgpSphereEntityView<stk::topology::NODE, NgpSphereDataType> {
 /// @brief An ngp-compatible view of a PARTICLE STK entity meant to represent a sphere
 template <typename NgpSphereDataType>
 class NgpSphereEntityView<stk::topology::PARTICLE, NgpSphereDataType> {
-  static_assert(NgpSphereDataType::topology == stk::topology::PARTICLE,
+  static_assert(NgpSphereDataType::topology_t == stk::topology::PARTICLE,
                 "The topology of the sphere data must match the view");
 
  public:
@@ -443,14 +497,14 @@ class NgpSphereEntityView<stk::topology::PARTICLE, NgpSphereDataType> {
   using point_t =
       decltype(data_access_t::center(std::declval<NgpSphereDataType>(), std::declval<stk::mesh::FastMeshIndex>()));
 
-  static constexpr stk::topology::topology_t topology = stk::topology::PARTICLE;
+  static constexpr stk::topology::topology_t topology_t = stk::topology::PARTICLE;
   static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
 
   KOKKOS_INLINE_FUNCTION
   NgpSphereEntityView(NgpSphereDataType data, stk::mesh::FastMeshIndex sphere_index)
       : data_(data),
         sphere_index_(sphere_index),
-        node_index_(data_.ngp_mesh.fast_mesh_index(data_.ngp_mesh.get_nodes(rank, sphere_index_)[0])) {
+        node_index_(data_.ngp_mesh().fast_mesh_index(data_.ngp_mesh().get_nodes(rank, sphere_index_)[0])) {
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -502,15 +556,15 @@ static_assert(ValidSphereType<SphereEntityView<stk::topology::NODE,
               "SphereEntityView and NgpSphereEntityView must be valid Sphere types");
 
 /// \brief A helper function to create a SphereEntityView object with type deduction
-template <typename SphereDataType>                // deduced
+template <typename SphereDataType>  // deduced
 auto create_sphere_entity_view(SphereDataType& data, stk::mesh::Entity sphere) {
-  return SphereEntityView<SphereDataType::topology, SphereDataType>(data, sphere);
+  return SphereEntityView<SphereDataType::topology_t, SphereDataType>(data, sphere);
 }
 
 /// \brief A helper function to create a NgpSphereEntityView object with type deduction
-template <typename NgpSphereDataType>             // deduced
+template <typename NgpSphereDataType>  // deduced
 auto create_ngp_sphere_entity_view(NgpSphereDataType data, stk::mesh::FastMeshIndex sphere_index) {
-  return NgpSphereEntityView<NgpSphereDataType::topology, NgpSphereDataType>(data, sphere_index);
+  return NgpSphereEntityView<NgpSphereDataType::topology_t, NgpSphereDataType>(data, sphere_index);
 }
 //@}
 
