@@ -25,6 +25,11 @@
 #include <numeric>  // for std::accumulate
 #include <vector>   // for std::vector
 
+// Trilinos libs
+#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
+
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+
 // Kokkos and Kokkos-Kernels
 #include <KokkosBlas.hpp>
 #include <Kokkos_Core.hpp>
@@ -1064,3 +1069,13 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
+#else 
+
+
+int main() {
+  std::cout << "This example requires Trilinos 16.0.0 or greater." << std::endl;
+  return 0;
+}
+
+#endif  // TRILINOS_MAJOR_MINOR_VERSION  >= 160000

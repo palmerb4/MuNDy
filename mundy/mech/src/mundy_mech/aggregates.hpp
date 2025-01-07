@@ -51,13 +51,13 @@
 ///
 /// The above is general to all of our primitive types. All you need to do is replace Sphere with the primitive type you
 /// are interested in. They all implement the same pattern.
-#include <mundy_geom/aggregates/Point.hpp>
-#include <mundy_geom/aggregates/Line.hpp>
-#include <mundy_geom/aggregates/LineSegment.hpp>
-#include <mundy_geom/aggregates/Sphere.hpp>
-#include <mundy_geom/aggregates/Ellipsoid.hpp>
-#include <mundy_geom/aggregates/AABB.hpp>
-#include <mundy_geom/aggregates/Spherocylinder.hpp>
-#include <mundy_geom/aggregates/SpherocylinderSegment.hpp>
+#include <mundy_geom/aggregates/GeomPoint.hpp>
+#include <mundy_geom/aggregates/GeomLine.hpp>
+#include <mundy_geom/aggregates/GeomLineSegment.hpp>
+#include <mundy_geom/aggregates/GeomSphere.hpp>
+#include <mundy_geom/aggregates/GeomEllipsoid.hpp>
+#include <mundy_geom/aggregates/GeomAABB.hpp>
+#include <mundy_geom/aggregates/GeomSpherocylinder.hpp>
+#include <mundy_geom/aggregates/GeomSpherocylinderSegment.hpp>
 
 #endif  // MUNDY_GEOM_AGGREGATES_HPP_

@@ -15,9 +15,17 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find src/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 SET(NOINSTALLHEADERS 
+  src/mundy_geom/aggregates/GeomAABB.hpp
+  src/mundy_geom/aggregates/GeomEllipsoid.hpp
+  src/mundy_geom/aggregates/GeomLine.hpp
+  src/mundy_geom/aggregates/GeomLineSegment.hpp
+  src/mundy_geom/aggregates/GeomPoint.hpp
+  src/mundy_geom/aggregates/GeomSphere.hpp
+  src/mundy_geom/aggregates/GeomSpherocylinder.hpp
+  src/mundy_geom/aggregates/GeomSpherocylinderSegment.hpp
+  src/mundy_geom/aggregates/GeomVSegment.hpp
   src/mundy_geom/aggregates.hpp
-  src/mundy_geom/aggregates/Sphere.hpp
-  src/mundy_geom/aggregates/Ellipsoid.hpp
+  src/mundy_geom/aggregates/MotileEllipsoid.hpp
   src/mundy_geom/distance/EllipsoidEllipsoid.hpp
   src/mundy_geom/distance.hpp
   src/mundy_geom/distance/LineEllipsoid.hpp
@@ -47,6 +55,9 @@ SET(NOINSTALLHEADERS
   src/mundy_geom/primitives/LineSegment.hpp
   src/mundy_geom/primitives/Point.hpp
   src/mundy_geom/primitives/Sphere.hpp
+  src/mundy_geom/primitives/Spherocylinder.hpp
+  src/mundy_geom/primitives/SpherocylinderSegment.hpp
+  src/mundy_geom/primitives/VSegment.hpp
   )
 
 SET(SOURCES
