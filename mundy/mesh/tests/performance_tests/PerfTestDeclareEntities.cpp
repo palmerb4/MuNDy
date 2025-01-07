@@ -660,6 +660,7 @@ mundy::math::Vector3<double> random_point_inside_ellipsoid(const mundy::math::Ve
       return point;
     }
   }
+  return center;  // Failed to find a point. Return the center.
 }
 
 std::vector<mundy::math::Vector3<double>> random_walk_inside_ellipsoid(const mundy::math::Vector3<double> &start,

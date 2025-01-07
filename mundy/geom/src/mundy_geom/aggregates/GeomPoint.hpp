@@ -41,7 +41,7 @@ namespace geom {
 //! \name Aggregate traits
 //@{
 
-/// \brief A struct to hold the data for a collection of points
+/// \brief Aggregate to hold the data for a collection of points
 ///
 /// The topology of a line segment directly effects the access pattern for the underlying data.
 /// Regardless of the topology, the node coordinates are stored on the node of the point.
@@ -89,7 +89,7 @@ class PointData {
   node_coords_data_t& node_coords_data_;
 };  // PointData
 
-/// \brief A struct to hold the data for a collection of NGP-compatible points
+/// \brief Aggregate to hold the data for a collection of NGP-compatible points
 /// See the discussion for PointData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                        //
           stk::topology::topology_t OurTopology,  //
@@ -265,12 +265,28 @@ class PointEntityView<stk::topology::NODE, PointDataType> {
                        "The given point entity is not valid");
   }
 
+  decltype(auto) data() {
+    return data_;
+  }
+
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  stk::mesh::Entity& point_entity() {
+    return point_;
+  }
+
+  const stk::mesh::Entity& point_entity() const {
+    return point_;
+  }
+
   decltype(auto) center() {
-    return data_access_t::center(data_, point_);
+    return data_access_t::center(data(), point_entity());
   }
 
   decltype(auto) center() const {
-    return data_access_t::center(data_, point_);
+    return data_access_t::center(data(), point_entity());
   }
 
   decltype(auto) operator[](int i) {
@@ -311,12 +327,36 @@ class PointEntityView<stk::topology::PARTICLE, PointDataType> {
                        "The node entity associated with the point is not valid");
   }
 
+  decltype(auto) data() {
+    return data_;
+  }
+
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  stk::mesh::Entity& point_entity() {
+    return point_;
+  }
+
+  const stk::mesh::Entity& point_entity() const {
+    return point_;
+  }
+
+  stk::mesh::Entity& node_entity() {
+    return node_;
+  }
+
+  const stk::mesh::Entity& node_entity() const {
+    return node_;
+  }
+
   decltype(auto) center() {
-    return data_access_t::center(data_, node_);
+    return data_access_t::center(data(), node_entity());
   }
 
   decltype(auto) center() const {
-    return data_access_t::center(data_, node_);
+    return data_access_t::center(data(), node_entity());
   }
 
   decltype(auto) operator[](int i) {
@@ -359,13 +399,33 @@ class NgpPointEntityView<stk::topology::NODE, NgpPointDataType> {
   }
 
   KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& point_index() {
+    return point_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& point_index() const {
+    return point_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return data_access_t::center(data_, point_index_);
+    return data_access_t::center(data(), point_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return data_access_t::center(data_, point_index_);
+    return data_access_t::center(data(), point_index());
   }
 
   decltype(auto) operator[](int i) {
@@ -404,13 +464,43 @@ class NgpPointEntityView<stk::topology::PARTICLE, NgpPointDataType> {
   }
 
   KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& point_index() {
+    return point_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& point_index() const {
+    return point_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& node_index() {
+    return node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& node_index() const {
+    return node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return data_access_t::center(data_, node_index_);
+    return data_access_t::center(data(), node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return data_access_t::center(data_, node_index_);
+    return data_access_t::center(data(), node_index());
   }
 
   decltype(auto) operator[](int i) {

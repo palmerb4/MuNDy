@@ -41,7 +41,7 @@ namespace geom {
 //! \name Aggregate traits
 //@{
 
-/// \brief A struct to hold the data for a collection of ellipsoids
+/// \brief Aggregate to hold the data for a collection of ellipsoids
 ///
 /// The topology of an ellipsoid directly effects the access pattern for the underlying data:
 ///   - NODE: All data is stored on a single node
@@ -141,7 +141,7 @@ class EllipsoidData {
   axis_lengths_data_t& axis_lengths_data_;
 };  // EllipsoidData
 
-/// \brief A struct to hold the data for a collection of NGP-compatible ellipsoids
+/// \brief Aggregate to hold the data for a collection of NGP-compatible ellipsoids
 /// See the discussion for EllipsoidData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                                             //
           stk::topology::topology_t OurTopology,                       //
@@ -477,28 +477,44 @@ class EllipsoidEntityView<stk::topology::NODE, EllipsoidDataType> {
   EllipsoidEntityView(EllipsoidDataType data, stk::mesh::Entity ellipsoid) : data_(data), ellipsoid_(ellipsoid) {
   }
 
+  decltype(auto) data() {
+    return data_;
+  }
+
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  stk::mesh::Entity &ellipsoid_entity() {
+    return ellipsoid_;
+  }
+
+  const stk::mesh::Entity &ellipsoid_entity() const {
+    return ellipsoid_;
+  }
+
   decltype(auto) center() {
-    return data_access_t::center(data_, ellipsoid_);
+    return data_access_t::center(data(), ellipsoid_entity());
   }
 
   decltype(auto) center() const {
-    return data_access_t::center(data_, ellipsoid_);
+    return data_access_t::center(data(), ellipsoid_entity());
   }
 
   decltype(auto) orientation() {
-    return data_access_t::orientation(data_, ellipsoid_);
+    return data_access_t::orientation(data(), ellipsoid_entity());
   }
 
   decltype(auto) orientation() const {
-    return data_access_t::orientation(data_, ellipsoid_);
+    return data_access_t::orientation(data(), ellipsoid_entity());
   }
 
   decltype(auto) axis_lengths() {
-    return data_access_t::axis_lengths(data_, ellipsoid_);
+    return data_access_t::axis_lengths(data(), ellipsoid_entity());
   }
 
   decltype(auto) axis_lengths() const {
-    return data_access_t::axis_lengths(data_, ellipsoid_);
+    return data_access_t::axis_lengths(data(), ellipsoid_entity());
   }
 
  private:
@@ -523,28 +539,52 @@ class EllipsoidEntityView<stk::topology::PARTICLE, EllipsoidDataType> {
       : data_(data), ellipsoid_(ellipsoid), node_(data_.bulk_data().begin_nodes(ellipsoid_)[0]) {
   }
 
+  decltype(auto) data() {
+    return data_;
+  }
+
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  stk::mesh::Entity &ellipsoid_entity() {
+    return ellipsoid_;
+  }
+
+  const stk::mesh::Entity &ellipsoid_entity() const {
+    return ellipsoid_;
+  }
+
+  stk::mesh::Entity &node_entity() {
+    return node_;
+  }
+
+  const stk::mesh::Entity &node_entity() const {
+    return node_;
+  }
+
   decltype(auto) center() {
-    return data_access_t::center(data_, node_);
+    return data_access_t::center(data(), node_entity());
   }
 
   decltype(auto) center() const {
-    return data_access_t::center(data_, node_);
+    return data_access_t::center(data(), node_entity());
   }
 
   decltype(auto) orientation() {
-    return data_access_t::orientation(data_, ellipsoid_);
+    return data_access_t::orientation(data(), ellipsoid_entity());
   }
 
   decltype(auto) orientation() const {
-    return data_access_t::orientation(data_, ellipsoid_);
+    return data_access_t::orientation(data(), ellipsoid_entity());
   }
 
   decltype(auto) axis_lengths() {
-    return data_access_t::axis_lengths(data_, ellipsoid_);
+    return data_access_t::axis_lengths(data(), ellipsoid_entity());
   }
 
   decltype(auto) axis_lengths() const {
-    return data_access_t::axis_lengths(data_, ellipsoid_);
+    return data_access_t::axis_lengths(data(), ellipsoid_entity());
   }
 
  private:
@@ -577,33 +617,53 @@ class NgpEllipsoidEntityView<stk::topology::NODE, NgpEllipsoidDataType> {
   }
 
   KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex &ellipsoid_index() {
+    return ellipsoid_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex &ellipsoid_index() const {
+    return ellipsoid_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return data_access_t::center(data_, ellipsoid_index_);
+    return data_access_t::center(data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return data_access_t::center(data_, ellipsoid_index_);
+    return data_access_t::center(data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) orientation() {
-    return data_access_t::orientation(data_, ellipsoid_index_);
+    return data_access_t::orientation(data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) orientation() const {
-    return data_access_t::orientation(data_, ellipsoid_index_);
+    return data_access_t::orientation(data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) axis_lengths() {
-    return data_access_t::axis_lengths(data_, ellipsoid_index_);
+    return data_access_t::axis_lengths(data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) axis_lengths() const {
-    return data_access_t::axis_lengths(data_, ellipsoid_index_);
+    return data_access_t::axis_lengths(data(), ellipsoid_index());
   }
 
  private:
@@ -634,33 +694,63 @@ class NgpEllipsoidEntityView<stk::topology::PARTICLE, NgpEllipsoidDataType> {
   }
 
   KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex &ellipsoid_index() {
+    return ellipsoid_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex &ellipsoid_index() const {
+    return ellipsoid_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex &node_index() {
+    return node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex &node_index() const {
+    return node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return data_access_t::center(data_, node_index_);
+    return data_access_t::center(data(), node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return data_access_t::center(data_, node_index_);
+    return data_access_t::center(data(), node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) orientation() {
-    return data_access_t::orientation(data_, ellipsoid_index_);
+    return data_access_t::orientation(data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) orientation() const {
-    return data_access_t::orientation(data_, ellipsoid_index_);
+    return data_access_t::orientation(data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) axis_lengths() {
-    return data_access_t::axis_lengths(data_, ellipsoid_index_);
+    return data_access_t::axis_lengths(data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) axis_lengths() const {
-    return data_access_t::axis_lengths(data_, ellipsoid_index_);
+    return data_access_t::axis_lengths(data(), ellipsoid_index());
   }
 
  private:

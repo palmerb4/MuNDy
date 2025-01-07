@@ -41,7 +41,7 @@ namespace geom {
 //! \name Aggregate traits
 //@{
 
-/// \brief A struct to hold the data for a collection of sphero-cylinder segments
+/// \brief Aggregate to hold the data for a collection of sphero-cylinder segments
 ///
 /// The topology of a line segment directly effects the access pattern for the underlying data.
 /// Regardless of the topology, the node coordinates are stored on all nodes of the line segment, whereas
@@ -111,7 +111,7 @@ class SpherocylinderSegmentData {
   radius_data_t& radius_data_;
 };  // SpherocylinderSegmentData
 
-/// \brief A struct to hold the data for a collection of NGP-compatible sphero-cylinder segments
+/// \brief Aggregate to hold the data for a collection of NGP-compatible sphero-cylinder segments
 /// See the discussion for SpherocylinderSegmentData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                                            //
           stk::topology::topology_t OurTopology,                      //
@@ -387,28 +387,60 @@ class SpherocylinderSegmentEntityView {
                        "The end node entity associated with the spherocylinder_segment is not valid");
   }
 
+  decltype(auto) data() {
+    return data_;
+  }
+
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  stk::mesh::Entity& spherocylinder_segment_entity() {
+    return spherocylinder_segment_;
+  }
+
+  const stk::mesh::Entity& spherocylinder_segment_entity() const {
+    return spherocylinder_segment_;
+  }
+
+  stk::mesh::Entity& start_node_entity() {
+    return start_node_;
+  }
+
+  const stk::mesh::Entity& start_node_entity() const {
+    return start_node_;
+  }
+
+  stk::mesh::Entity& end_node_entity() {
+    return end_node_;
+  }
+
+  const stk::mesh::Entity& end_node_entity() const {
+    return end_node_;
+  }
+
   decltype(auto) start() {
-    return data_access_t::node_coords(data_, start_node_);
+    return data_access_t::node_coords(data(), start_node_entity());
   }
 
   decltype(auto) start() const {
-    return data_access_t::node_coords(data_, start_node_);
+    return data_access_t::node_coords(data(), start_node_entity());
   }
 
   decltype(auto) end() {
-    return data_access_t::node_coords(data_, end_node_);
+    return data_access_t::node_coords(data(), end_node_entity());
   }
 
   decltype(auto) end() const {
-    return data_access_t::node_coords(data_, end_node_);
+    return data_access_t::node_coords(data(), end_node_entity());
   }
 
   decltype(auto) radius() {
-    return data_access_t::radius(data_, spherocylinder_segment_);
+    return data_access_t::radius(data(), spherocylinder_segment_entity());
   }
 
   decltype(auto) radius() const {
-    return data_access_t::radius(data_, spherocylinder_segment_);
+    return data_access_t::radius(data(), spherocylinder_segment_entity());
   }
 
  private:
@@ -452,33 +484,73 @@ class NgpSpherocylinderSegmentEntityView {
   }
 
   KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& spherocylinder_segment_index() {
+    return spherocylinder_segment_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& spherocylinder_segment_index() const {
+    return spherocylinder_segment_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& start_node_index() {
+    return start_node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& start_node_index() const {
+    return start_node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& end_node_index() {
+    return end_node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& end_node_index() const {
+    return end_node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) start() {
-    return data_access_t::node_coords(data_, start_node_index_);
+    return data_access_t::node_coords(data(), start_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) start() const {
-    return data_access_t::node_coords(data_, start_node_index_);
+    return data_access_t::node_coords(data(), start_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) end() {
-    return data_access_t::node_coords(data_, end_node_index_);
+    return data_access_t::node_coords(data(), end_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) end() const {
-    return data_access_t::node_coords(data_, end_node_index_);
+    return data_access_t::node_coords(data(), end_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) radius() {
-    return data_access_t::radius(data_, spherocylinder_segment_index_);
+    return data_access_t::radius(data(), spherocylinder_segment_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) radius() const {
-    return data_access_t::radius(data_, spherocylinder_segment_index_);
+    return data_access_t::radius(data(), spherocylinder_segment_index());
   }
 
  private:

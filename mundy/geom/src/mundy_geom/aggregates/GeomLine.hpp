@@ -41,7 +41,7 @@ namespace geom {
 //! \name Aggregate traits
 //@{
 
-/// \brief A struct to hold the data for a collection of infinite lines
+/// \brief Aggregate to hold the data for a collection of infinite lines
 ///
 /// The topology of a line directly effects the access pattern for the underlying data:
 ///   - NODE: All data is stored on a single node
@@ -110,7 +110,7 @@ class LineData {
   direction_data_t& direction_data_;
 };  // LineData
 
-/// \brief A struct to hold the data for a collection of NGP-compatible lines
+/// \brief Aggregate to hold the data for a collection of NGP-compatible lines
 /// See the discussion for LineData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                                        //
           stk::topology::topology_t OurTopology,                  //
@@ -391,20 +391,36 @@ class LineEntityView<stk::topology::NODE, LineDataType> {
     MUNDY_THROW_ASSERT(data_.bulk_data().is_valid(line_), std::invalid_argument, "The given line entity is not valid");
   }
 
+  decltype(auto) data() {
+    return data_;
+  }
+
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  stk::mesh::Entity& line_entity() {
+    return line_;
+  }
+  
+  const stk::mesh::Entity& line_entity() const {
+    return line_;
+  } 
+
   decltype(auto) center() {
-    return data_access_t::center(data_, line_);
+    return data_access_t::center(data(), line_entity());
   }
 
   decltype(auto) center() const {
-    return data_access_t::center(data_, line_);
+    return data_access_t::center(data(), line_entity());
   }
 
   decltype(auto) direction() {
-    return data_access_t::direction(data_, line_);
+    return data_access_t::direction(data(), line_entity());
   }
 
   decltype(auto) direction() const {
-    return data_access_t::direction(data_, line_);
+    return data_access_t::direction(data(), line_entity());
   }
 
  private:
@@ -439,20 +455,44 @@ class LineEntityView<stk::topology::PARTICLE, LineDataType> {
                        "The node entity associated with the line is not valid");
   }
 
+  decltype(auto) data() {
+    return data_;
+  }
+
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  stk::mesh::Entity& line_entity() {
+    return line_;
+  }
+
+  const stk::mesh::Entity& line_entity() const {
+    return line_;
+  }
+
+  stk::mesh::Entity& node_entity() {
+    return node_;
+  }
+
+  const stk::mesh::Entity& node_entity() const {
+    return node_;
+  }
+
   decltype(auto) center() {
-    return data_access_t::center(data_, node_);
+    return data_access_t::center(data(), node_entity());
   }
 
   decltype(auto) center() const {
-    return data_access_t::center(data_, node_);
+    return data_access_t::center(data(), node_entity());
   }
 
   decltype(auto) direction() {
-    return data_access_t::direction(data_, line_);
+    return data_access_t::direction(data(), line_entity());
   }
 
   decltype(auto) direction() const {
-    return data_access_t::direction(data_, line_);
+    return data_access_t::direction(data(), line_entity());
   }
 
  private:
@@ -488,23 +528,43 @@ class NgpLineEntityView<stk::topology::NODE, NgpLineDataType> {
   }
 
   KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& line_index() {
+    return line_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& line_index() const {
+    return line_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return data_access_t::center(data_, line_index_);
+    return data_access_t::center(data(), line_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return data_access_t::center(data_, line_index_);
+    return data_access_t::center(data(), line_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) direction() {
-    return data_access_t::direction(data_, line_index_);
+    return data_access_t::direction(data(), line_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) direction() const {
-    return data_access_t::direction(data_, line_index_);
+    return data_access_t::direction(data(), line_index());
   }
 
  private:
@@ -537,23 +597,53 @@ class NgpLineEntityView<stk::topology::PARTICLE, NgpLineDataType> {
   }
 
   KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& line_index() {
+    return line_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& line_index() const {
+    return line_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& node_index() {
+    return node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& node_index() const {
+    return node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return data_access_t::center(data_, node_index_);
+    return data_access_t::center(data(), node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return data_access_t::center(data_, node_index_);
+    return data_access_t::center(data(), node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) direction() {
-    return data_access_t::direction(data_, line_index_);
+    return data_access_t::direction(data(), line_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) direction() const {
-    return data_access_t::direction(data_, line_index_);
+    return data_access_t::direction(data(), line_index());
   }
 
  private:

@@ -62,8 +62,8 @@ class AABB {
   //! \name Constructors and destructor
   //@{
 
-  /// \brief Default constructor for owning AABBs. Initializes the box inside out and as large as possible.
-  /// Nothing can be inside this box.
+  /// \brief Default constructor for owning AABBs. Initializes the aabb inside out and as large as possible.
+  /// Nothing can be inside this aabb.
   KOKKOS_FUNCTION
   AABB()
   requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
@@ -76,15 +76,15 @@ class AABB {
   requires std::is_same_v<OwnershipType, mundy::math::Ownership::Views> = delete;
 
   /// \brief Constructor to directly set the min and max corners.
-  /// \param[in] min_corner The minimum corner of the box.
-  /// \param[in] max_corner The maximum corner of the box.
+  /// \param[in] min_corner The minimum corner of the aabb.
+  /// \param[in] max_corner The maximum corner of the aabb.
   KOKKOS_FUNCTION
   AABB(const point_t& min_corner, const point_t& max_corner) : min_corner_(min_corner), max_corner_(max_corner) {
   }
 
   /// \brief Constructor to directly set the min and max corners.
-  /// \param[in] min_corner The minimum corner of the box.
-  /// \param[in] max_corner The maximum corner of the box.
+  /// \param[in] min_corner The minimum corner of the aabb.
+  /// \param[in] max_corner The maximum corner of the aabb.
   template <ValidPointType OtherPointType1, ValidPointType OtherPointType2>
   KOKKOS_FUNCTION AABB(const OtherPointType1& min_corner, const OtherPointType2& max_corner)
     requires(!std::is_same_v<OtherPointType1, point_t> || !std::is_same_v<OtherPointType2, point_t>)

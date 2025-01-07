@@ -29,8 +29,8 @@
 //   - VSegment
 //   - Plane
 //   - AABB
-//   - Tri3
-//   - Quad4
+//   - Tri_3
+//   - Quad_4
 //   - Sphere
 //   - Ellipsoid
 //   - Spherocylinder

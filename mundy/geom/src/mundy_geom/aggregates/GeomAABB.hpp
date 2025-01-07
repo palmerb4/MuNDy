@@ -164,6 +164,7 @@ static_assert(ValidNgpAABBDataType<NgpAABBData<float, stk::mesh::NgpField<float>
 template <ValidAABBDataType AABBDataType>
 auto get_updated_ngp_data(AABBDataType data) {
   using scalar_t = typename AABBDataType::scalar_t;
+  using aabb_data_t = typename AABBDataType::aabb_data_t;
   return create_ngp_aabb_data<scalar_t>(stk::mesh::get_updated_ngp_mesh(data.bulk_data()),  //
                                         stk::mesh::get_updated_ngp_field<scalar_t>(data.aabb_data()));
 }
@@ -286,68 +287,84 @@ class AABBEntityView {
   AABBEntityView(AABBDataType data, stk::mesh::Entity aabb_entity) : data_(data), aabb_entity_(aabb_entity) {
   }
 
+  decltype(auto) data() {
+    return data_;
+  }
+
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  stk::mesh::Entity &aabb_entity() {
+    return aabb_entity_;
+  }
+
+  const stk::mesh::Entity &aabb_entity() const {
+    return aabb_entity_;
+  }
+
   decltype(auto) min_corner() {
-    return data_access_t::min_corner(data_, aabb_entity_);
+    return data_access_t::min_corner(data(), aabb_entity());
   }
 
   decltype(auto) min_corner() const {
-    return data_access_t::min_corner(data_, aabb_entity_);
+    return data_access_t::min_corner(data(), aabb_entity());
   }
 
   decltype(auto) max_corner() {
-    return data_access_t::max_corner(data_, aabb_entity_);
+    return data_access_t::max_corner(data(), aabb_entity());
   }
 
   decltype(auto) max_corner() const {
-    return data_access_t::max_corner(data_, aabb_entity_);
+    return data_access_t::max_corner(data(), aabb_entity());
   }
 
   decltype(auto) x_min() {
-    return data_access_t::x_min(data_, aabb_entity_);
+    return data_access_t::x_min(data(), aabb_entity());
   }
 
   decltype(auto) x_min() const {
-    return data_access_t::x_min(data_, aabb_entity_);
+    return data_access_t::x_min(data(), aabb_entity());
   }
 
   decltype(auto) y_min() {
-    return data_access_t::y_min(data_, aabb_entity_);
+    return data_access_t::y_min(data(), aabb_entity());
   }
 
   decltype(auto) y_min() const {
-    return data_access_t::y_min(data_, aabb_entity_);
+    return data_access_t::y_min(data(), aabb_entity());
   }
 
   decltype(auto) z_min() {
-    return data_access_t::z_min(data_, aabb_entity_);
+    return data_access_t::z_min(data(), aabb_entity());
   }
 
   decltype(auto) z_min() const {
-    return data_access_t::z_min(data_, aabb_entity_);
+    return data_access_t::z_min(data(), aabb_entity());
   }
 
   decltype(auto) x_max() {
-    return data_access_t::x_max(data_, aabb_entity_);
+    return data_access_t::x_max(data(), aabb_entity());
   }
 
   decltype(auto) x_max() const {
-    return data_access_t::x_max(data_, aabb_entity_);
+    return data_access_t::x_max(data(), aabb_entity());
   }
 
   decltype(auto) y_max() {
-    return data_access_t::y_max(data_, aabb_entity_);
+    return data_access_t::y_max(data(), aabb_entity());
   }
 
   decltype(auto) y_max() const {
-    return data_access_t::y_max(data_, aabb_entity_);
+    return data_access_t::y_max(data(), aabb_entity());
   }
 
   decltype(auto) z_max() {
-    return data_access_t::z_max(data_, aabb_entity_);
+    return data_access_t::z_max(data(), aabb_entity());
   }
 
   decltype(auto) z_max() const {
-    return data_access_t::z_max(data_, aabb_entity_);
+    return data_access_t::z_max(data(), aabb_entity());
   }
 
  private:
@@ -370,83 +387,103 @@ class NgpAABBEntityView {
   }
 
   KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex &aabb_index() {
+    return aabb_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex &aabb_index() const {
+    return aabb_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) min_corner() {
-    return data_access_t::min_corner(data_, aabb_index_);
+    return data_access_t::min_corner(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) min_corner() const {
-    return data_access_t::min_corner(data_, aabb_index_);
+    return data_access_t::min_corner(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) max_corner() {
-    return data_access_t::max_corner(data_, aabb_index_);
+    return data_access_t::max_corner(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) max_corner() const {
-    return data_access_t::max_corner(data_, aabb_index_);
+    return data_access_t::max_corner(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) x_min() {
-    return data_access_t::x_min(data_, aabb_index_);
+    return data_access_t::x_min(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) x_min() const {
-    return data_access_t::x_min(data_, aabb_index_);
+    return data_access_t::x_min(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) y_min() {
-    return data_access_t::y_min(data_, aabb_index_);
+    return data_access_t::y_min(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) y_min() const {
-    return data_access_t::y_min(data_, aabb_index_);
+    return data_access_t::y_min(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) z_min() {
-    return data_access_t::z_min(data_, aabb_index_);
+    return data_access_t::z_min(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) z_min() const {
-    return data_access_t::z_min(data_, aabb_index_);
+    return data_access_t::z_min(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) x_max() {
-    return data_access_t::x_max(data_, aabb_index_);
+    return data_access_t::x_max(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) x_max() const {
-    return data_access_t::x_max(data_, aabb_index_);
+    return data_access_t::x_max(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) y_max() {
-    return data_access_t::y_max(data_, aabb_index_);
+    return data_access_t::y_max(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) y_max() const {
-    return data_access_t::y_max(data_, aabb_index_);
+    return data_access_t::y_max(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) z_max() {
-    return data_access_t::z_max(data_, aabb_index_);
+    return data_access_t::z_max(data(), aabb_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) z_max() const {
-    return data_access_t::z_max(data_, aabb_index_);
+    return data_access_t::z_max(data(), aabb_index());
   }
 
  private:

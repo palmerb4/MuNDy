@@ -41,7 +41,7 @@ namespace geom {
 //! \name Aggregate traits
 //@{
 
-/// \brief A struct to hold the data for a collection of v_segments
+/// \brief Aggregate to hold the data for a collection of v_segments
 ///
 /// The topology of a v segment directly effects the access pattern for the underlying data.
 /// Regardless of the topology, the node coordinates are stored on all nodes of the v segment.
@@ -94,7 +94,7 @@ class VSegmentData {
   node_coords_data_t& node_coords_data_;
 };  // VSegmentData
 
-/// \brief A struct to hold the data for a collection of NGP-compatible line segments
+/// \brief Aggregate to hold the data for a collection of NGP-compatible line segments
 /// See the discussion for VSegmentData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                        //
           stk::topology::topology_t OurTopology,  //
@@ -310,28 +310,68 @@ class VSegmentEntityView {
                        "The end node entity associated with the v_segment is not valid");
   }
 
+  decltype(auto) data() {
+    return data_;
+  }
+
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  stk::mesh::Entity& v_segment_entity() {
+    return v_segment_;
+  }
+
+  const stk::mesh::Entity& v_segment_entity() const {
+    return v_segment_;
+  }
+
+  stk::mesh::Entity& start_node_entity() {
+    return start_node_;
+  }
+
+  const stk::mesh::Entity& start_node_entity() const {
+    return start_node_;
+  }
+
+  stk::mesh::Entity& middle_node_entity() {
+    return middle_node_;
+  }
+
+  const stk::mesh::Entity& middle_node_entity() const {
+    return middle_node_;
+  }
+
+  stk::mesh::Entity& end_node_entity() {
+    return end_node_;
+  }
+
+  const stk::mesh::Entity& end_node_entity() const {
+    return end_node_;
+  }
+
   decltype(auto) start() {
-    return data_access_t::node_coords(data_, start_node_);
+    return data_access_t::node_coords(data(), start_node_entity());
   }
 
   decltype(auto) start() const {
-    return data_access_t::node_coords(data_, start_node_);
+    return data_access_t::node_coords(data(), start_node_entity());
   }
 
   decltype(auto) middle() {
-    return data_access_t::node_coords(data_, middle_node_);
+    return data_access_t::node_coords(data(), middle_node_entity());
   }
 
   decltype(auto) middle() const {
-    return data_access_t::node_coords(data_, middle_node_);
+    return data_access_t::node_coords(data(), middle_node_entity());
   }
 
   decltype(auto) end() {
-    return data_access_t::node_coords(data_, end_node_);
+    return data_access_t::node_coords(data(), end_node_entity());
   }
 
   decltype(auto) end() const {
-    return data_access_t::node_coords(data_, end_node_);
+    return data_access_t::node_coords(data(), end_node_entity());
   }
 
  private:
@@ -382,33 +422,83 @@ class NgpVSegmentEntityView {
   }
 
   KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& v_segment_index() {
+    return v_segment_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& v_segment_index() const {
+    return v_segment_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& start_node_index() {
+    return start_node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& start_node_index() const {
+    return start_node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& middle_node_index() {
+    return middle_node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& middle_node_index() const {
+    return middle_node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& end_node_index() {
+    return end_node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& end_node_index() const {
+    return end_node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) start() {
-    return data_access_t::node_coords(data_, start_node_index_);
+    return data_access_t::node_coords(data(), start_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) start() const {
-    return data_access_t::node_coords(data_, start_node_index_);
+    return data_access_t::node_coords(data(), start_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) middle() {
-    return data_access_t::node_coords(data_, middle_node_index_);
+    return data_access_t::node_coords(data(), middle_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) middle() const {
-    return data_access_t::node_coords(data_, middle_node_index_);
+    return data_access_t::node_coords(data(), middle_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) end() {
-    return data_access_t::node_coords(data_, end_node_index_);
+    return data_access_t::node_coords(data(), end_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) end() const {
-    return data_access_t::node_coords(data_, end_node_index_);
+    return data_access_t::node_coords(data(), end_node_index());
   }
 
  private:

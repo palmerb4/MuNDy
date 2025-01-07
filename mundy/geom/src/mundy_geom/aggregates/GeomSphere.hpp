@@ -41,7 +41,7 @@ namespace geom {
 //! \name Aggregate traits
 //@{
 
-/// \brief A struct to hold the data for a collection of spheres
+/// \brief Aggregate to hold the data for a collection of spheres
 /// The topology of an sphere directly effects the access pattern for the underlying data:
 ///   - NODE: All data is stored on a single node
 ///   - PARTICLE: The center is stored on a node, whereas the radius is stored on the element-rank particle
@@ -114,7 +114,7 @@ class SphereData {
   radius_data_t& radius_data_;
 };  // SphereData
 
-/// \brief A struct to hold the data for a collection of NGP-compatible spheres
+/// \brief Aggregate to hold the data for a collection of NGP-compatible spheres
 /// See the discussion for SphereData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                                        //
           stk::topology::topology_t OurTopology,                  //
@@ -364,21 +364,37 @@ class SphereEntityView<stk::topology::NODE, SphereDataType> {
                        "The given sphere entity is not valid");
   }
 
+  decltype(auto) data() {
+    return data_;
+  }
+
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  stk::mesh::Entity& sphere_entity() {
+    return sphere_;
+  }
+
+  const stk::mesh::Entity& sphere_entity() const {
+    return sphere_;
+  }
+
   decltype(auto) radius() {
     // For those not familiar with decltype(auto), it allows us to return either an auto or an auto&.
-    return data_access_t::radius(data_, sphere_);
+    return data_access_t::radius(data(), sphere_entity());
   }
 
   decltype(auto) radius() const {
-    return data_access_t::radius(data_, sphere_);
+    return data_access_t::radius(data(), sphere_entity());
   }
 
   decltype(auto) center() {
-    return data_access_t::center(data_, sphere_);
+    return data_access_t::center(data(), sphere_entity());
   }
 
   decltype(auto) center() const {
-    return data_access_t::center(data_, sphere_);
+    return data_access_t::center(data(), sphere_entity());
   }
 
  private:
@@ -412,21 +428,45 @@ class SphereEntityView<stk::topology::PARTICLE, SphereDataType> {
                        "The node entity associated with the sphere is not valid");
   }
 
+  decltype(auto) data() {
+    return data_;
+  }
+
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  stk::mesh::Entity& sphere_entity() {
+    return sphere_;
+  }
+
+  const stk::mesh::Entity& sphere_entity() const {
+    return sphere_;
+  }
+
+  stk::mesh::Entity& node_entity() {
+    return node_;
+  }
+
+  const stk::mesh::Entity& node_entity() const {
+    return node_;
+  }
+
   decltype(auto) radius() {
     // For those not familiar with decltype(auto), it allows us to return either an auto or an auto&.
-    return data_access_t::radius(data_, sphere_);
+    return data_access_t::radius(data(), sphere_entity());
   }
 
   decltype(auto) radius() const {
-    return data_access_t::radius(data_, sphere_);
+    return data_access_t::radius(data(), sphere_entity());
   }
 
   decltype(auto) center() {
-    return data_access_t::center(data_, node_);
+    return data_access_t::center(data(), node_entity());
   }
 
   decltype(auto) center() const {
-    return data_access_t::center(data_, node_);
+    return data_access_t::center(data(), node_entity());
   }
 
  private:
@@ -461,23 +501,43 @@ class NgpSphereEntityView<stk::topology::NODE, NgpSphereDataType> {
   }
 
   KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& sphere_index() {
+    return sphere_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& sphere_index() const {
+    return sphere_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) radius() {
-    return data_access_t::radius(data_, sphere_index_);
+    return data_access_t::radius(data(), sphere_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) radius() const {
-    return data_access_t::radius(data_, sphere_index_);
+    return data_access_t::radius(data(), sphere_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return data_access_t::center(data_, sphere_index_);
+    return data_access_t::center(data(), sphere_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return data_access_t::center(data_, sphere_index_);
+    return data_access_t::center(data(), sphere_index());
   }
 
  private:
@@ -508,23 +568,53 @@ class NgpSphereEntityView<stk::topology::PARTICLE, NgpSphereDataType> {
   }
 
   KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) data() const {
+    return data_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& sphere_index() {
+    return sphere_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& sphere_index() const {
+    return sphere_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex& node_index() {
+    return node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::FastMeshIndex& node_index() const {
+    return node_index_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) radius() {
-    return data_access_t::radius(data_, sphere_index_);
+    return data_access_t::radius(data(), sphere_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) radius() const {
-    return data_access_t::radius(data_, sphere_index_);
+    return data_access_t::radius(data(), sphere_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return data_access_t::center(data_, node_index_);
+    return data_access_t::center(data(), node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return data_access_t::center(data_, node_index_);
+    return data_access_t::center(data(), node_index());
   }
 
  private:

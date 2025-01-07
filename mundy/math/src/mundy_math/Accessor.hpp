@@ -136,7 +136,7 @@ concept HasNArgConstructor =
 template <typename Accessor, typename T>
 concept HasInitializerListConstructor = requires(std::initializer_list<T> list) { Accessor{list}; };
 
-/// @brief  Literal class enums! These are clearer and easier to work with than bools ot explicit enums.
+/// @brief  Literal class enums! These are clearer and easier to work with than bools or explicit enums.
 namespace Ownership {
 struct Owns {};
 struct Views {};
