@@ -194,7 +194,7 @@ namespace mech {
 
 LocalResultViewType get_local_neighbor_indices(const stk::mesh::BulkData &bulk_data, stk::mesh::EntityRank rank,
                                                const ResultViewType &search_results) {
-  Kokkos::Profiling::pushRegion("mundy::mesh::get_local_neighbor_indices");
+  Kokkos::Profiling::pushRegion("mundy::mech::get_local_neighbor_indices");
 
   auto host_search_results = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultHostExecutionSpace{}, search_results);
 
@@ -241,7 +241,7 @@ SearchSpheresViewType create_search_spheres(const stk::mesh::BulkData &bulk_data
 
   // Slow host operation that is needed to get an index. There is plans to add this to the stk::mesh::NgpMesh.
   FastMeshIndicesViewType sphere_indices =
-      get_local_entity_indices(bulk_data, stk::topology::ELEM_RANK, locally_owned_spheres);
+      mundy::mesh::get_local_entity_indices(bulk_data, stk::topology::ELEM_RANK, locally_owned_spheres);
   const int my_rank = bulk_data.parallel_rank();
 
   Kokkos::parallel_for(
@@ -369,12 +369,337 @@ void check_max_overlap_with_periphery(stk::mesh::NgpMesh &ngp_mesh,             
 //! \name Mobility
 //@{
 
-void compute_rpy_mobility_spheres(const double &viscosity,         //
-                                  Double1DView &sphere_positions,  //
-                                  Double1DView &sphere_radii,      //
-                                  Double1DView &sphere_forces,     //
-                                  Double1DView &sphere_velocities) {
+/// @brief An aggregate containing all the data needed to compute the effect of the no-slip periphery
+/// \note We recommend using \ref NoSlipPeripheryBuilder to constructing this aggregate.
+struct KokkosNoSlipPeripheryData {
+  Double1DView surface_positions;
+  Double1DView surface_normals;
+  Double1DView surface_weights;
+  Double1DView surface_radii;
+  Double1DView surface_forces;
+  Double1DView surface_velocities;
+  DoubleMatDeviceView inv_self_interaction_matrix;
+};
+
+class NoSlipPeripheryBuilder {
+ public:
+  NoSlipPeripheryBuilder()
+      : quadrature_setup_finished_(false),  //
+        build_finished_(false),             //
+        num_surface_nodes_(0),              //
+        surface_positions_(                 //
+            Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_positions_view"), 3 * num_surface_nodes_),
+        surface_normals_(  //
+            Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_normals_view"), 3 * num_surface_nodes_),
+        surface_weights_(  //
+            Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_weights_view"), num_surface_nodes_),
+        surface_radii_(  //
+            Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_radii_view"), num_surface_nodes_),
+        surface_forces_(  //
+            Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_forces_view"), 3 * num_surface_nodes_),
+        surface_velocities_(  //
+            Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_velocities_view"), 3 * num_surface_nodes_),
+        inv_self_interaction_matrix_(  //
+            Kokkos::view_alloc(Kokkos::WithoutInitializing, "inv_self_interaction_matrix_view"), 3 * num_surface_nodes_,
+            3 * num_surface_nodes_) {
+    // Create the host mirrors
+    host_surface_positions_ = Kokkos::create_mirror_view(surface_positions_);
+    host_surface_normals_ = Kokkos::create_mirror_view(surface_normals_);
+    host_surface_weights_ = Kokkos::create_mirror_view(surface_weights_);
+    host_surface_radii_ = Kokkos::create_mirror_view(surface_radii_);
+    host_surface_forces_ = Kokkos::create_mirror_view(surface_forces_);
+    host_surface_velocities_ = Kokkos::create_mirror_view(surface_velocities_);
+    host_inv_self_interaction_matrix_ = Kokkos::create_mirror_view(inv_self_interaction_matrix_);
+  }
+
+  NoSlipPeripheryBuilder &setup_quadrature_using_gauss_legendre(
+      // const mundy::geom::Point<double> &center,  // For now, we center at zero
+      const double radius, const unsigned spectral_order) {
+    std::vector<double> points_vec;
+    std::vector<double> weights_vec;
+    std::vector<double> normals_vec;
+    const bool invert = true;
+    const bool include_poles = false;
+    mundy::alens::periphery::gen_sphere_quadrature(spectral_order, radius, &points_vec, &weights_vec, &normals_vec,
+                                                   include_poles, invert);
+
+    // Allocate the views. Note, resizing does not automatically update the mirror views.
+    num_surface_nodes_ = weights_vec.size();
+    Kokkos::resize(surface_positions_, 3 * num_surface_nodes_);
+    Kokkos::resize(surface_normals_, 3 * num_surface_nodes_);
+    Kokkos::resize(surface_weights_, num_surface_nodes_);
+    Kokkos::resize(surface_radii_, num_surface_nodes_);
+    Kokkos::resize(surface_velocities_, 3 * num_surface_nodes_);
+    Kokkos::resize(surface_forces_, 3 * num_surface_nodes_);
+    host_surface_positions_ = Kokkos::create_mirror_view(surface_positions_);
+    host_surface_normals_ = Kokkos::create_mirror_view(surface_normals_);
+    host_surface_weights_ = Kokkos::create_mirror_view(surface_weights_);
+    host_surface_radii_ = Kokkos::create_mirror_view(surface_radii_);
+    host_surface_velocities_ = Kokkos::create_mirror_view(surface_velocities_);
+    host_surface_forces_ = Kokkos::create_mirror_view(surface_forces_);
+
+    // Copy the raw data into the views
+    for (unsigned i = 0; i < num_surface_nodes_; i++) {
+      surface_positions_host(3 * i + 0) = points_vec[3 * i + 0];
+      surface_positions_host(3 * i + 1) = points_vec[3 * i + 1];
+      surface_positions_host(3 * i + 2) = points_vec[3 * i + 2];
+      surface_normals_host(3 * i + 0) = normals_vec[3 * i + 0];
+      surface_normals_host(3 * i + 1) = normals_vec[3 * i + 1];
+      surface_normals_host(3 * i + 2) = normals_vec[3 * i + 2];
+      surface_velocities_host(3 * i + 0) = 0.0;
+      surface_velocities_host(3 * i + 1) = 0.0;
+      surface_velocities_host(3 * i + 2) = 0.0;
+      surface_forces_host(3 * i + 0) = 0.0;
+      surface_forces_host(3 * i + 1) = 0.0;
+      surface_forces_host(3 * i + 2) = 0.0;
+      surface_weights_host(i) = weights_vec[i];
+      surface_radii_host(i) = 0.0;
+    }
+
+    // Copy the views to the device
+    Kokkos::deep_copy(surface_positions, surface_positions_host);
+    Kokkos::deep_copy(surface_normals, surface_normals_host);
+    Kokkos::deep_copy(surface_weights, surface_weights_host);
+    Kokkos::deep_copy(surface_radii, surface_radii_host);
+    Kokkos::deep_copy(surface_velocities, surface_velocities_host);
+    Kokkos::deep_copy(surface_forces, surface_forces_host);
+
+    quadrature_setup_finished_ = true;
+    return *this;
+  }
+
+  NoSlipPeripheryBuilder &setup_quadrature_from_file(const size_t num_surface_nodes_in_file,
+                                               const std::string &points_filename, const std::string &normals_filename,
+                                               const std::string &weights_filename) {
+    num_surface_nodes_ = num_surface_nodes_in_file;
+
+    // Allocate the views. Note, resizing does not automatically update the mirror views.
+    num_surface_nodes_ = weights_vec.size();
+    Kokkos::resize(surface_positions_, 3 * num_surface_nodes_);
+    Kokkos::resize(surface_normals_, 3 * num_surface_nodes_);
+    Kokkos::resize(surface_weights_, num_surface_nodes_);
+    Kokkos::resize(surface_radii_, num_surface_nodes_);
+    Kokkos::resize(surface_velocities_, 3 * num_surface_nodes_);
+    Kokkos::resize(surface_forces_, 3 * num_surface_nodes_);
+    host_surface_positions_ = Kokkos::create_mirror_view(surface_positions_);
+    host_surface_normals_ = Kokkos::create_mirror_view(surface_normals_);
+    host_surface_weights_ = Kokkos::create_mirror_view(surface_weights_);
+    host_surface_radii_ = Kokkos::create_mirror_view(surface_radii_);
+    host_surface_velocities_ = Kokkos::create_mirror_view(surface_velocities_);
+    host_surface_forces_ = Kokkos::create_mirror_view(surface_forces_);
+
+    // Read the data from the files (to the host)
+    mundy::alens::periphery::read_vector_from_file(weights_filename, num_surface_nodes_, host_surface_weights_);
+    mundy::alens::periphery::read_vector_from_file(points_filename, 3 * num_surface_nodes_, host_surface_positions_);
+    mundy::alens::periphery::read_vector_from_file(normals_filename, 3 * num_surface_nodes_, host_surface_normals_);
+
+    // Copy the views to the device
+    Kokkos::deep_copy(surface_positions_, host_surface_positions_);
+    Kokkos::deep_copy(surface_normals_, host_surface_normals_);
+    Kokkos::deep_copy(surface_weights_, host_surface_weights_);
+
+    // Zero out the radii, forces, and velocities (on host and device)
+    Kokkos::deep_copy(surface_radii_host, 0.0);
+    Kokkos::deep_copy(surface_velocities_host, 0.0);
+    Kokkos::deep_copy(surface_forces_host, 0.0);
+    Kokkos::deep_copy(surface_radii, 0.0);
+    Kokkos::deep_copy(surface_velocities, 0.0);
+    Kokkos::deep_copy(surface_forces, 0.0);
+
+    quadrature_setup_finished_ = true;
+    return *this;
+  }
+
+  NoSlipPeripheryBuilder &precompute_self_interaction(const double viscosity, const bool write_to_file = false,
+                                                const bool use_values_from_file_if_present = false,
+                                                const std::string in_filename = "",
+                                                const std::string out_filename = "self_interaction_matrix.dat") {
+    MUNDY_THROW_REQUIRE(quadrature_setup_finished_, std::runtime_error,
+                        "Quadrature must be setup before precomputing the self-interaction matrix.");
+
+    // Run the precomputation for the inverse self-interaction matrix
+    Kokkos::resize(inv_self_interaction_matrix_, 3 * num_surface_nodes_, 3 * num_surface_nodes_);
+    bool matrix_read_from_file = false;
+    if (use_values_from_file_if_present) {
+      auto does_file_exist = [](const std::string &filename) {
+        std::ifstream f(filename.c_str());
+        return f.good();
+      };
+
+      if (does_file_exist(in_filename)) {
+        const size_t expected_num_rows_cols = 3 * num_surface_nodes_;
+        mundy::alens::periphery::read_matrix_from_file(in_filename, expected_num_rows_cols, expected_num_rows_cols,
+                                                       inv_self_interaction_matrix_);
+        matrix_read_from_file = true;
+      }
+    }
+
+    if (!matrix_read_from_file) {
+      DoubleMatDeviceView self_interaction_matrix("self_interaction_matrix", 3 * num_surface_nodes_,
+                                                  3 * num_surface_nodes_);
+      mundy::alens::periphery::fill_skfie_matrix(stk::ngp::ExecSpace(), viscosity, num_surface_nodes_,
+                                                 num_surface_nodes_, surface_positions_, surface_positions_,
+                                                 surface_normals_, surface_weights_, self_interaction_matrix_);
+      mundy::alens::periphery::invert_matrix(stk::ngp::ExecSpace(), self_interaction_matrix_,
+                                             inv_self_interaction_matrix_);
+
+      if (write_to_file) {
+        Kokkos::deep_copy(host_inv_self_interaction_matrix_, inv_self_interaction_matrix_);
+        mundy::alens::periphery::write_matrix_to_file(out_filename, host_inv_self_interaction_matrix_);
+      }
+    }
+
+    build_finished_ = true;
+
+    return *this;
+  }
+
+  KokkosNoSlipPeripheryData get_periphery_data(bool throw_if_unfinished = true) {
+    MUNDY_THROW_REQUIRE(throw_if_unfinished && quadrature_setup_finished_, std::runtime_error,
+                        "Quadrature must be setup before accessing the periphery data.");
+    return KokkosNoSlipPeripheryData{surface_positions_, surface_normals_, surface_weights_, surface_radii_, surface_forces_,
+                               surface_velocities_, inv_self_interaction_matrix_};
+  }
+
+  Double1DView &get_surface_positions(bool throw_if_unfinished = true) {
+    MUNDY_THROW_REQUIRE(throw_if_unfinished && quadrature_setup_finished_, std::runtime_error,
+                        "Quadrature must be setup before accessing the surface positions.");
+    return surface_positions_;
+  }
+
+  Double1DView &get_surface_normals(bool throw_if_unfinished = true) {
+    MUNDY_THROW_REQUIRE(throw_if_unfinished && quadrature_setup_finished_, std::runtime_error,
+                        "Quadrature must be setup before accessing the surface normals.");
+    return surface_normals_;
+  }
+
+  Double1DView &get_surface_weights(bool throw_if_unfinished = true) {
+    MUNDY_THROW_REQUIRE(throw_if_unfinished && quadrature_setup_finished_, std::runtime_error,
+                        "Quadrature must be setup before accessing the surface weights.");
+    return surface_weights_;
+  }
+
+  Double1DView &get_surface_radii(bool throw_if_unfinished = true) {
+    MUNDY_THROW_REQUIRE(throw_if_unfinished && quadrature_setup_finished_, std::runtime_error,
+                        "Quadrature must be setup before accessing the surface radii.");
+    return surface_radii_;
+  }
+
+  Double1DView &get_surface_forces(bool throw_if_unfinished = true) {
+    MUNDY_THROW_REQUIRE(throw_if_unfinished && quadrature_setup_finished_, std::runtime_error,
+                        "Self-interaction matrix must be built before accessing the surface forces.");
+    return surface_forces_;
+  }
+
+  Double1DView &get_surface_velocities(bool throw_if_unfinished = true) {
+    MUNDY_THROW_REQUIRE(throw_if_unfinished && quadrature_setup_finished_, std::runtime_error,
+                        "Self-interaction matrix must be built before accessing the surface velocities.");
+    return surface_velocities_;
+  }
+
+  DoubleMatDeviceView &get_inv_self_interaction_matrix(bool throw_if_unfinished = true) {
+    MUNDY_THROW_REQUIRE(throw_if_unfinished && build_finished_, std::runtime_error,
+                        "Self-interaction matrix must be built before accessing the inverse self-interaction matrix.");
+    return inv_self_interaction_matrix_;
+  }
+
+ private:
+  bool quadrature_setup_finished_;
+  bool build_finished_;
+  size_t num_surface_nodes_;
+
+  // Device views
+  Double1DView surface_positions_;
+  Double1DView surface_normals_;
+  Double1DView surface_weights_;
+  Double1DView surface_radii_;
+  Double1DView surface_forces_;
+  Double1DView surface_velocities_;
+  DoubleMatDeviceView inv_self_interaction_matrix_;
+
+  // Host mirrors
+  Double1DView::HostMirror host_surface_positions_;
+  Double1DView::HostMirror host_surface_normals_;
+  Double1DView::HostMirror host_surface_weights_;
+  Double1DView::HostMirror host_surface_radii_;
+  Double1DView::HostMirror host_surface_forces_;
+  Double1DView::HostMirror host_surface_velocities_;
+  DoubleMatDeviceView::HostMirror host_inv_self_interaction_matrix_;
+};
+
+/// @brief An aggregate containing Kokkos data for a collection of spheres
+struct KokkosSphereData {
+  Double1DView positions;
+  Double1DView radii;
+};
+
+/// \brief Create the Kokkos data for a collection of spheres
+template <mundy::geom::ValidNgpSphereDataType NgpSphereDataType>
+KokkosSphereData create_kokkos_sphere_data(
+  stk::mesh::NgpMesh &ngp_mesh,
+  NgpSphereDataType &ngp_sphere_data,
+  stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities) {
+  Kokkos::Profiling::pushRegion("mundy::mech::create_kokkos_sphere_data");
+  const size_t num_spheres = ngp_sphere_entities.size();
+  Double1DView positions("sphere_positions", 3 * num_spheres);
+  Double1DView radii("sphere_radii", num_spheres);
+
+  // Copy the sphere data to the device
+  Kokkos::parallel_for(
+      stk::ngp::DeviceRangePolicy(0, num_spheres), KOKKOS_LAMBDA(const unsigned &vector_index) {
+        stk::mesh::Entity sphere = ngp_sphere_entities.device_get(vector_index);
+        auto sphere_index = ngp_mesh.fast_mesh_index(sphere);
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::Entity node = nodes[0];
+        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+
+        auto &sphere_view = mundy::geom::create_ngp_sphere_view(ngp_sphere_data, sphere_index);
+
+        positions(vector_index * 3 + 0) = node_coords_field(node_index, 0);
+        positions(vector_index * 3 + 1) = node_coords_field(node_index, 1);
+        positions(vector_index * 3 + 2) = node_coords_field(node_index, 2);
+
+        radii(vector_index) = elem_radius_field(sphere_index, 0);
+      });
+
+  Kokkos::Profiling::popRegion();
+  return KokkosSphereData{positions, radii};
+
+}
+
+
+
+  //   Kokkos::parallel_for(
+  //       stk::ngp::RangePolicy<stk::ngp::ExecSpace>(0, num_spheres_), KOKKOS_LAMBDA(const int &vector_index) {
+  //         stk::mesh::Entity sphere = ngp_sphere_entities_.device_get(vector_index);
+  //         auto sphere_index = ngp_mesh_.fast_mesh_index(sphere);
+  //         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh_.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+  //         const stk::mesh::Entity node = nodes[0];
+  //         const stk::mesh::FastMeshIndex node_index = ngp_mesh_.fast_mesh_index(node);
+
+  //         sphere_positions_view_(vector_index * 3 + 0) = node_coords_field_(node_index, 0);
+  //         sphere_positions_view_(vector_index * 3 + 1) = node_coords_field_(node_index, 1);
+  //         sphere_positions_view_(vector_index * 3 + 2) = node_coords_field_(node_index, 2);
+
+  //         sphere_radii_view_(vector_index) = elem_radius_field_(sphere_index, 0);
+  //       });
+  // }
+
+/// @brief An aggregate containing Kokkos data for a collection of motile spheres
+struct KokkosMotileSphereData {
+  Double1DView positions;
+  Double1DView radii;
+  Double1DView forces;
+  Double1DView velocities;
+};
+
+void compute_rpy_mobility_spheres(const double &viscosity,  KokkosMotileSphereData &spheres) {
   Kokkos::Profiling::pushRegion("HP1::compute_rpy_mobility_spheres");
+  auto& sphere_positions = spheres.positions;
+  auto& sphere_radii = spheres.radii;
+  auto& sphere_forces = spheres.forces;
+  auto& sphere_velocities = spheres.velocities;
+  
   const size_t num_spheres = sphere_radii.extent(0);
   MUNDY_THROW_ASSERT(sphere_positions.extent(0) == 3 * num_spheres, std::runtime_error,
                      "Sphere positions has the wrong size.");
@@ -395,20 +720,19 @@ void compute_rpy_mobility_spheres(const double &viscosity,         //
 }
 
 void compute_confined_rpy_mobility_spheres(const double &viscosity,           //
-                                           Double1DView &sphere_positions,    //
-                                           Double1DView &sphere_radii,        //
-                                           Double1DView &sphere_forces,       //
-                                           Double1DView &sphere_velocities,   //
-                                           Double1DView &surface_positions,   //
-                                           Double1DView &surface_normals,     //
-                                           Double1DView &surface_weights,     //
-                                           Double1DView &surface_radii,       //
-                                           Double1DView &surface_velocities,  //
-                                           Double1DView &surface_forces,      //
-                                           DoubleMatDeviceView &inv_self_interaction_matrix) {
+                                           KokkosMotileSphereData &spheres,    //
+                                           KokkosNoSlipPeripheryData &periphery_data) {
   Kokkos::Profiling::pushRegion("HP1::compute_confined_rpy_mobility_spheres");
   const size_t num_spheres = sphere_radii.extent(0);
   const size_t num_surface_nodes = surface_weights.extent(0);
+  
+  auto& surface_positions = periphery_data.surface_positions;
+  auto& surface_normals = periphery_data.surface_normals;
+  auto& surface_weights = periphery_data.surface_weights;
+  auto& surface_radii = periphery_data.surface_radii;
+  auto& surface_forces = periphery_data.surface_forces;
+  auto& surface_velocities = periphery_data.surface_velocities;
+  
   MUNDY_THROW_ASSERT(sphere_positions.extent(0) == 3 * num_spheres, std::runtime_error,
                      "Sphere positions has the wrong size.");
   MUNDY_THROW_ASSERT(sphere_forces.extent(0) == 3 * num_spheres, std::runtime_error,
@@ -498,15 +822,23 @@ void compute_local_drag_mobility_spheres(stk::mesh::NgpMesh &ngp_mesh,          
 
 struct SphereLocalDragMobilityOp {
   SphereLocalDragMobilityOp(stk::mesh::NgpMesh &ngp_mesh,  //
-                                 const double viscosity,        //
-                                 stk::mesh::NgpField<double> &elem_radius_field, const stk::mesh::Selector &selector)
+                            const double viscosity,        //
+                            stk::mesh::NgpField<double> &elem_radius_field, const stk::mesh::Selector &selector)
       : ngp_mesh_(ngp_mesh), viscosity_(viscosity), elem_radius_field_(elem_radius_field), selector_(selector) {
+  }
+
+  void update() {
   }
 
   void apply(stk::mesh::NgpField<double> &node_force_field, stk::mesh::NgpField<double> &node_velocity_field) {
     Kokkos::Profiling::pushRegion("mundy::mech::SphereLocalDragMobilityOp::apply");
+    node_force_field.sync_to_device();
+    node_velocity_field.sync_to_device();
+
     compute_local_drag_mobility_spheres(ngp_mesh_, viscosity_, elem_radius_field_, node_force_field,
                                         node_velocity_field, selector_);
+
+    node_velocity_field.modify_on_device();
     Kokkos::Profiling::popRegion();
   }
 
@@ -519,10 +851,10 @@ struct SphereLocalDragMobilityOp {
 
 struct SphereRpyMobilityOp {
   SphereRpyMobilityOp(stk::mesh::NgpMesh &ngp_mesh,                    //
-                           const double viscosity,                          //
-                           stk::mesh::NgpField<double> &node_coords_field,  //
-                           stk::mesh::NgpField<double> &elem_radius_field,
-                           const stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities)
+                      const double viscosity,                          //
+                      stk::mesh::NgpField<double> &node_coords_field,  //
+                      stk::mesh::NgpField<double> &elem_radius_field,
+                      const stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities)
       : ngp_mesh_(ngp_mesh),
         viscosity_(viscosity),
         node_coords_field_(node_coords_field),
@@ -533,27 +865,33 @@ struct SphereRpyMobilityOp {
         sphere_radii_view_("sphere_radii_view", num_spheres_),
         sphere_forces_view_("sphere_forces_view", 3 * num_spheres_),
         sphere_velocities_view_("sphere_velocities_view", 3 * num_spheres_) {
-    node_coords_field.sync_to_device();
-    elem_radius_field.sync_to_device();
+  }
+
+  void update() {
+    node_coords_field_.sync_to_device();
+    elem_radius_field_.sync_to_device();
 
     Kokkos::parallel_for(
         stk::ngp::RangePolicy<stk::ngp::ExecSpace>(0, num_spheres_), KOKKOS_LAMBDA(const int &vector_index) {
-          stk::mesh::Entity sphere = ngp_sphere_entities.device_get(vector_index);
-          auto sphere_index = ngp_mesh.fast_mesh_index(sphere);
-          stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+          stk::mesh::Entity sphere = ngp_sphere_entities_.device_get(vector_index);
+          auto sphere_index = ngp_mesh_.fast_mesh_index(sphere);
+          stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh_.get_nodes(stk::topology::ELEM_RANK, sphere_index);
           const stk::mesh::Entity node = nodes[0];
-          const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+          const stk::mesh::FastMeshIndex node_index = ngp_mesh_.fast_mesh_index(node);
 
-          sphere_positions_view_(vector_index * 3 + 0) = node_coords_field(node_index, 0);
-          sphere_positions_view_(vector_index * 3 + 1) = node_coords_field(node_index, 1);
-          sphere_positions_view_(vector_index * 3 + 2) = node_coords_field(node_index, 2);
+          sphere_positions_view_(vector_index * 3 + 0) = node_coords_field_(node_index, 0);
+          sphere_positions_view_(vector_index * 3 + 1) = node_coords_field_(node_index, 1);
+          sphere_positions_view_(vector_index * 3 + 2) = node_coords_field_(node_index, 2);
 
-          sphere_radii_view_(vector_index) = elem_radius_field(sphere_index, 0);
+          sphere_radii_view_(vector_index) = elem_radius_field_(sphere_index, 0);
         });
   }
 
   void apply(stk::mesh::NgpField<double> &node_force_field, stk::mesh::NgpField<double> &node_velocity_field) {
     Kokkos::Profiling::pushRegion("mundy::mech::SphereRpyMobilityOp::apply");
+
+    node_force_field.sync_to_device();
+    node_velocity_field.sync_to_device();
 
     // Copy the force to the view
     Kokkos::parallel_for(
@@ -587,10 +925,12 @@ struct SphereRpyMobilityOp {
           node_velocity_field(node_index, 1) += sphere_velocities_view_(vector_index * 3 + 1);
           node_velocity_field(node_index, 2) += sphere_velocities_view_(vector_index * 3 + 2);
         });
+
+    node_velocity_field.modify_on_device();
     Kokkos::Profiling::popRegion();
   }
 
-  // Leaving private members public to make this class a composite. Do not use these directly.
+ private:
   stk::mesh::NgpMesh &ngp_mesh_;
   const double viscosity_;
   stk::mesh::NgpField<double> &node_coords_field_;
@@ -605,56 +945,47 @@ struct SphereRpyMobilityOp {
 
 struct SphereConfinedRpyMobilityOp {
   SphereConfinedRpyMobilityOp(stk::mesh::NgpMesh &ngp_mesh,                                  //
-                                   const double viscosity,                                        //
-                                   stk::mesh::NgpField<double> &node_coords_field,                //
-                                   stk::mesh::NgpField<double> &elem_radius_field,                //
-                                   const stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities,  //
-                                   const Double1DView &surface_positions_view,                    //
-                                   const Double1DView &surface_normals_view,                      //
-                                   const Double1DView &surface_weights_view,  //
-                                   const Double1DView &surface_forces_view,  //
-                                  const Double1DView &surface_velocities_view,  //
-                                   const Double2DView &inv_self_interaction_matrix)
+                              const double viscosity,                                        //
+                              stk::mesh::NgpField<double> &node_coords_field,                //
+                              stk::mesh::NgpField<double> &elem_radius_field,                //
+                              const stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities,  //
+                              KokkosSphereData &kokkos_spheres,                                      //
+                              KokkosNoSlipPeripheryData &kokkos_periphery_data)
       : ngp_mesh_(ngp_mesh),
         viscosity_(viscosity),
         node_coords_field_(node_coords_field),
         elem_radius_field_(elem_radius_field),
         ngp_sphere_entities_(ngp_sphere_entities),
         num_spheres_(ngp_sphere_entities.size()),
-        sphere_positions_view_("sphere_positions_view", 3 * num_spheres_),
-        sphere_radii_view_("sphere_radii_view", num_spheres_),
-        sphere_forces_view_("sphere_forces_view", 3 * num_spheres_),
-        sphere_velocities_view_("sphere_velocities_view", 3 * num_spheres_),
-        surface_positions_view_(surface_positions_view),
-        surface_normals_view_(surface_normals_view),
-        surface_weights_view_(surface_weights_view),
-        surface_forces_view_(surface_forces_view),
-        surface_velocities_view_(surface_velocities_view),
-        inv_self_interaction_matrix_(inv_self_interaction_matrix),
-        surface_radii_view_("surface_radii_view", surface_positions_view.extent(0)) {
-    node_coords_field.sync_to_device();
-    elem_radius_field.sync_to_device();
+        kokkos_spheres_(kokkos_spheres),
+        kokkos_periphery_data_(kokkos_periphery_data), {
+  }
+
+  void update() {
+    node_coords_field_.sync_to_device();
+    elem_radius_field_.sync_to_device();
 
     Kokkos::parallel_for(
         stk::ngp::RangePolicy<stk::ngp::ExecSpace>(0, num_spheres_), KOKKOS_LAMBDA(const int &vector_index) {
-          stk::mesh::Entity sphere = ngp_sphere_entities.device_get(vector_index);
-          auto sphere_index = ngp_mesh.fast_mesh_index(sphere);
-          stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+          stk::mesh::Entity sphere = ngp_sphere_entities_.device_get(vector_index);
+          auto sphere_index = ngp_mesh_.fast_mesh_index(sphere);
+          stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh_.get_nodes(stk::topology::ELEM_RANK, sphere_index);
           const stk::mesh::Entity node = nodes[0];
-          const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+          const stk::mesh::FastMeshIndex node_index = ngp_mesh_.fast_mesh_index(node);
 
-          sphere_positions_view_(vector_index * 3 + 0) = node_coords_field(node_index, 0);
-          sphere_positions_view_(vector_index * 3 + 1) = node_coords_field(node_index, 1);
-          sphere_positions_view_(vector_index * 3 + 2) = node_coords_field(node_index, 2);
+          sphere_positions_view_(vector_index * 3 + 0) = node_coords_field_(node_index, 0);
+          sphere_positions_view_(vector_index * 3 + 1) = node_coords_field_(node_index, 1);
+          sphere_positions_view_(vector_index * 3 + 2) = node_coords_field_(node_index, 2);
 
-          sphere_radii_view_(vector_index) = elem_radius_field(sphere_index, 0);
+          sphere_radii_view_(vector_index) = elem_radius_field_(sphere_index, 0);
         });
-
-    Kokkos::deep_copy(surface_radii_view_, 0.0);
   }
 
   void apply(stk::mesh::NgpField<double> &node_force_field, stk::mesh::NgpField<double> &node_velocity_field) {
     Kokkos::Profiling::pushRegion("mundy::mech::SphereRpyMobilityOp::apply");
+
+    node_force_field.sync_to_device();
+    node_velocity_field.sync_to_device();
 
     // Copy the force to the view
     Kokkos::parallel_for(
@@ -672,7 +1003,8 @@ struct SphereConfinedRpyMobilityOp {
     Kokkos::deep_copy(sphere_velocities_view_, 0.0);
 
     // Apply the RPY kernel + boundary integral confinement
-    compute_confined_rpy_mobility_spheres(viscosity_, sphere_positions_view_, sphere_radii_view_, sphere_forces_view_,
+    compute_confined_rpy_mobility_spheres(viscosity_, kokkos_spheres_, periphery_data_);
+    sphere_positions_view_, sphere_radii_view_, sphere_forces_view_,
                                           sphere_velocities_view_, surface_positions_view_, surface_normals_view_,
                                           surface_weights_view_, surface_radii_view_, surface_velocities_view_,
                                           surface_forces_view_, inv_self_interaction_matrix_);
@@ -690,10 +1022,12 @@ struct SphereConfinedRpyMobilityOp {
           node_velocity_field(node_index, 1) += sphere_velocities_view_(vector_index * 3 + 1);
           node_velocity_field(node_index, 2) += sphere_velocities_view_(vector_index * 3 + 2);
         });
+
+    node_velocity_field.modify_on_device();
     Kokkos::Profiling::popRegion();
   }
 
-  // Leaving private members public to make this class a composite. Do not use these directly.
+ private:
   stk::mesh::NgpMesh &ngp_mesh_;
   const double viscosity_;
 
@@ -702,18 +1036,8 @@ struct SphereConfinedRpyMobilityOp {
   const stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities_;
 
   const size_t num_spheres_;
-  Double1DView sphere_positions_view_;
-  Double1DView sphere_radii_view_;
-  Double1DView sphere_forces_view_;
-  Double1DView sphere_velocities_view_;
-
-  Double1DView surface_positions_view_;
-  Double1DView surface_normals_view_;
-  Double1DView surface_weights_view_;
-  Double1DView surface_forces_view_;
-  Double1DView surface_velocities_view_;
-  Double2DView inv_self_interaction_matrix_;
-  Double1DView surface_radii_view_;
+  KokkosSphereData spheres_;
+  KokkosNoSlipPeripheryData &periphery_data_;
 };
 //@}
 
@@ -1178,7 +1502,7 @@ double get_max_speed(Mesh &ngp_mesh, Field &vel_field,  //
   return Kokkos::sqrt(global_max_speed_sq);
 }
 
-template<typename ApplyMobilityOp>
+template <typename ApplyMobilityOp>
 CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh,                                //
                                    const double viscosity,                                      //
                                    const double dt,                                             //
@@ -1212,7 +1536,9 @@ CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh,                
   // phi_0_corrected = phi_0 + dt * D^T U_ext
 
   // U_ext += M F_ext
-  apply_mobility_op.apply(node_force_field, node_velocity_field, selector);
+  apply_mobility_op.apply(
+      node_force_field,
+      node_velocity_field);  // No selector here, assuming that the mobility op allready accounts for the selector
 
   // D^T U_ext
   compute_rate_of_change_of_sep(ngp_mesh, local_search_results, node_velocity_field, con_normal_ij, signed_sep_dot);
@@ -1231,9 +1557,7 @@ CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh,                
                       node_collision_force_field);
 
   // Compute U = M F
-  // compute_local_drag_mobility_spheres(ngp_mesh, viscosity, elem_radius_field, node_collision_force_field,
-  //                                     node_collision_velocity_field, selector);
-  apply_mobility_op.apply(node_collision_force_field, node_collision_velocity_field, selector);
+  apply_mobility_op.apply(node_collision_force_field, node_collision_velocity_field);
 
   // Compute gkm1 = dt D^T U
   compute_rate_of_change_of_sep(ngp_mesh, local_search_results, node_collision_velocity_field, con_normal_ij,
@@ -1269,7 +1593,7 @@ CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh,                
                           node_collision_force_field);
 
       // Compute U = M F
-      apply_mobility_op.apply(node_collision_force_field, node_collision_velocity_field, selector);
+      apply_mobility_op.apply(node_collision_force_field, node_collision_velocity_field);
 
       //   Compute gk = dt D^T U
       compute_rate_of_change_of_sep(ngp_mesh, local_search_results, node_collision_velocity_field, con_normal_ij,
@@ -3309,6 +3633,37 @@ void run(int argc, char **argv) {
   print_rank0(std::string("Running the simulation for ") + std::to_string(sim_params.get<size_t>("num_time_steps")) +
               " timesteps.");
 
+  // Allocate the neighbor search vectors/views
+  ResultViewType search_results;
+  LocalResultViewType local_search_results;
+  SearchSpheresViewType search_spheres;
+
+  // Collision constraint memory
+  size_t num_neighbor_pairs;
+  Double1DView signed_sep_dist("signed_sep_dist", 0);
+  Double2DView con_normal_ij("con_normal_ij", 0, 3);
+  Double1DView lagrange_multipliers("lagrange_multipliers", 0);
+
+  // Unpack the parameters simulation params
+  const size_t num_time_steps = sim_params.get<size_t>("num_time_steps");
+  const double timestep_size = sim_params.get<double>("timestep_size");
+  const double search_buffer = neighbor_list_params.get<double>("skin_distance");
+  const double viscosity = sim_params.get<double>("viscosity");
+  const size_t io_frequency = sim_params.get<size_t>("io_frequency");
+
+  const bool enable_brownian_motion = sim_params.get<bool>("enable_brownian_motion");
+  const bool enable_backbone_collision = sim_params.get<bool>("enable_backbone_collision");
+  const bool enable_backbone_springs = sim_params.get<bool>("enable_backbone_springs");
+  const bool enable_crosslinkers = sim_params.get<bool>("enable_crosslinkers");
+  const bool enable_periphery_collision = sim_params.get<bool>("enable_periphery_collision");
+  const bool enable_periphery_hydrodynamics = sim_params.get<bool>("enable_periphery_hydrodynamics");
+
+  ////////////////////////////////
+  // Setup the mobility problem //
+  ////////////////////////////////
+  mundy::mech::SphereLocalDragMobilityOp sphere_mobility_op(ngp_mesh, viscosity, ngp_elem_hydrodynamic_radius_field,
+                                                            spheres_part);
+
   // Allocate the hydro vectors/matrices
   unsigned num_surface_nodes = 0;
   DoubleMatDeviceView inv_self_interaction_matrix(
@@ -3460,35 +3815,6 @@ void run(int argc, char **argv) {
     }
   }
 
-  // Allocate the mobility problem
-
-
-
-  // Allocate the neighbor search vectors/views
-  ResultViewType search_results;
-  LocalResultViewType local_search_results;
-  SearchSpheresViewType search_spheres;
-
-  // Collision constraint memory
-  size_t num_neighbor_pairs;
-  Double1DView signed_sep_dist("signed_sep_dist", 0);
-  Double2DView con_normal_ij("con_normal_ij", 0, 3);
-  Double1DView lagrange_multipliers("lagrange_multipliers", 0);
-
-  // Unpack the parameters simulation params
-  const size_t num_time_steps = sim_params.get<size_t>("num_time_steps");
-  const double timestep_size = sim_params.get<double>("timestep_size");
-  const double search_buffer = neighbor_list_params.get<double>("skin_distance");
-  const double viscosity = sim_params.get<double>("viscosity");
-  const size_t io_frequency = sim_params.get<size_t>("io_frequency");
-
-  const bool enable_brownian_motion = sim_params.get<bool>("enable_brownian_motion");
-  const bool enable_backbone_collision = sim_params.get<bool>("enable_backbone_collision");
-  const bool enable_backbone_springs = sim_params.get<bool>("enable_backbone_springs");
-  const bool enable_crosslinkers = sim_params.get<bool>("enable_crosslinkers");
-  const bool enable_periphery_collision = sim_params.get<bool>("enable_periphery_collision");
-  const bool enable_periphery_hydrodynamics = sim_params.get<bool>("enable_periphery_hydrodynamics");
-
   bool rebuild_neighbors = true;
   Kokkos::Timer tps_timer;
   for (size_t timestep_idx = 0; timestep_idx < num_time_steps; timestep_idx++) {
@@ -3538,8 +3864,8 @@ void run(int argc, char **argv) {
     if (rebuild_neighbors) {
       std::cout << "Rebuilding neighbors..." << std::endl;
       Kokkos::Timer search_timer;
-      search_spheres = create_search_spheres(bulk_data, ngp_mesh, search_buffer, ngp_node_coords_field,
-                                             ngp_elem_collision_radius_field, spheres_part);
+      search_spheres = mundy::mech::create_search_spheres(bulk_data, ngp_mesh, search_buffer, ngp_node_coords_field,
+                                                          ngp_elem_collision_radius_field, spheres_part);
 
       // Perform the backbone sphere to backbone sphere search
       const stk::search::SearchMethod search_method = stk::search::MORTON_LBVH;
@@ -3551,10 +3877,11 @@ void run(int argc, char **argv) {
       num_neighbor_pairs = search_results.extent(0);
 
       // Ghost the non-owned spheres
-      ghost_neighbors(bulk_data, search_results);
+      mundy::mech::ghost_neighbors(bulk_data, search_results);
 
       // Create local neighbor indices
-      local_search_results = get_local_neighbor_indices(bulk_data, stk::topology::ELEM_RANK, search_results);
+      local_search_results =
+          mundy::mech::get_local_neighbor_indices(bulk_data, stk::topology::ELEM_RANK, search_results);
 
       // TODO(palmerb4): Store the local neighbors within a field to allow the fetching of all neighbors of a given
       //  element. We need to validate if it is better for us to use the same neighbor list for both the sphere-sphere
@@ -3616,6 +3943,7 @@ void run(int argc, char **argv) {
     //     compute_hookean_spring_forces();
     //     compute_fene_spring_forces();
     //   }
+
     //   if (enable_periphery_collision) {
     //     Kokkos::Profiling::pushRegion("HP1::compute_periphery_collision_forces");
     //     if (periphery_collision_shape_ == PERIPHERY_SHAPE::SPHERE) {
@@ -3646,6 +3974,7 @@ void run(int argc, char **argv) {
           ngp_mesh, local_search_results, ngp_node_coords_field, ngp_elem_collision_radius_field, signed_sep_dist,
           con_normal_ij);
 
+      sphere_mobility_op.update();  // Update the mobility to the current configuration
       const double max_allowable_overlap = backbone_collision_params.get<double>("max_allowable_overlap");
       const size_t max_collision_iterations = backbone_collision_params.get<size_t>("max_collision_iterations");
       Kokkos::deep_copy(lagrange_multipliers, 0.0);                                                    // initial guess
@@ -3654,9 +3983,10 @@ void run(int argc, char **argv) {
                                                                             timestep_size,             //
                                                                             max_allowable_overlap,     //
                                                                             max_collision_iterations,  //
+                                                                            sphere_mobility_op,        //
                                                                             local_search_results,      //
-                                                                            ngp_node_force_field,               //
-                                                                            ngp_node_velocity_field,            //
+                                                                            ngp_node_force_field,      //
+                                                                            ngp_node_velocity_field,   //
                                                                             ngp_node_collision_force_field,     //
                                                                             ngp_node_collision_velocity_field,  //
                                                                             signed_sep_dist,                    //

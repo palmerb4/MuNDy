@@ -348,17 +348,15 @@ static_assert(ValidLineSegmentType<LineSegmentEntityView<stk::topology::LINE_2,
               "LineSegmentEntityView and NgpLineSegmentEntityView must be valid LineSegment types");
 
 /// \brief A helper function to create a LineSegmentEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename LineSegmentDataType>           // deduced
+template <typename LineSegmentDataType>           // deduced
 auto create_line_segment_entity_view(LineSegmentDataType& data, stk::mesh::Entity line_segment) {
-  return LineSegmentEntityView<OurTopology, LineSegmentDataType>(data, line_segment);
+  return LineSegmentEntityView<LineSegmentDataType::topology, LineSegmentDataType>(data, line_segment);
 }
 
 /// \brief A helper function to create a NgpLineSegmentEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename NgpLineSegmentDataType>        // deduced
+template <typename NgpLineSegmentDataType>        // deduced
 auto create_ngp_line_segment_entity_view(NgpLineSegmentDataType data, stk::mesh::FastMeshIndex line_segment_index) {
-  return NgpLineSegmentEntityView<OurTopology, NgpLineSegmentDataType>(data, line_segment_index);
+  return NgpLineSegmentEntityView<NgpLineSegmentDataType::topology, NgpLineSegmentDataType>(data, line_segment_index);
 }
 //@}
 

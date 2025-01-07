@@ -502,17 +502,15 @@ static_assert(ValidSphereType<SphereEntityView<stk::topology::NODE,
               "SphereEntityView and NgpSphereEntityView must be valid Sphere types");
 
 /// \brief A helper function to create a SphereEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename SphereDataType>                // deduced
+template <typename SphereDataType>                // deduced
 auto create_sphere_entity_view(SphereDataType& data, stk::mesh::Entity sphere) {
-  return SphereEntityView<OurTopology, SphereDataType>(data, sphere);
+  return SphereEntityView<SphereDataType::topology, SphereDataType>(data, sphere);
 }
 
 /// \brief A helper function to create a NgpSphereEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename NgpSphereDataType>             // deduced
+template <typename NgpSphereDataType>             // deduced
 auto create_ngp_sphere_entity_view(NgpSphereDataType data, stk::mesh::FastMeshIndex sphere_index) {
-  return NgpSphereEntityView<OurTopology, NgpSphereDataType>(data, sphere_index);
+  return NgpSphereEntityView<NgpSphereDataType::topology, NgpSphereDataType>(data, sphere_index);
 }
 //@}
 

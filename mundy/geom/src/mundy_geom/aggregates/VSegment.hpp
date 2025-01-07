@@ -393,17 +393,15 @@ static_assert(ValidVSegmentType<VSegmentEntityView<stk::topology::SPRING_3,
               "VSegmentEntityView and NgpVSegmentEntityView must be valid VSegment types");
 
 /// \brief A helper function to create a VSegmentEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename VSegmentDataType>              // deduced
+template <typename VSegmentDataType>  // deduced
 auto create_v_segment_entity_view(VSegmentDataType& data, stk::mesh::Entity v_segment) {
-  return VSegmentEntityView<OurTopology, VSegmentDataType>(data, v_segment);
+  return VSegmentEntityView<VSegmentDataType::topology, VSegmentDataType>(data, v_segment);
 }
 
 /// \brief A helper function to create a NgpVSegmentEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename NgpVSegmentDataType>           // deduced
+template <typename NgpVSegmentDataType>  // deduced
 auto create_ngp_v_segment_entity_view(NgpVSegmentDataType data, stk::mesh::FastMeshIndex v_segment_index) {
-  return NgpVSegmentEntityView<OurTopology, NgpVSegmentDataType>(data, v_segment_index);
+  return NgpVSegmentEntityView<NgpVSegmentDataType::topology, NgpVSegmentDataType>(data, v_segment_index);
 }
 //@}
 

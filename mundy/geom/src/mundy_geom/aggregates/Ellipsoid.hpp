@@ -616,17 +616,15 @@ static_assert(ValidEllipsoidType<EllipsoidEntityView<stk::topology::NODE,
               "EllipsoidEntityView and NgpEllipsoidEntityView must be valid Ellipsoid types.");
 
 /// \brief A helper function to create a EllipsoidEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename EllipsoidDataType>             // deduced
+template <typename EllipsoidDataType>             // deduced
 auto create_ellipsoid_entity_view(EllipsoidDataType& data, stk::mesh::Entity ellipsoid) {
-  return EllipsoidEntityView<OurTopology, EllipsoidDataType>(data, ellipsoid);
+  return EllipsoidEntityView<EllipsoidDataType::topology, EllipsoidDataType>(data, ellipsoid);
 }
 
 /// \brief A helper function to create a NgpEllipsoidEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename NgpEllipsoidDataType>          // deduced
+template <typename NgpEllipsoidDataType>          // deduced
 auto create_ngp_ellipsoid_entity_view(NgpEllipsoidDataType data, stk::mesh::FastMeshIndex ellipsoid_index) {
-  return NgpEllipsoidEntityView<OurTopology, NgpEllipsoidDataType>(data, ellipsoid_index);
+  return NgpEllipsoidEntityView<NgpEllipsoidDataType::topology, NgpEllipsoidDataType>(data, ellipsoid_index);
 }
 //@}
 

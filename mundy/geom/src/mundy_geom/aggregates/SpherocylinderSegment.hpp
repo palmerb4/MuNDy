@@ -310,8 +310,7 @@ class SpherocylinderSegmentEntityView {
   static constexpr stk::topology::topology_t topology = OurTopology;
   static constexpr stk::topology::rank_t rank = stk::topology_detail::topology_data<OurTopology>::rank;
 
-  SpherocylinderSegmentEntityView(SpherocylinderSegmentDataType data,
-                                  stk::mesh::Entity spherocylinder_segment)
+  SpherocylinderSegmentEntityView(SpherocylinderSegmentDataType data, stk::mesh::Entity spherocylinder_segment)
       : data_(data),
         spherocylinder_segment_(spherocylinder_segment),
         start_node_(data_.bulk_data.begin_nodes(spherocylinder_segment_)[0]),
@@ -386,8 +385,10 @@ class NgpSpherocylinderSegmentEntityView {
                                      stk::mesh::FastMeshIndex spherocylinder_segment_index)
       : data_(data),
         spherocylinder_segment_index_(spherocylinder_segment_index),
-        start_node_index_(data_.ngp_mesh.fast_mesh_index(data_.ngp_mesh.get_nodes(rank, spherocylinder_segment_index_)[0])),
-        end_node_index_(data_.ngp_mesh.fast_mesh_index(data_.ngp_mesh.get_nodes(rank, spherocylinder_segment_index_)[1])) {
+        start_node_index_(
+            data_.ngp_mesh.fast_mesh_index(data_.ngp_mesh.get_nodes(rank, spherocylinder_segment_index_)[0])),
+        end_node_index_(
+            data_.ngp_mesh.fast_mesh_index(data_.ngp_mesh.get_nodes(rank, spherocylinder_segment_index_)[1])) {
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -455,21 +456,19 @@ static_assert(
     "SpherocylinderSegmentEntityView and NgpSpherocylinderSegmentEntityView must be valid SpherocylinderSegment types");
 
 /// \brief A helper function to create a SpherocylinderSegmentEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,   // Must be provided
-          typename SpherocylinderSegmentDataType>  // deduced
+template <typename SpherocylinderSegmentDataType>  // deduced
 auto create_spherocylinder_segment_entity_view(SpherocylinderSegmentDataType& data,
                                                stk::mesh::Entity spherocylinder_segment) {
-  return SpherocylinderSegmentEntityView<OurTopology, SpherocylinderSegmentDataType>(data,
-                                                                                     spherocylinder_segment);
+  return SpherocylinderSegmentEntityView<SpherocylinderSegmentDataType::topology, SpherocylinderSegmentDataType>(
+      data, spherocylinder_segment);
 }
 
 /// \brief A helper function to create a NgpSpherocylinderSegmentEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,      // Must be provided
-          typename NgpSpherocylinderSegmentDataType>  // deduced
+template <typename NgpSpherocylinderSegmentDataType>  // deduced
 auto create_ngp_spherocylinder_segment_entity_view(NgpSpherocylinderSegmentDataType data,
                                                    stk::mesh::FastMeshIndex spherocylinder_segment_index) {
-  return NgpSpherocylinderSegmentEntityView<OurTopology, NgpSpherocylinderSegmentDataType>(
-      data, spherocylinder_segment_index);
+  return NgpSpherocylinderSegmentEntityView<NgpSpherocylinderSegmentDataType::topology,
+                                            NgpSpherocylinderSegmentDataType>(data, spherocylinder_segment_index);
 }
 //@}
 

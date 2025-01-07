@@ -406,18 +406,16 @@ static_assert(ValidPointType<PointEntityView<stk::topology::NODE,
               "PointEntityView and NgpPointEntityView must be valid Point types");
 
 /// \brief A helper function to create a PointEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename PointDataType>                 // deduced
+template <typename PointDataType>                 // deduced
 auto create_point_entity_view(PointDataType& data, stk::mesh::Entity point) {
-  return PointEntityView<OurTopology, PointDataType>(data, point);
+  return PointEntityView<PointDataType::topology, PointDataType>(data, point);
 }
 
 /// \brief A helper function to create a NgpPointEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename NgpPointDataType>              // deduced
+template <typename NgpPointDataType>              // deduced
 auto create_ngp_point_entity_view(NgpPointDataType data,
                                   stk::mesh::FastMeshIndex point_index) {
-  return NgpPointEntityView<OurTopology, NgpPointDataType>(data, point_index);
+  return NgpPointEntityView<NgpPointDataType::topology, NgpPointDataType>(data, point_index);
 }
 //@}
 

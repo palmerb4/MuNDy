@@ -792,18 +792,16 @@ static_assert(ValidSpherocylinderType<  //
               "SpherocylinderEntityView and NgpSpherocylinderEntityView must be valid Spherocylinder types");
 
 /// \brief A helper function to create a SpherocylinderEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename SpherocylinderDataType>        // deduced
+template <typename SpherocylinderDataType>        // deduced
 auto create_spherocylinder_entity_view(SpherocylinderDataType& data, stk::mesh::Entity spherocylinder) {
-  return SpherocylinderEntityView<OurTopology, SpherocylinderDataType>(data, spherocylinder);
+  return SpherocylinderEntityView<SpherocylinderDataType::topology, SpherocylinderDataType>(data, spherocylinder);
 }
 
 /// \brief A helper function to create a NgpSpherocylinderEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename NgpSpherocylinderDataType>     // deduced
+template <typename NgpSpherocylinderDataType>     // deduced
 auto create_ngp_spherocylinder_entity_view(NgpSpherocylinderDataType data,
                                            stk::mesh::FastMeshIndex spherocylinder_index) {
-  return NgpSpherocylinderEntityView<OurTopology, NgpSpherocylinderDataType>(data, spherocylinder_index);
+  return NgpSpherocylinderEntityView<NgpSpherocylinderDataType::topology, NgpSpherocylinderDataType>(data, spherocylinder_index);
 }
 //@}
 

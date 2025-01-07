@@ -528,17 +528,15 @@ static_assert(ValidLineType<LineEntityView<stk::topology::NODE,
               "LineEntityView and NgpLineEntityView must be valid Line types");
 
 /// \brief A helper function to create a LineEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename LineDataType>                  // deduced
+template <typename LineDataType>                  // deduced
 auto create_line_entity_view(LineDataType& data, stk::mesh::Entity line) {
-  return LineEntityView<OurTopology, LineDataType>(data, line);
+  return LineEntityView<LineDataType::topology, LineDataType>(data, line);
 }
 
 /// \brief A helper function to create a NgpLineEntityView object with type deduction
-template <stk::topology::topology_t OurTopology,  // Must be provided
-          typename NgpLineDataType>               // deduced
+template <typename NgpLineDataType>               // deduced
 auto create_ngp_line_entity_view(NgpLineDataType data, stk::mesh::FastMeshIndex line_index) {
-  return NgpLineEntityView<OurTopology, NgpLineDataType>(data, line_index);
+  return NgpLineEntityView<NgpLineDataType::topology, NgpLineDataType>(data, line_index);
 }
 //@}
 
