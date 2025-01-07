@@ -13,8 +13,8 @@ cmake \
 -DCMAKE_CXX_FLAGS="-O3 -march=native -Wall -Wextra -Wdouble-promotion -Wconversion" \
 -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR:-$HOME/envs/MundyScratch} \
 -DTPL_ENABLE_MPI=ON \
--DKokkos_ENABLE_SERIAL=ON \
--DKokkos_ENABLE_OPENMP=OFF \
+-DKokkos_ENABLE_SERIAL=OFF \
+-DKokkos_ENABLE_OPENMP=ON \
 -DKokkos_ENABLE_CUDA=OFF \
 -DMundy_ENABLE_MundyCore=ON \
 -DMundy_ENABLE_MundyMath=ON \

@@ -137,7 +137,7 @@ mundy::meta
 This change breaks mundy::methods into more manageable pieces and introduces a more granular view of Mundy. 
 
 
-Methodology: TLDR We're using a data-centric command design patter to achieve a form of deconstructed object oriented programming. We have "inheritance" and "multiple dispatch" but no objects.
+Methodology: TLDR We're using a data-centric command design pattern to achieve a form of deconstructed object oriented programming. We have "inheritance" and "multiple dispatch" but no objects.
   - Mundy is designed to act on systems of particles interconnected by springs, hinges, or joints and interacting though pairwise potentials, long-ranged interactions, and/or particle-particle collisions. 
   - The system is defined by a mesh of nodes, edges, and faces that connect to form various shapes (e.g., spheres, ellipsoids, cylinders, polytopes, etc.) and constraints (e.g., springs, hinges, joints, etc.).
   - The defining feature that distinguishes one shape from another is its topology (the static connectivity of its nodes, edges, and faces) and the fields necessary to describe its geometry (e.g., position, 

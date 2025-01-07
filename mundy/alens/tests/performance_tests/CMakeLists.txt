@@ -106,6 +106,7 @@ tribits_copy_files_to_binary_dir(
     hp1_periphery_quadrature_points.dat
     hp1_periphery_quadrature_weights.dat
     hp1_pos.dat
+    hp1_hilbert_centers.dat
     EXEDEPS HP1
     )
 
