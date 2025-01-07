@@ -30,7 +30,7 @@
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
 #include <stk_mesh/base/FieldParallel.hpp>  // for stk::mesh::communicate_field_data
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_constraints/HookeanSprings.hpp>  // for mundy::constraints::HookeanSprings
@@ -53,7 +53,7 @@ HookeanSpringsKernel::HookeanSpringsKernel(mundy::mesh::BulkData *const bulk_dat
                                            const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                      "HookeanSpringsKernel: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
@@ -65,9 +65,9 @@ HookeanSpringsKernel::HookeanSpringsKernel(mundy::mesh::BulkData *const bulk_dat
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
   for (const std::string &part_name : valid_entity_part_names) {
     valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
-    MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
-                       "HookeanSpringsKernel: Part '"
-                           << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
+    MUNDY_THROW_REQUIRE(valid_entity_parts_.back() != nullptr, std::invalid_argument,
+                       std::string("HookeanSpringsKernel: Part '")
+                           + part_name + "' from the valid_entity_part_names does not exist in the meta data.");
   }
 
   // Fetch the fields.
@@ -115,7 +115,7 @@ void HookeanSpringsKernel::execute(const stk::mesh::Selector &spring_selector) {
   // At the end of this loop, all locally owned nodes will be up-to-date. Shared nodes will need to be summed.
   stk::mesh::Selector intersection_with_valid_entity_parts =
       stk::mesh::selectUnion(valid_entity_parts_) & spring_selector;
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
       [&node_force_field, &node_coord_field, &element_rest_length_field, &element_spring_constant_field](
           [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spring_element) {

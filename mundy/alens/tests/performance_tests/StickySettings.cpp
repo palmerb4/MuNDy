@@ -151,6 +151,7 @@ Order of operations:
 
 // External libs
 #include <openrand/philox.h>
+#include <fmt/format.h>  // for fmt::format
 
 // Trilinos libs
 #include <Kokkos_Core.hpp>                   // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
@@ -161,13 +162,14 @@ Order of operations:
 #include <stk_mesh/base/Comm.hpp>            // for stk::mesh::comm_mesh_counts
 #include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>   // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>   // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>            // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>        // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>         // for stk::topology
 #include <stk_util/parallel/Parallel.hpp>    // for stk::parallel_machine_init, stk::parallel_machine_finalize
 
 // Mundy libs
+#include <mundy_mesh/fmt_stk_types.hpp>                                     // adds fmt::format for stk types
 #include <mundy_alens/actions_crosslinkers.hpp>             // for mundy::alens::crosslinkers...
 #include <mundy_constraints/AngularSprings.hpp>             // for mundy::constraints::AngularSprings
 #include <mundy_constraints/ComputeConstraintForcing.hpp>   // for mundy::constraints::ComputeConstraintForcing
@@ -267,13 +269,13 @@ class StickySettings {
     cmdp.setOption("initial_loadbalance", "no_initial_loadbalance", &initial_loadbalance_, "Initial loadbalance.");
 
     bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
-    MUNDY_THROW_ASSERT(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
-    MUNDY_THROW_ASSERT(num_spheres_ > 0, std::invalid_argument, "num_spheres_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(sphere_radius_ > 0, std::invalid_argument, "sphere_radius_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
+    MUNDY_THROW_REQUIRE(num_spheres_ > 0, std::invalid_argument, "num_spheres_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(sphere_radius_ > 0, std::invalid_argument, "sphere_radius_ must be greater than 0.");
 
-    MUNDY_THROW_ASSERT(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
 
     // Modify any variables into their final form
     skin_distance2_over4_ = skin_distance_ * skin_distance_ / 4.0;
@@ -285,7 +287,7 @@ class StickySettings {
     } else if (crosslinker_spring_type == "fene") {
       crosslinker_spring_type_ = BOND_TYPE::FENE;
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument, "Invalid crosslinker spring type.");
+      MUNDY_THROW_REQUIRE(false, std::invalid_argument, "Invalid crosslinker spring type.");
     }
   }
 
@@ -369,7 +371,7 @@ class StickySettings {
     //                                                 bulk_data_ptr_->buckets(element_rank_))
     //           << std::endl;
 
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_crosslinkers_selector,
         [&message, &left_bound_crosslinkers_part, &doubly_bound_crosslinkers_part](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
@@ -387,47 +389,47 @@ class StickySettings {
           MUNDY_THROW_ASSERT(
               bulk_data.bucket(crosslinker).member(left_bound_crosslinkers_part.mesh_meta_data_ordinal()),
               std::logic_error,
-              "The crosslinker is not a left bound crosslinker.\n" + message +
+              std::string("The crosslinker is not a left bound crosslinker.\n") + message +
                   print_bucket(bulk_data.bucket(crosslinker)));
           MUNDY_THROW_ASSERT(
               !bulk_data.bucket(crosslinker).member(doubly_bound_crosslinkers_part.mesh_meta_data_ordinal()),
               std::logic_error,
-              "The crosslinker is somehow also a doubly bound crosslinker.\n" + message +
+              std::string("The crosslinker is somehow also a doubly bound crosslinker.\n") + message +
                   print_bucket(bulk_data.bucket(crosslinker)));
           const stk::mesh::Entity left_sphere_node = bulk_data.begin_nodes(crosslinker)[0];
           const stk::mesh::Entity right_sphere_node = bulk_data.begin_nodes(crosslinker)[1];
 
           // For left-bound crosslinkers, the right node should be the same as the left.
           MUNDY_THROW_ASSERT(bulk_data.is_valid(left_sphere_node), std::logic_error,
-                             "Left node is not valid.\n" + message);
+                             std::string("Left node is not valid.\n") + message);
           MUNDY_THROW_ASSERT(
               bulk_data.bucket(left_sphere_node).member(left_bound_crosslinkers_part), std::logic_error,
-              "Left node is not a left bound crosslinker.\n" + message + print_bucket(bulk_data.bucket(crosslinker)));
+              std::string("Left node is not a left bound crosslinker.\n") + message + print_bucket(bulk_data.bucket(crosslinker)));
           MUNDY_THROW_ASSERT(left_sphere_node == right_sphere_node, std::logic_error,
-                             "Left and right nodes are not the same.\n" + message);
+                             std::string("Left and right nodes are not the same.\n") + message);
         });
 
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_crosslinkers_selector,
         [&message, &left_bound_crosslinkers_part, &doubly_bound_crosslinkers_part](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
           MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).member(doubly_bound_crosslinkers_part), std::logic_error,
-                             "The crosslinker is not a doubly bound crosslinker.\n" + message);
+                             std::string("The crosslinker is not a doubly bound crosslinker.\n") + message);
           MUNDY_THROW_ASSERT(!bulk_data.bucket(crosslinker).member(left_bound_crosslinkers_part), std::logic_error,
-                             "The crosslinker is somehow also a left bound crosslinker.\n" + message);
+                             std::string("The crosslinker is somehow also a left bound crosslinker.\n") + message);
 
           const stk::mesh::Entity left_sphere_node = bulk_data.begin_nodes(crosslinker)[0];
           const stk::mesh::Entity right_sphere_node = bulk_data.begin_nodes(crosslinker)[1];
           const bool left_sphere_correct = bulk_data.bucket(left_sphere_node).member(doubly_bound_crosslinkers_part);
           const bool right_sphere_correct = bulk_data.bucket(right_sphere_node).member(doubly_bound_crosslinkers_part);
           MUNDY_THROW_ASSERT(bulk_data.is_valid(left_sphere_node), std::logic_error,
-                             "Left node is not valid.\n" + message);
+                             std::string("Left node is not valid.\n") + message);
           MUNDY_THROW_ASSERT(bulk_data.is_valid(right_sphere_node), std::logic_error,
-                             "Right node is not valid.\n" + message);
+                             std::string("Right node is not valid.\n") + message);
           MUNDY_THROW_ASSERT(left_sphere_correct, std::logic_error,
-                             "Left node is not a left bound crosslinker.\n" + message);
+                             std::string("Left node is not a left bound crosslinker.\n") + message);
           MUNDY_THROW_ASSERT(right_sphere_correct, std::logic_error,
-                             "Right node is not a right bound crosslinker.\n" + message);
+                             std::string("Right node is not a right bound crosslinker.\n") + message);
         });
     Kokkos::Profiling::popRegion();
   }
@@ -584,15 +586,15 @@ class StickySettings {
   template <typename FieldType>
   stk::mesh::Field<FieldType> *fetch_field(const std::string &field_name, stk::topology::rank_t rank) {
     auto field_ptr = meta_data_ptr_->get_field<FieldType>(rank, field_name);
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
-                       "Field " << field_name << " not found in the mesh meta data.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                       std::string("Field ") + field_name + " not found in the mesh meta data.");
     return field_ptr;
   }
 
   stk::mesh::Part *fetch_part(const std::string &part_name) {
     auto part_ptr = meta_data_ptr_->get_part(part_name);
-    MUNDY_THROW_ASSERT(part_ptr != nullptr, std::invalid_argument,
-                       "Part " << part_name << " not found in the mesh meta data.");
+    MUNDY_THROW_REQUIRE(part_ptr != nullptr, std::invalid_argument,
+                       std::string("Part ") + part_name + " not found in the mesh meta data.");
     return part_ptr;
   }
 
@@ -759,7 +761,7 @@ class StickySettings {
       double &youngs_modulus = sphere_youngs_modulus_;
       double &poissons_ratio = sphere_poissons_ratio_;
 
-      stk::mesh::for_each_entity_run(
+      mundy::mesh::for_each_entity_run(
           *bulk_data_ptr_, stk::topology::ELEMENT_RANK, spheres_part,
           [&element_youngs_modulus_field, &element_poissons_ratio_field, &youngs_modulus, &poissons_ratio](
               [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere) {
@@ -835,7 +837,8 @@ class StickySettings {
       // Bind left and right nodes to the same node to start simulation (everybody is left bound)
       stk::mesh::EntityId left_node_id = get_node_id(i);
       stk::mesh::Entity left_node = bulk_data_ptr_->get_entity(node_rank_, left_node_id);
-      MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(left_node), std::invalid_argument, "Node " << i << " is not valid.");
+      MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(left_node), std::invalid_argument, 
+        fmt::format("Node {} is not valid.", i));
 
       // Fetch the centerline twist spring and connect it to the nodes/edges
       // Connect back onto the same node for now, as it is a left bound crosslinker
@@ -845,7 +848,8 @@ class StickySettings {
       bulk_data_ptr_->declare_relation(crosslinker, left_node, 0, invalid_perm, scratch1, scratch2, scratch3);
       bulk_data_ptr_->declare_relation(crosslinker, left_node, 1, invalid_perm, scratch1, scratch2, scratch3);
       MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(crosslinker).topology() != stk::topology::INVALID_TOPOLOGY,
-                         std::logic_error, "The crosslinker with id " << crosslinker_id << " has an invalid topology.");
+                         std::logic_error, 
+                         fmt::format("The crosslinker with id {} has an invalid topology.", crosslinker_id));
 
       // Set the crosslinker fields
       stk::mesh::field_data(*element_rng_field_ptr_, crosslinker)[0] = 0;
@@ -946,7 +950,7 @@ class StickySettings {
         stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_) &
         bulk_data_ptr_->mesh_meta_data().locally_owned_part();
 
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, locally_owned_input_selector,
         [&left_bound_crosslinkers_part, &right_bound_crosslinkers_part, &linker_destroy_flag_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &linker) {
@@ -1062,7 +1066,7 @@ class StickySettings {
     const double &crosslinker_right_binding_rate = crosslinker_right_binding_rate_;
     const BOND_TYPE &crosslinker_spring_type = crosslinker_spring_type_;
 
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, crosslinker_sphere_linkers_part,
         [&node_coord_field, &constraint_state_change_probability, &crosslinker_spring_type,
          &crosslinker_spring_constant, &crosslinker_spring_rest_length, &left_bound_crosslinkers_part, &inv_kt,
@@ -1126,7 +1130,7 @@ class StickySettings {
     const double &crosslinker_right_unbinding_rate = crosslinker_right_unbinding_rate_;
 
     // Loop over the neighbor list of the crosslinkers, then select down to the ones that are left-bound only.
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_bound_crosslinkers_part,
         [&node_coord_field, &crosslinker_unbinding_rates, &doubly_bound_crosslinkers_part,
          &crosslinker_right_unbinding_rate]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
@@ -1163,7 +1167,7 @@ class StickySettings {
     stk::mesh::Part &left_bound_crosslinkers_part = *left_bound_crosslinkers_part_ptr_;
 
     // Loop over left-bound crosslinkers and decide if they bind or not
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_bound_crosslinkers_part,
         [&crosslinker_sphere_linkers_part, &element_rng_field, &constraint_perform_state_change_field,
          &element_perform_state_change_field, &constraint_state_change_rate_field,
@@ -1249,7 +1253,7 @@ class StickySettings {
     stk::mesh::Part &doubly_bound_crosslinkers_part = *doubly_bound_crosslinkers_part_ptr_;
 
     // This is just a loop over the doubly bound crosslinkers, since we know that the right head in is [1].
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_bound_crosslinkers_part,
         [&element_rng_field, &element_perform_state_change_field, &crosslinker_unbinding_rates, &timestep_size](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
@@ -1443,7 +1447,7 @@ class StickySettings {
     double inv_drag_coeff = 1.0 / sphere_drag_coeff;
 
     // Compute the total velocity of the nonorientable spheres
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
         [&node_velocity_field, &node_force_field, &node_rng_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff,
          &kt](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
@@ -1477,7 +1481,7 @@ class StickySettings {
     double inv_drag_coeff = 1.0 / sphere_drag_coeff;
 
     // Compute the total velocity of the nonorientable spheres
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
         [&node_velocity_field, &node_force_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
@@ -1504,7 +1508,7 @@ class StickySettings {
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
 
     // Update the positions for all spheres based on velocity
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
         [&node_coord_field, &node_velocity_field, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                                   const stk::mesh::Entity &sphere_node) {
@@ -1536,7 +1540,7 @@ class StickySettings {
         (stk::mesh::Selector(spheres_part) | stk::mesh::Selector(crosslinkers_part));
 
     // Update the accumulators based on the difference to the previous state
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, spheres_and_crosslinkers_selector,
         [&element_aabb_field, &element_aabb_field_old, &element_corner_displacement_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
@@ -1574,7 +1578,7 @@ class StickySettings {
         (stk::mesh::Selector(spheres_part) | stk::mesh::Selector(crosslinkers_part));
 
     // Check if each corner has moved skin_distance/2. Or, if dr_mag2 >= skin_distance^2/4
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, spheres_and_crosslinkers_selector,
         [&local_update_neighbor_list_int, &skin_distance2_over4, &element_corner_displacement_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {

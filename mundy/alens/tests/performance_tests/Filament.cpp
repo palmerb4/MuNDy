@@ -40,7 +40,7 @@
 #include <stk_mesh/base/DumpMeshInfo.hpp>        // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>              // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>               // for stk::mesh::Field, stk::mesh::field_data
-#include <stk_mesh/base/ForEachEntity.hpp>       // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>       // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>                // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>            // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>             // for stk::topology
@@ -162,7 +162,7 @@ void subdivide_spherocylinder_segments(
     const std::tuple<ElementFieldToCopyType...> &element_fields_to_copy) {
   // Update the length and coordinates of the children
   // This is only done for locally owned entities.
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       bulk_data, stk::topology::ELEMENT_RANK, selector & bulk_data.mesh_meta_data().locally_owned_part(),
       [&coordinate_field, &radius_field, &length_field, &initial_length, &child_to_parent_map, &node_fields_to_copy,
        &element_fields_to_copy](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &child) {
@@ -353,7 +353,7 @@ class FilamentSim {
     Teuchos::CommandLineProcessor cmdp(throw_exception_if_not_found, recognise_all_options);
     cmdp.setOption("params", &input_file_name_, "The name of the input file.");
     bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
-    MUNDY_THROW_ASSERT(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
+    MUNDY_THROW_REQUIRE(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
 
     // Read in the parameters from the parameter list.
     Teuchos::ParameterList param_list_ = *Teuchos::getParametersFromYamlFile(input_file_name_);
@@ -378,22 +378,22 @@ class FilamentSim {
 
   void check_input_parameters() {
     debug_print("Checking input parameters.");
-    MUNDY_THROW_ASSERT(filament_radius_ > 0, std::invalid_argument, "filament_radius_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(filament_initial_length_ > -1e-12, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(filament_radius_ > 0, std::invalid_argument, "filament_radius_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(filament_initial_length_ > -1e-12, std::invalid_argument,
                        "filament_initial_length_ must be greater than or equal to 0.");
-    MUNDY_THROW_ASSERT(filament_division_length_ > 0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(filament_division_length_ > 0, std::invalid_argument,
                        "filament_division_length_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(filament_density_ > 0, std::invalid_argument, "filament_density_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(filament_youngs_modulus_ > 0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(filament_density_ > 0, std::invalid_argument, "filament_density_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(filament_youngs_modulus_ > 0, std::invalid_argument,
                        "filament_youngs_modulus_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(filament_poissons_ratio_ > 0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(filament_poissons_ratio_ > 0, std::invalid_argument,
                        "filament_poissons_ratio_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(load_balance_frequency_ > 0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(load_balance_frequency_ > 0, std::invalid_argument,
                        "load_balance_frequency_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(boundary_radius_ > 0, std::invalid_argument, "boundary_radius_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(boundary_radius_ > 0, std::invalid_argument, "boundary_radius_ must be greater than 0.");
   }
 
   void dump_user_inputs() {
@@ -569,15 +569,15 @@ class FilamentSim {
   template <typename FieldType>
   stk::mesh::Field<FieldType> *fetch_field(const std::string &field_name, stk::topology::rank_t rank) {
     auto field_ptr = meta_data_ptr_->get_field<FieldType>(rank, field_name);
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
-                       "Field " << field_name << " not found in the mesh meta data.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                       std::string("Field ") + field_name + " not found in the mesh meta data.");
     return field_ptr;
   }
 
   stk::mesh::Part *fetch_part(const std::string &part_name) {
     auto part_ptr = meta_data_ptr_->get_part(part_name);
-    MUNDY_THROW_ASSERT(part_ptr != nullptr, std::invalid_argument,
-                       "Part " << part_name << " not found in the mesh meta data.");
+    MUNDY_THROW_REQUIRE(part_ptr != nullptr, std::invalid_argument,
+                       std::string("Part ") + part_name + " not found in the mesh meta data.");
     return part_ptr;
   }
 
@@ -608,7 +608,7 @@ class FilamentSim {
     tip_part_ptr_ = fetch_part("TIP");
     spherocylinder_segment_spherocylinder_segment_linkers_part_ptr_ =
         fetch_part("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS");
-    MUNDY_THROW_ASSERT(filament_part_ptr_->topology() == stk::topology::BEAM_2, std::logic_error,
+    MUNDY_THROW_REQUIRE(filament_part_ptr_->topology() == stk::topology::BEAM_2, std::logic_error,
                        "FILAMENT part must have BEAM_2 topology.");
   }
 
@@ -765,7 +765,7 @@ class FilamentSim {
     const double filament_growth_rate = filament_growth_rate_;
     const double boundary_radius = boundary_radius_;
 
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *tip_part_ptr_,
         [&node_coord_field, &node_velocity_field, &node_rng_counter_field, &element_radius_field,
          &element_tangent_field, &filament_growth_rate,
@@ -820,7 +820,7 @@ class FilamentSim {
     const double boundary_radius = boundary_radius_;
 
     // Update the generalized position using Euler's method
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *tip_part_ptr_,
         [&node_coord_field, &node_coord_field_old, &node_velocity_field, &node_velocity_field_old,
          &element_radius_field, &element_tangent_field, &element_length_field, &timestep_size,
@@ -871,7 +871,7 @@ class FilamentSim {
     const double timestep_size = timestep_size_;
 
     // Grow the filament
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *tip_part_ptr_,
         [&element_length_field, &filament_growth_rate, &timestep_size](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &filament) {
@@ -894,7 +894,7 @@ class FilamentSim {
     const double filament_division_length = filament_division_length_;
 
     // Loop over all particles and stash if they divide or not
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *filament_part_ptr_,
         [&element_length_field, &element_marked_for_division_field, &filament_division_length](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &filament) {
@@ -929,7 +929,7 @@ class FilamentSim {
     stk::mesh::Field<double> &element_tangent_field = *element_tangent_field_ptr_;
 
     // Update the tangent
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *tip_part_ptr_,
         [&node_coord_field, &element_tangent_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                     const stk::mesh::Entity &polymer_segment) {

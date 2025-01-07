@@ -37,7 +37,7 @@
 #include <stk_mesh/base/Comm.hpp>           // for comm_mesh_counts
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/FieldParallel.hpp>  // for stk:::mesh::communicate_field_data
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/GetEntities.hpp>    // for stk::mesh::get_selected_entities
 #include <stk_mesh/base/MeshBuilder.hpp>    // for stk::mesh::MeshBuilder
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
@@ -366,7 +366,7 @@ TEST(IOBroker, WriteResultsAABBInteger) {
 
   // Get the sphere part
   stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part("SPHERES");
-  MUNDY_THROW_ASSERT(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
+  MUNDY_THROW_REQUIRE(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
 
   // Create multiple spheres (based on SphereBrownianMotionWithContact)
   int num_spheres_local = 10 / bulk_data_ptr->parallel_size();
@@ -430,11 +430,11 @@ TEST(IOBroker, WriteResultsAABBInteger) {
   // Loop over some fictitious times
   for (int i = 0; i < 2; i++) {
     // Now loop over the spheres and do something with the coordinates and write out
-    for (int i = 0; i < num_spheres_local; i++) {
-      stk::mesh::Entity node_i = requested_entities[i];
+    for (int j = 0; j < num_spheres_local; j++) {
+      stk::mesh::Entity node_j = requested_entities[j];
 
       // Set the coordinates, should be a 5x2 grid, just march somewhere else
-      double *node_coords = stk::mesh::field_data(*node_coordinates_field_ptr, node_i);
+      double *node_coords = stk::mesh::field_data(*node_coordinates_field_ptr, node_j);
       node_coords[0] = node_coords[0] + 1.0;
       node_coords[1] = node_coords[1] + 1.0;
       node_coords[2] = 0.0;
@@ -468,10 +468,10 @@ TEST(IOBroker, WriteResultsAABBInteger) {
       nb->get_field_data("TRANSIENT_NODE_COORDINATES", field_data);
 
       // Loop over local spheres, the comparison is complicated because of how it's packed on disk
-      for (int i = 0; i < num_spheres_local; i++) {
-        EXPECT_DOUBLE_EQ(field_data[3 * i], (i % 5) + static_cast<double>(step) + 1.0);
-        EXPECT_DOUBLE_EQ(field_data[3 * i + 1], (i / 5) + static_cast<double>(step) + 1.0);
-        EXPECT_DOUBLE_EQ(field_data[3 * i + 2], 0.0);
+      for (int j = 0; j < num_spheres_local; j++) {
+        EXPECT_DOUBLE_EQ(field_data[3 * j], (j % 5) + static_cast<double>(step) + 1.0);
+        EXPECT_DOUBLE_EQ(field_data[3 * j + 1], (j / 5) + static_cast<double>(step) + 1.0);
+        EXPECT_DOUBLE_EQ(field_data[3 * j + 2], 0.0);
       }
     }
   }
@@ -561,7 +561,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
 
   // Get the sphere part
   stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part("SPHERES");
-  MUNDY_THROW_ASSERT(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
+  MUNDY_THROW_REQUIRE(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
 
   // Create multiple spheres (based on SphereBrownianMotionWithContact)
   int num_spheres_local = 10 / bulk_data_ptr->parallel_size();
@@ -710,7 +710,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart2) {
 
   // Get the sphere part
   stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part("SPHERES");
-  MUNDY_THROW_ASSERT(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
+  MUNDY_THROW_REQUIRE(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
 
   // Fetch the required fields to set (note that we are only going to write out some of them)
   stk::mesh::Field<double> *node_coordinates_field_ptr =

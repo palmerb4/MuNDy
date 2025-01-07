@@ -21,16 +21,17 @@
 /// \brief Definition of the ComputeCOnstraintForcing's FENESpringsKernel.
 
 // C++ core libs
-#include <memory>  // for std::shared_ptr, std::unique_ptr
-#include <string>  // for std::string
-#include <vector>  // for std::vector
+#include <algorithm>  // for std::min
+#include <memory>     // for std::shared_ptr, std::unique_ptr
+#include <string>     // for std::string
+#include <vector>     // for std::vector
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
 #include <stk_mesh/base/FieldParallel.hpp>  // for stk::mesh::communicate_field_data
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_constraints/FENESprings.hpp>  // for mundy::constraints::FENESprings
@@ -53,8 +54,8 @@ FENESpringsKernel::FENESpringsKernel(mundy::mesh::BulkData *const bulk_data_ptr,
                                      const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "FENESpringsKernel: bulk_data_ptr cannot be a nullptr.");
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
+                      "FENESpringsKernel: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -65,9 +66,9 @@ FENESpringsKernel::FENESpringsKernel(mundy::mesh::BulkData *const bulk_data_ptr,
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
   for (const std::string &part_name : valid_entity_part_names) {
     valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
-    MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
-                       "FENESpringsKernel: Part '"
-                           << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
+    MUNDY_THROW_REQUIRE(valid_entity_parts_.back() != nullptr, std::invalid_argument,
+                        std::string("FENESpringsKernel: Part '") + part_name +
+                            "' from the valid_entity_part_names does not exist in the meta data.");
   }
 
   // Fetch the fields.
@@ -114,7 +115,7 @@ void FENESpringsKernel::execute(const stk::mesh::Selector &spring_selector) {
   // At the end of this loop, all locally owned nodes will be up-to-date. Shared nodes will need to be summed.
   stk::mesh::Selector intersection_with_valid_entity_parts =
       stk::mesh::selectUnion(valid_entity_parts_) & spring_selector;
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
       [&node_force_field, &node_coord_field, &element_rmax_field, &element_spring_constant_field](
           [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spring_element) {
@@ -140,9 +141,21 @@ void FENESpringsKernel::execute(const stk::mesh::Selector &spring_selector) {
         edge_tangent_left_to_right[1] *= inv_edge_length;
         edge_tangent_left_to_right[2] *= inv_edge_length;
 
+#pragma TODO This needs to be a control parameter for regularization
+
+        // Threshold on the edge length in case we have exceeded the maximum length and set a maximum spring force.
+        const double epsilon_reg = 1e-4;
+        const double edge_length_adj = std::min(edge_length, element_rmax[0] - epsilon_reg);
+
+        // Check if the maximum spring extend is less than the rmax value, otherwise, FENE bonds will be unstable.
+        MUNDY_THROW_REQUIRE(edge_length_adj < element_rmax[0], std::runtime_error,
+                            std::string("FENESpringsKernel: FENE bond is unstable. The current bond length is ") +
+                                std::to_string(edge_length_adj) + std::string(" and the maximum bond length is ") +
+                                std::to_string(element_rmax[0]) + std::string("."));
+
         // Compute the spring force.
-        const double spring_force = element_spring_constant[0] * edge_length /
-                                    (1.0 - (edge_length / element_rmax[0]) * (edge_length / element_rmax[0]));
+        const double spring_force = element_spring_constant[0] * edge_length_adj /
+                                    (1.0 - (edge_length_adj / element_rmax[0]) * (edge_length_adj / element_rmax[0]));
         const double right_node_force[3] = {-spring_force * edge_tangent_left_to_right[0],
                                             -spring_force * edge_tangent_left_to_right[1],
                                             -spring_force * edge_tangent_left_to_right[2]};

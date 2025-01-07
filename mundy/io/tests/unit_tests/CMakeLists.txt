@@ -21,9 +21,9 @@
 # and more complex classes are tested later. This is not a hard and fast rule, but it is a good guideline to follow, 
 # as it produces more logical error messages when a test fails.
 tribits_add_executable_and_test(
-    UnitTestIOBrokerWriterSingleTest
-    SOURCES
+  UnitTestIOBrokerWriterSingleTest
+  SOURCES
     UnitTestIOBrokerWriter.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    NUM_MPI_PROCS 1
-    )
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1
+)

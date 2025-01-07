@@ -29,7 +29,7 @@
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                      // for mundy::mesh::BulkData
@@ -50,7 +50,7 @@ namespace kernels {
 Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument, "Sphere: bulk_data_ptr cannot be a nullptr.");
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument, "Sphere: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -65,11 +65,11 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
 
-  MUNDY_THROW_ASSERT(element_obb_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(element_obb_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: element_obb_field_ptr_ cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(element_radius_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(element_radius_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: element_radius_field_ptr_ cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(node_coord_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: node_coord_field_ptr_ cannot be a nullptr. Check that the field exists.");
 
   // Get the part pointers.
@@ -80,8 +80,8 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
-                         "Sphere: Part " << part_name << " cannot be a nullptr. Check that the part exists.");
+      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
+                         std::string("Sphere: Part ") + part_name + " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;
@@ -124,7 +124,7 @@ void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
   // At the end of this loop, all locally owned and ghosted linkers will be up-to-date.
   stk::mesh::Selector intersection_with_valid_entity_parts =
       stk::mesh::selectUnion(valid_entity_parts_) & sphere_selector;
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
       [&node_coord_field, &element_radius_field, &element_obb_field, &buffer_distance](
           [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {

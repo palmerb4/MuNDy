@@ -12,10 +12,10 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 
 # Headers are relative to the tribits_include_directory
 # We don't recommend typing these by hand. Use 
-# find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
+# find src/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 SET(NOINSTALLHEADERS
-    include/mundy_io/IOBroker.hpp
+    src/mundy_io/IOBroker.hpp
     )
 
 SET(SOURCES
@@ -23,7 +23,7 @@ SET(SOURCES
     )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)
-tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 #
@@ -35,7 +35,7 @@ mundy_tribits_add_library(
   mundy_io
   HEADERS ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
   NOINSTALLHEADERS ${NOINSTALLHEADERS}
-  DIRECTORIES include/mundy_io
+  DIRECTORIES src/mundy_io
   FILES_MATCHING PATTERN "*.hpp"
   SOURCES ${SOURCES}
   )

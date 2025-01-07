@@ -49,7 +49,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <stk_io/StkMeshIoBroker.hpp>        // for stk::io::StkMeshIoBroker
 #include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>   // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>   // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>            // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>        // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>         // for stk::topology
@@ -175,7 +175,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
                            const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
       : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
     // The bulk data pointer must not be null.
-    MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                        "NodeEulerSphere: bulk_data_ptr cannot be a nullptr.");
 
     // Validate the input params. Use default values for any parameter not given.
@@ -186,9 +186,9 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
     auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
-      MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
-                         "NodeEulerSphere: Part '"
-                             << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
+      MUNDY_THROW_REQUIRE(valid_entity_parts_.back() != nullptr, std::invalid_argument,
+                         std::string("NodeEulerSphere: Part '")
+                             + part_name + "' from the valid_entity_part_names does not exist in the meta data.");
     }
 
     // Fetch the fields.
@@ -271,7 +271,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
     valid_mutable_params.validateParametersAndSetDefaults(NodeEulerSphere::get_valid_mutable_params());
     timestep_size_ = valid_mutable_params.get<double>("timestep_size");
 
-    MUNDY_THROW_ASSERT(timestep_size_ > 0.0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(timestep_size_ > 0.0, std::invalid_argument,
                        "NodeEulerSphere: timestep_size must be greater than zero.");
   }
   //@}
@@ -299,7 +299,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
 
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, intersection_with_valid_entity_parts,
         [&node_coord_field, &node_velocity_field, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                                   const stk::mesh::Entity &sphere_node) {
@@ -344,8 +344,14 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
   //@}
 };  // NodeEulerSphere
 
-/// \brief Register NodeEulerSphere with NodeEuler default kernels
-MUNDY_REGISTER_METACLASS("SPHERE", NodeEulerSphere, NodeEuler::OurKernelFactory)
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_node_euler_kernels_ =
+[]() {
+  // Register our default kernels
+ NodeEuler::OurKernelFactory::register_new_class<
+          NodeEulerSphere>("SPHERE");
+  return true;
+}();
 
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
@@ -438,7 +444,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
                                          const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
       : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
     // The bulk data pointer must not be null.
-    MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                        "ComputeBrownianVelocitySphere: bulk_data_ptr cannot be a nullptr.");
 
     // Validate the input params. Use default values for any parameter not given.
@@ -449,9 +455,9 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
-      MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
-                         "ComputeBrownianVelocitySphere: Part '"
-                             << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
+      MUNDY_THROW_REQUIRE(valid_entity_parts_.back() != nullptr, std::invalid_argument,
+                         std::string("ComputeBrownianVelocitySphere: Part '")
+                             + part_name + "' from the valid_entity_part_names does not exist in the meta data.");
     }
 
     // Fetch the fields.
@@ -554,7 +560,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     alpha_ = valid_mutable_params.get<double>("alpha");
     beta_ = valid_mutable_params.get<double>("beta");
 
-    MUNDY_THROW_ASSERT(timestep_size_ > 0.0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(timestep_size_ > 0.0, std::invalid_argument,
                        "ComputeBrownianVelocitySphere: timestep_size must be greater than zero.");
   }
   //@}
@@ -585,7 +591,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
 
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, intersection_with_valid_entity_parts,
         [&node_brownian_velocity_field, &node_rng_counter_field, &timestep_size, &diffusion_coeff, &alpha, &beta](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
@@ -650,8 +656,14 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
   //@}
 };  // ComputeBrownianVelocitySphere
 
-/// \brief Register ComputeBrownianVelocitySphere with ComputeBrownianVelocity default kernels
-MUNDY_REGISTER_METACLASS("SPHERE", ComputeBrownianVelocitySphere, ComputeBrownianVelocity::OurKernelFactory)
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_compute_brownian_velocity_kernels_ =
+[]() {
+  // Register our default kernels
+ ComputeBrownianVelocity::OurKernelFactory::register_new_class<
+          ComputeBrownianVelocitySphere>("SPHERE");
+  return true;
+}();
 
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
@@ -779,8 +791,14 @@ class LocalDrag
   //@}
 };  // LocalDrag
 
-/// \brief Register LocalDrag with ComputeMobility's technique factory
-MUNDY_REGISTER_METACLASS("LOCAL_DRAG", LocalDrag, ComputeMobility::OurTechniqueFactory)
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_compute_mobility_kernels_ =
+[]() {
+  // Register our default kernels
+ ComputeMobility::OurTechniqueFactory::register_new_class<
+          LocalDrag>("LOCAL_DRAG");
+  return true;
+}();
 
 class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
  public:
@@ -798,7 +816,7 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
                                         const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
       : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
     // The bulk data pointer must not be null.
-    MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                        "LocalDragNonorientableSphere: bulk_data_ptr cannot be a nullptr.");
 
     // Validate the input params. Use default values for any parameter not given.
@@ -809,9 +827,9 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
     auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
-      MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
-                         "LocalDragNonorientableSphere: Part '"
-                             << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
+      MUNDY_THROW_REQUIRE(valid_entity_parts_.back() != nullptr, std::invalid_argument,
+                         std::string("LocalDragNonorientableSphere: Part '")
+                             + part_name + "' from the valid_entity_part_names does not exist in the meta data.");
     }
 
     // Fetch the fields.
@@ -900,7 +918,7 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
     valid_mutable_params.validateParametersAndSetDefaults(LocalDragNonorientableSphere::get_valid_mutable_params());
     viscosity_ = valid_mutable_params.get<double>("viscosity");
 
-    MUNDY_THROW_ASSERT(viscosity_ > 0.0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(viscosity_ > 0.0, std::invalid_argument,
                        "LocalDragNonorientableSphere: viscosity must be greater than zero.");
   }
   //@}
@@ -929,7 +947,7 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
 
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
-    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
+    mundy::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
                                    [&node_force_field, &node_velocity_field, &element_radius_field, &viscosity](
                                        const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
                                      const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere_element)[0];
@@ -982,8 +1000,14 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
   //@}
 };  // LocalDragNonorientableSphere
 
-/// \brief Register LocalDragNonorientableSphere with LocalDrag's kernel factory
-MUNDY_REGISTER_METACLASS("NONORIENTABLE_SPHERE", LocalDragNonorientableSphere, LocalDrag::OurKernelFactory)
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_local_drag_kernels_ =
+[]() {
+  // Register our default kernels
+ LocalDrag::OurKernelFactory::register_new_class<
+          LocalDragNonorientableSphere>("NONORIENTABLE_SPHERE");
+  return true;
+}();
 
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
@@ -1060,7 +1084,7 @@ class ComputeConstraintForcesHookeanSpring : public mundy::meta::MetaKernel<> {
                                                 const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
       : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
     // The bulk data pointer must not be null.
-    MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                        "ComputeConstraintForcesHookeanSpring: bulk_data_ptr cannot be a nullptr.");
 
     // Validate the input params. Use default values for any parameter not given.
@@ -1071,9 +1095,9 @@ class ComputeConstraintForcesHookeanSpring : public mundy::meta::MetaKernel<> {
     auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
-      MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
-                         "ComputeConstraintForcesHookeanSpring: Part '"
-                             << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
+      MUNDY_THROW_REQUIRE(valid_entity_parts_.back() != nullptr, std::invalid_argument,
+                         std::string("ComputeConstraintForcesHookeanSpring: Part '")
+                             + part_name + "' from the valid_entity_part_names does not exist in the meta data.");
     }
 
     // Fetch the fields.
@@ -1197,7 +1221,7 @@ class ComputeConstraintForcesHookeanSpring : public mundy::meta::MetaKernel<> {
 
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & spring_selector;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
         [&node_force_field, &node_coord_field, &element_rest_length_field, &element_spring_constant_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spring_element) {
@@ -1281,9 +1305,14 @@ class ComputeConstraintForcesHookeanSpring : public mundy::meta::MetaKernel<> {
   //@}
 };  // ComputeConstraintForcesHookeanSpring
 
-/// \brief Register ComputeConstraintForcesHookeanSpring with ComputeConstraintForces default kernels
-MUNDY_REGISTER_METACLASS("HOOKEAN_SPRING", ComputeConstraintForcesHookeanSpring,
-                         ComputeConstraintForces::OurKernelFactory)
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_compute_constraint_force_kernels_ =
+[]() {
+  // Register our default kernels
+ ComputeConstraintForces::OurKernelFactory::register_new_class<
+          ComputeConstraintForcesHookeanSpring>("HOOKEAN_SPRING");
+  return true;
+}();
 
 ///////////////////////////
 // Partitioning settings //
@@ -1359,7 +1388,7 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  MUNDY_THROW_ASSERT(timestep_size > 0, std::invalid_argument, "Time step size must be greater than zero.");
+  MUNDY_THROW_REQUIRE(timestep_size > 0, std::invalid_argument, "Time step size must be greater than zero.");
 
   // Dump the parameters to screen on rank 0
   if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
@@ -1488,8 +1517,8 @@ int main(int argc, char **argv) {
            linker_potential_force_reduction_fixed_params, destroy_neighbor_linkers_fixed_params});
 
   auto check_class_instance = [](auto &class_instance_ptr, const std::string &class_name) {
-    MUNDY_THROW_ASSERT(class_instance_ptr != nullptr, std::invalid_argument,
-                       "Failed to create class instance with name << " << class_name << " >>.");
+    MUNDY_THROW_REQUIRE(class_instance_ptr != nullptr, std::invalid_argument,
+                       std::string("Failed to create class instance with name << ") + class_name + " >>.");
   };  // check_class_instance
 
   check_class_instance(compute_brownian_velocity_ptr, "ComputeBrownianVelocity");
@@ -1503,9 +1532,9 @@ int main(int argc, char **argv) {
   check_class_instance(linker_potential_force_reduction_ptr, "LinkerPotentialForceReduction");
   check_class_instance(destroy_neighbor_linkers_ptr, "DestroyNeighborLinkers");
 
-  MUNDY_THROW_ASSERT(bulk_data_ptr != nullptr, std::invalid_argument, "Bulk dta pointer cannot be a nullptr.");
+  MUNDY_THROW_REQUIRE(bulk_data_ptr != nullptr, std::invalid_argument, "Bulk dta pointer cannot be a nullptr.");
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
-  MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument, "Meta data pointer cannot be a nullptr.");
+  MUNDY_THROW_REQUIRE(meta_data_ptr != nullptr, std::invalid_argument, "Meta data pointer cannot be a nullptr.");
   meta_data_ptr->set_coordinate_field_name("NODE_COORDS");
 
   ///////////////////////////////////////////////////
@@ -1579,7 +1608,7 @@ int main(int argc, char **argv) {
       meta_data_ptr->get_field<int>(stk::topology::CONSTRAINT_RANK, "LINKER_DESTROY_FLAG");
 
   auto check_if_exists = [](const stk::mesh::FieldBase *const field_ptr, const std::string &name) {
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
                        name + "cannot be a nullptr. Check that the field exists.");
   };
 
@@ -1598,16 +1627,16 @@ int main(int argc, char **argv) {
   check_if_exists(linker_destroy_flag_field_ptr, "LINKER_DESTROY_FLAG");
 
   stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part("SPHERES");
-  MUNDY_THROW_ASSERT(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
+  MUNDY_THROW_REQUIRE(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
   stk::mesh::Part &spheres_part = *spheres_part_ptr;
 
   stk::mesh::Part *sphere_sphere_linkers_part_ptr = meta_data_ptr->get_part("SPHERE_SPHERE_LINKERS");
-  MUNDY_THROW_ASSERT(sphere_sphere_linkers_part_ptr != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(sphere_sphere_linkers_part_ptr != nullptr, std::invalid_argument,
                      "SPHERE_SPHERE_LINKERS part not found.");
   stk::mesh::Part &sphere_sphere_linkers_part = *sphere_sphere_linkers_part_ptr;
 
   stk::mesh::Part *springs_part_ptr = meta_data_ptr->get_part("SPRINGS");
-  MUNDY_THROW_ASSERT(springs_part_ptr != nullptr, std::invalid_argument, "SPRINGS part not found.");
+  MUNDY_THROW_REQUIRE(springs_part_ptr != nullptr, std::invalid_argument, "SPRINGS part not found.");
   stk::mesh::Part &springs_part = *springs_part_ptr;
 
   ///////////////////

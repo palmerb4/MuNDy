@@ -11,7 +11,7 @@
 #include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Comm.hpp>           // for comm_mesh_counts
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/MeshBuilder.hpp>    // for stk::mesh::MeshBuilder
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector

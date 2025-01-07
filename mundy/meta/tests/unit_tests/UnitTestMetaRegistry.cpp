@@ -60,8 +60,7 @@ TEST(MetaRegistry, AutoRegistration) {
   // Test that the MUNDY_REGISTER_METACLASS macro performed the registration with the MetaMethodFactory with a given
   // RegistrationIdentifier
   using OurTestMetaMethodFactory =
-      mundy::meta::MetaFactory<mundy::meta::utils::ExampleMetaMethod<>::PolymorphicBaseType,
-                               decltype(mundy::meta::make_registration_string("TEST_FACTORY")),
+      mundy::meta::MetaFactory<mundy::meta::utils::DefaultExampleMetaMethod::PolymorphicBaseType,
                                mundy::meta::make_registration_string("TEST_FACTORY")>;
   EXPECT_EQ(OurTestMetaMethodFactory::num_registered_classes(), 2);
   EXPECT_TRUE(OurTestMetaMethodFactory::is_valid_key("KEY1"));
@@ -77,12 +76,10 @@ TEST(MetaRegistry, AutoRegistration) {
 
 // Register a class with the MetaMethodFactory with a given RegistrationIdentifier.
 MUNDY_REGISTER_METACLASS("KEY1", mundy::meta::utils::ExampleMetaMethod<mundy::meta::make_registration_string("CLASS1")>,
-                         mundy::meta::MetaFactory<mundy::meta::utils::ExampleMetaMethod<>::PolymorphicBaseType,
-                                                  decltype(mundy::meta::make_registration_string("TEST_FACTORY")),
+                         mundy::meta::MetaFactory<mundy::meta::utils::DefaultExampleMetaMethod::PolymorphicBaseType,
                                                   mundy::meta::make_registration_string("TEST_FACTORY")>)
 
 // Register a different class with the same MetaMethodFactory with a given RegistrationIdentifier.
 MUNDY_REGISTER_METACLASS("KEY2", mundy::meta::utils::ExampleMetaMethod<mundy::meta::make_registration_string("CLASS2")>,
-                         mundy::meta::MetaFactory<mundy::meta::utils::ExampleMetaMethod<>::PolymorphicBaseType,
-                                                  decltype(mundy::meta::make_registration_string("TEST_FACTORY")),
+                         mundy::meta::MetaFactory<mundy::meta::utils::DefaultExampleMetaMethod::PolymorphicBaseType,
                                                   mundy::meta::make_registration_string("TEST_FACTORY")>)

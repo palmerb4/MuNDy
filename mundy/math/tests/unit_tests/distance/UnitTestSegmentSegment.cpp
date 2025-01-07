@@ -167,9 +167,9 @@ void generate_lines_at_known_distance(RngType& rng, double& line_dist, Vector3<d
     // Randomly choose a degeneracy for the lines. Only using the first five degeneracies (0, 1, 2, 3, 4)
     degeneracy = static_cast<DegeneracyType>(static_cast<int>(rng.template rand<double>() * 4));
   }
-  MUNDY_THROW_ASSERT(degeneracy != DegeneracyType::A1_EQUALS_A2, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(degeneracy != DegeneracyType::A1_EQUALS_A2, std::invalid_argument,
                      "A1_EQUALS_A2 is not a valid degeneracy for lines.");
-  MUNDY_THROW_ASSERT(degeneracy != DegeneracyType::B1_EQUALS_B2, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(degeneracy != DegeneracyType::B1_EQUALS_B2, std::invalid_argument,
                      "B1_EQUALS_B2 is not a valid degeneracy for lines.");
 
   // Generate two unit vectors v1 and v2, and their cross product v3.
@@ -361,7 +361,7 @@ TEST(DistanceBetweenLines, PositiveResult) {
   for (unsigned i = 0; i < nTests; i++) {
     generate_lines_at_known_distance(rng, dist_expected, a1, a2, b1, b2, a12_expected, b12_expected, u_expected,
                                      v_expected);
-    dist_sq_actual = distance_sq_between_lines(a1, a2, b1, b2, &a12_actual, &b12_actual, &u_actual, &v_actual);
+    dist_sq_actual = distance_sq_between_lines(a1, a2, b1, b2, a12_actual, b12_actual, u_actual, v_actual);
 
     ASSERT_NEAR(dist_expected * dist_expected, dist_sq_actual, TEST_DOUBLE_EPSILON);
 
@@ -384,7 +384,7 @@ TEST(DistanceBetweenLineSegments, PositiveResult) {
   for (unsigned i = 0; i < nTests; i++) {
     generate_line_segments_at_known_distance(rng, dist_expected, a1, a2, b1, b2, a12_expected, b12_expected, u_expected,
                                              v_expected);
-    dist_sq_actual = distance_sq_between_line_segments(a1, a2, b1, b2, &a12_actual, &b12_actual, &u_actual, &v_actual);
+    dist_sq_actual = distance_sq_between_line_segments(a1, a2, b1, b2, a12_actual, b12_actual, u_actual, v_actual);
 
     ASSERT_NEAR(dist_expected * dist_expected, dist_sq_actual, TEST_DOUBLE_EPSILON);
 
@@ -416,7 +416,7 @@ TEST(DistanceBetweenLineSegments, APeskyEdgeCase) {
   v_expected = 0.069641589451982497;
   dist_expected = 0.74347757392471259;
 
-  dist_sq_actual = distance_sq_between_line_segments(a1, a2, b1, b2, &a12_actual, &b12_actual, &u_actual, &v_actual);
+  dist_sq_actual = distance_sq_between_line_segments(a1, a2, b1, b2, a12_actual, b12_actual, u_actual, v_actual);
   EXPECT_NEAR(dist_expected * dist_expected, dist_sq_actual, TEST_DOUBLE_EPSILON);
 
   for (unsigned j = 0; j < 3; j++) {
@@ -433,10 +433,11 @@ TEST(DistanceToLine, PositiveResult) {
   unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_SEGMENT_SEGMENT_DISTANCE_NUM_SAMPLES_PER_TEST;
 
   Vector3<double> a1, a2, a12_actual, a12_expected, p;
+  double t;
   double dist_expected, dist_sq_actual;
   for (unsigned i = 0; i < nTests; i++) {
     generate_line_at_known_distance<openrand::Philox>(rng, a1, a2, a12_expected, p, dist_expected);
-    dist_sq_actual = distance_sq_from_point_to_line_segment(p, a1, a2, &a12_actual);
+    dist_sq_actual = distance_sq_from_point_to_line_segment(p, a1, a2, a12_actual, t);
 
     ASSERT_NEAR(dist_expected * dist_expected, dist_sq_actual, TEST_DOUBLE_EPSILON);
 

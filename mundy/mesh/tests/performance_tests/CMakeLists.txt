@@ -18,8 +18,42 @@
 # @HEADER
 
 tribits_add_executable(
-  RepeatedEntityCreationAndDestruction
+    PerfTestDeclareEntities
     SOURCES
-    RepeatedEntityCreationAndDestruction.cpp
+    PerfTestDeclareEntities.cpp
+    CATEGORIES PERFORMANCE
+    )
+tribits_copy_files_to_binary_dir(
+    PerfTestDeclareEntitiesCopyFiles
+    SOURCE_FILES
+        2013_03_06_cell08_876_H41_05_Cell2_cell-axon.ply
+        sphere.ply
+        ellipsoid.ply
+        cube.ply
+        bee_hive.ply
+        EXEDEPS PerfTestDeclareEntities
+    )
+
+
+# These tests require Trilinos 16.0.0 or later
+# They still get built but will simply print a warning and return
+tribits_add_executable(
+    PerfTestFieldBLAS
+    SOURCES
+    PerfTestFieldBLAS.cpp
+    CATEGORIES PERFORMANCE
+    )
+
+tribits_add_executable(
+    NGPSpheresHertz
+    SOURCES
+    NGPSpheresHertz.cpp
+    CATEGORIES PERFORMANCE
+    )
+
+tribits_add_executable(
+    NGPSpheresLCP
+    SOURCES
+    NGPSpheresLCP.cpp
     CATEGORIES PERFORMANCE
     )

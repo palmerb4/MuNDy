@@ -29,7 +29,7 @@
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>                                        // for MUNDY_THROW_ASSERT
@@ -53,7 +53,7 @@ namespace kernels {
 Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument, "Sphere: bulk_data_ptr cannot be a nullptr.");
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument, "Sphere: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -72,8 +72,8 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
       stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
-                       "Sphere: Field " << field_name << " cannot be a nullptr. Check that the field exists.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                       std::string("Sphere: Field ") + field_name + " cannot be a nullptr. Check that the field exists.");
   };  // field_exists
 
   field_exists(linker_potential_force_field_ptr_, linker_potential_force_field_name);
@@ -90,8 +90,8 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
-                         "Sphere: Part " << part_name << " cannot be a nullptr. Check that the part exists.");
+      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
+                         std::string("Sphere: Part ") + part_name + " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;
@@ -135,7 +135,7 @@ void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
   stk::mesh::Selector locally_owned_or_globally_shared_intersection_with_valid_entity_parts =
       stk::mesh::selectUnion(valid_entity_parts_) & sphere_selector &
       (meta_data_ptr_->locally_owned_part() | meta_data_ptr_->globally_shared_part());
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::ELEMENT_RANK,
       locally_owned_or_globally_shared_intersection_with_valid_entity_parts,
       [&linker_potential_force_field, &node_force_field, &linkers_part_to_reduce_over, &linked_entities_field](
@@ -162,12 +162,18 @@ void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
                 reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
                     stk::mesh::field_data(linked_entities_field, connected_linker));
 
-            const bool are_we_the_left_sphere = (key_t_ptr[0] == bulk_data.entity_key(sphere));
-            const double sign = are_we_the_left_sphere ? 1.0 : -1.0;
+            const bool is_left_sphere = (key_t_ptr[0] == bulk_data.entity_key(sphere));
+            const bool is_right_sphere = (key_t_ptr[1] == bulk_data.entity_key(sphere));
+            const double sign = is_left_sphere ? 1.0 : (is_right_sphere ? -1.0 : 0.0);
             const auto potential_force =
                 sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);
 
-            node_force += potential_force;
+#pragma omp atomic
+            node_force[0] += potential_force[0];
+#pragma omp atomic
+            node_force[1] += potential_force[1];
+#pragma omp atomic
+            node_force[2] += potential_force[2];
           }
         }
       });

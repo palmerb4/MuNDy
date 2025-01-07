@@ -17,31 +17,31 @@
 # **********************************************************************************************************************
 # @HEADER
 
-tribits_add_executable(
-    PerformanceTestFilament
-    SOURCES
-    Filament.cpp
-    CATEGORIES PERFORMANCE
-    )
-tribits_copy_files_to_binary_dir(
-    PerformanceTestFilamentCopyFiles
-    SOURCE_FILES
-    filament_params.yaml
-    EXEDEPS PerformanceTestFilament
-    )
+# tribits_add_executable(
+#     PerformanceTestFilament
+#     SOURCES
+#     Filament.cpp
+#     CATEGORIES PERFORMANCE
+#     )
+# tribits_copy_files_to_binary_dir(
+#     PerformanceTestFilamentCopyFiles
+#     SOURCE_FILES
+#     filament_params.yaml
+#     EXEDEPS PerformanceTestFilament
+#     )
 
-tribits_add_executable(
-    PerformanceTestBacteria
-    SOURCES
-    Bacteria.cpp
-    CATEGORIES PERFORMANCE
-    )
-tribits_copy_files_to_binary_dir(
-    PerformanceTestBacteriaCopyFiles
-    SOURCE_FILES
-    bacteria_params.yaml
-    EXEDEPS PerformanceTestBacteria
-    )
+# tribits_add_executable(
+#     PerformanceTestBacteria
+#     SOURCES
+#     Bacteria.cpp
+#     CATEGORIES PERFORMANCE
+#     )
+# tribits_copy_files_to_binary_dir(
+#     PerformanceTestBacteriaCopyFiles
+#     SOURCE_FILES
+#     bacteria_params.yaml
+#     EXEDEPS PerformanceTestBacteria
+#     )
 
 tribits_add_executable(
     PerformanceTestBrownianMotion
@@ -102,6 +102,10 @@ tribits_copy_files_to_binary_dir(
     HP1CopyFiles
     SOURCE_FILES
     hp1.yaml
+    hp1_periphery_quadrature_normals.dat
+    hp1_periphery_quadrature_points.dat
+    hp1_periphery_quadrature_weights.dat
+    hp1_pos.dat
     EXEDEPS HP1
     )
 
@@ -140,3 +144,19 @@ tribits_add_executable(
     CATEGORIES PERFORMANCE
     )
       
+# tribits_add_executable(
+#     NgpHP1
+#     SOURCES
+#     NgpHP1.cpp
+#     CATEGORIES PERFORMANCE
+#     )
+# tribits_copy_files_to_binary_dir(
+#     NgpHP1CopyFiles
+#     SOURCE_FILES
+#     ngp_hp1.yaml
+#     hp1_periphery_quadrature_normals.dat
+#     hp1_periphery_quadrature_points.dat
+#     hp1_periphery_quadrature_weights.dat
+#     hp1_pos.dat
+#     EXEDEPS NgpHP1
+#     )

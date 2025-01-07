@@ -29,7 +29,7 @@
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
@@ -54,7 +54,7 @@ SphereSphereLinker::SphereSphereLinker(mundy::mesh::BulkData *const bulk_data_pt
                                        const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                      "SphereSphereLinker: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
@@ -84,9 +84,9 @@ SphereSphereLinker::SphereSphereLinker(mundy::mesh::BulkData *const bulk_data_pt
       stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
-    MUNDY_THROW_ASSERT(
+    MUNDY_THROW_REQUIRE(
         field_ptr != nullptr, std::invalid_argument,
-        "SphereSphereLinker: Field " << field_name << " cannot be a nullptr. Check that the field exists.");
+        std::string("SphereSphereLinker: Field ") + field_name + " cannot be a nullptr. Check that the field exists.");
   };  // field_exists
 
   field_exists(node_coord_field_ptr_, node_coord_field_name);
@@ -106,9 +106,9 @@ SphereSphereLinker::SphereSphereLinker(mundy::mesh::BulkData *const bulk_data_pt
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_ASSERT(
+      MUNDY_THROW_REQUIRE(
           part != nullptr, std::invalid_argument,
-          "SphereSphereLinker: Part " << part_name << " cannot be a nullptr. Check that the part exists.");
+          std::string("SphereSphereLinker: Part ") + part_name + " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;
@@ -153,7 +153,7 @@ void SphereSphereLinker::execute(const stk::mesh::Selector &sphere_sphere_linker
   // At the end of this loop, all locally owned and ghosted linkers will be up-to-date.
   stk::mesh::Selector intersection_with_valid_entity_parts =
       stk::mesh::selectUnion(valid_entity_parts_) & sphere_sphere_linker_selector;
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, intersection_with_valid_entity_parts,
       [&node_coord_field, &element_radius_field, &linker_contact_normal_field, &linker_contact_points_field,
        &linker_signed_separation_distance_field,

@@ -21,12 +21,15 @@
 /// \brief Definition of GenerateNeighborLinkers's STKSearch technique.
 
 // C++ core libs
+#include <iomanip>
+#include <iostream>
 #include <memory>         // for std::shared_ptr, std::unique_ptr
 #include <string>         // for std::string
 #include <unordered_map>  // for std::unordered_map
 #include <vector>         // for std::vector
 
 // Trilinos libs
+#include <Kokkos_Core.hpp>                           // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
 #include <Teuchos_ParameterList.hpp>                 // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>                  // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>                   // for stk::mesh::Field, stl::mesh::field_data
@@ -71,7 +74,7 @@ struct pair_hash {
 STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument, "STKSearch: bulk_data_ptr cannot be a nullptr.");
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument, "STKSearch: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -86,16 +89,16 @@ STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
       stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
   linked_entity_owners_field_ptr_ =
       meta_data_ptr_->get_field<int>(stk::topology::CONSTRAINT_RANK, linked_entity_owners_field_name);
-  MUNDY_THROW_ASSERT(element_aabb_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(element_aabb_field_ptr_ != nullptr, std::invalid_argument,
                      "STKSearch: element_aabb_field_ptr_ cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(linked_entities_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(linked_entities_field_ptr_ != nullptr, std::invalid_argument,
                      "STKSearch: linked_entities_field_ptr_ cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(linked_entity_owners_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(linked_entity_owners_field_ptr_ != nullptr, std::invalid_argument,
                      "STKSearch: linked_entity_owners_field_ptr_ cannot be a nullptr. Check that the field exists.");
 
   // Get the part pointers.
   neighbor_linkers_part_ptr_ = meta_data_ptr_->get_part("NEIGHBOR_LINKERS");
-  MUNDY_THROW_ASSERT(neighbor_linkers_part_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(neighbor_linkers_part_ptr_ != nullptr, std::invalid_argument,
                      "STKSearch: Expected a part with name 'NEIGHBOR_LINKERS' but part does not exist.");
 
   const Teuchos::Array<std::string> specialized_neighbor_linkers_part_names =
@@ -109,8 +112,8 @@ STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
-                         "STKSearch: Expected a part with name '" << part_name << "' but part does not exist.");
+      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
+                         std::string("STKSearch: Expected a part with name '") + part_name + "' but part does not exist.");
       parts.push_back(part);
     }
     return parts;
@@ -126,6 +129,10 @@ STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
 //{
 
 void STKSearch::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
+  // Validate the input params. Use default values for any parameter not given.
+  Teuchos::ParameterList valid_mutable_params = mutable_params;
+  valid_mutable_params.validateParametersAndSetDefaults(STKSearch::get_valid_mutable_params());
+  enforce_symmetry_ = valid_mutable_params.get<bool>("enforce_symmetry");
 }
 //}
 
@@ -144,46 +151,164 @@ std::vector<stk::mesh::Part *> STKSearch::get_valid_target_entity_parts() const 
 // \name Actions
 //{
 
+namespace {
+
+using SearchIdentProc = stk::search::IdentProc<stk::mesh::EntityKey>;
+using BoxIdVector = std::vector<std::pair<stk::search::Box<double>, SearchIdentProc>>;
+using SearchIdPairVector = std::vector<std::pair<SearchIdentProc, SearchIdentProc>>;
+
+inline std::pair<SearchIdentProc, SearchIdentProc> make_sorted_pair(const SearchIdentProc &a,
+                                                                    const SearchIdentProc &b) {
+  return (a.id() < b.id()) ? std::make_pair(a, b) : std::make_pair(b, a);
+}
+
+inline void get_existing_pairs(std::set<std::pair<SearchIdentProc, SearchIdentProc>> &existing_pairs,
+                               const std::vector<stk::mesh::Entity> &existing_linkers,
+                               const stk::mesh::Field<LinkedEntitiesFieldType::value_type> &linked_entities_field,
+                               const stk::mesh::Field<int> &linked_entity_owners_field,
+                               const bool enforce_symmetry = true) {
+  size_t num_linkers = existing_linkers.size();
+
+// Only use local variables if OpenMP is enabled
+#ifdef _OPENMP
+#pragma omp parallel
+  {
+    std::set<std::pair<SearchIdentProc, SearchIdentProc>> thread_local_existing_pairs;
+#pragma omp for schedule(static)
+    for (size_t i = 0; i < num_linkers; ++i) {
+      const stk::mesh::Entity &linker = existing_linkers[i];
+
+      const stk::mesh::EntityKey::entity_key_t *key_t_ptr =
+          reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(stk::mesh::field_data(linked_entities_field, linker));
+      const stk::mesh::EntityKey source_entity_key(key_t_ptr[0]);
+      const stk::mesh::EntityKey target_entity_key(key_t_ptr[1]);
+
+      const int *owner_ptr = stk::mesh::field_data(linked_entity_owners_field, linker);
+      const int source_proc = owner_ptr[0];
+      const int target_proc = owner_ptr[1];
+
+      const SearchIdentProc source_entity_proc(source_entity_key, source_proc);
+      const SearchIdentProc target_entity_proc(target_entity_key, target_proc);
+
+      auto sorted_pair = enforce_symmetry ? make_sorted_pair(source_entity_proc, target_entity_proc)
+                                          : std::make_pair(source_entity_proc, target_entity_proc);
+
+      thread_local_existing_pairs.insert(sorted_pair);
+    }
+
+// Merge thread-local results into the global set
+#pragma omp critical
+    existing_pairs.insert(thread_local_existing_pairs.begin(), thread_local_existing_pairs.end());
+  }
+#else
+  for (size_t i = 0; i < num_linkers; ++i) {
+    const stk::mesh::Entity &linker = existing_linkers[i];
+
+    const stk::mesh::EntityKey::entity_key_t *key_t_ptr =
+        reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(stk::mesh::field_data(linked_entities_field, linker));
+    const stk::mesh::EntityKey source_entity_key(key_t_ptr[0]);
+    const stk::mesh::EntityKey target_entity_key(key_t_ptr[1]);
+
+    const int *owner_ptr = stk::mesh::field_data(linked_entity_owners_field, linker);
+    const int source_proc = owner_ptr[0];
+    const int target_proc = owner_ptr[1];
+
+    const SearchIdentProc source_entity_proc(source_entity_key, source_proc);
+    const SearchIdentProc target_entity_proc(target_entity_key, target_proc);
+
+    auto sorted_pair = enforce_symmetry ? make_sorted_pair(source_entity_proc, target_entity_proc)
+                                        : std::make_pair(source_entity_proc, target_entity_proc);
+
+    existing_pairs.insert(sorted_pair);
+  }
+#endif  // _OPENMP
+}
+
+inline void filter_and_add_pairs(const std::set<std::pair<SearchIdentProc, SearchIdentProc>> &existing_pairs,
+                                 std::set<std::pair<SearchIdentProc, SearchIdentProc>> &new_pairs,
+                                 const std::vector<std::pair<SearchIdentProc, SearchIdentProc>> &search_id_pairs,
+                                 const bool enforce_symmetry = true) {
+  size_t num_search_pairs = search_id_pairs.size();
+
+// Only use local variables if OpenMP is enabled
+#ifdef _OPENMP
+
+#pragma omp parallel
+  {
+    std::set<std::pair<SearchIdentProc, SearchIdentProc>> thread_local_new_pairs;
+
+#pragma omp for schedule(static)
+    for (size_t i = 0; i < num_search_pairs; ++i) {
+      const auto &search_pair = search_id_pairs[i];
+      if (search_pair.first.id() == search_pair.second.id()) continue;  // Skip self-interactions
+
+      auto sorted_pair = enforce_symmetry ? make_sorted_pair(search_pair.first, search_pair.second) : search_pair;
+
+      // Check existence in existing_pairs or thread_local_new_pairs and add to new_pairs if not found
+      if ((existing_pairs.find(sorted_pair) == existing_pairs.end()) &&
+          (thread_local_new_pairs.find(sorted_pair) == thread_local_new_pairs.end())) {
+        thread_local_new_pairs.insert(sorted_pair);
+      }
+    }
+
+// Merge thread-local results into the global set
+#pragma omp critical
+    new_pairs.insert(thread_local_new_pairs.begin(), thread_local_new_pairs.end());
+  }
+#else
+  for (size_t i = 0; i < num_search_pairs; ++i) {
+    const auto &search_pair = search_id_pairs[i];
+    if (search_pair.first.id() == search_pair.second.id()) continue;  // Skip self-interactions
+
+    auto sorted_pair = enforce_symmetry ? make_sorted_pair(search_pair.first, search_pair.second) : search_pair;
+
+    // Check existence in existing_pairs or thread_local_new_pairs and add to new_pairs if not found
+    if (existing_pairs.find(sorted_pair) == existing_pairs.end()) {
+      new_pairs.insert(sorted_pair);
+    }
+  }
+#endif  // _OPENMP
+}
+
+inline void fill_box_id_vector(mundy::mesh::BulkData &bulk_data, mundy::mesh::MetaData &meta_data,
+                               const stk::mesh::Field<double> &element_aabb_field, const stk::mesh::Selector &selector,
+                               BoxIdVector &boxes) {
+  const int rank = bulk_data.parallel_rank();
+  const size_t num_local_elements_in_selector = stk::mesh::count_selected_entities(
+      meta_data.locally_owned_part() & selector, bulk_data.buckets(stk::topology::ELEMENT_RANK));
+  boxes.reserve(num_local_elements_in_selector);
+
+  const stk::mesh::BucketVector &element_buckets = bulk_data.get_buckets(
+      stk::topology::ELEMENT_RANK, stk::mesh::Selector(meta_data.locally_owned_part()) & selector);
+  for (size_t bucket_idx = 0; bucket_idx < element_buckets.size(); ++bucket_idx) {
+    stk::mesh::Bucket &element_bucket = *element_buckets[bucket_idx];
+    for (size_t elem_idx = 0; elem_idx < element_bucket.size(); ++elem_idx) {
+      // Skip invalid entities.
+      if (bulk_data.is_valid(element_bucket[elem_idx])) {
+        stk::mesh::Entity const &element = element_bucket[elem_idx];
+
+        const double *aabb = stk::mesh::field_data(element_aabb_field, element);
+        stk::search::Box<double> box(aabb[0], aabb[1], aabb[2], aabb[3], aabb[4], aabb[5]);
+
+        SearchIdentProc search_id(bulk_data.entity_key(element), rank);
+
+        boxes.emplace_back(box, search_id);
+      }
+    }
+  }
+}
+
+}  // namespace
+
 void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
                         const stk::mesh::Selector &range_input_selector) {
   // Step 1: Copy the AABBs, owning procs, and entity keys into a separate contiguous vector for the sources and
-  // targets.
-  using SearchIdentProc = stk::search::IdentProc<stk::mesh::EntityKey>;
-  using BoxIdVector = std::vector<std::pair<stk::search::Box<double>, SearchIdentProc>>;
-  using SearchIdPairVector = std::vector<std::pair<SearchIdentProc, SearchIdentProc>>;
+  // targets.<< value << std::endl
   const int parallel_size = bulk_data_ptr_->parallel_size();
   const int parallel_rank = bulk_data_ptr_->parallel_rank();
 
   BoxIdVector source_boxes;
   BoxIdVector target_boxes;
-
-  auto fill_box_id_vector = [](mundy::mesh::BulkData &bulk_data, mundy::mesh::MetaData &meta_data,
-                               const stk::mesh::Field<double> &element_aabb_field, const stk::mesh::Selector &selector,
-                               BoxIdVector &boxes) {
-    const int rank = bulk_data.parallel_rank();
-    const size_t num_local_elements_in_selector = stk::mesh::count_selected_entities(
-        meta_data.locally_owned_part() & selector, bulk_data.buckets(stk::topology::ELEMENT_RANK));
-    boxes.reserve(num_local_elements_in_selector);
-
-    const stk::mesh::BucketVector &element_buckets = bulk_data.get_buckets(
-        stk::topology::ELEMENT_RANK, stk::mesh::Selector(meta_data.locally_owned_part()) & selector);
-    for (size_t bucket_idx = 0; bucket_idx < element_buckets.size(); ++bucket_idx) {
-      stk::mesh::Bucket &element_bucket = *element_buckets[bucket_idx];
-      for (size_t elem_idx = 0; elem_idx < element_bucket.size(); ++elem_idx) {
-        // Skip invalid entities.
-        if (bulk_data.is_valid(element_bucket[elem_idx])) {
-          stk::mesh::Entity const &element = element_bucket[elem_idx];
-
-          const double *aabb = stk::mesh::field_data(element_aabb_field, element);
-          stk::search::Box<double> box(aabb[0], aabb[1], aabb[2], aabb[3], aabb[4], aabb[5]);
-
-          SearchIdentProc search_id(bulk_data.entity_key(element), rank);
-
-          boxes.emplace_back(box, search_id);
-        }
-      }
-    }
-  };  // fill_box_id_vector
 
   fill_box_id_vector(*bulk_data_ptr_, *meta_data_ptr_, *element_aabb_field_ptr_, domain_input_selector, source_boxes);
   fill_box_id_vector(*bulk_data_ptr_, *meta_data_ptr_, *element_aabb_field_ptr_, range_input_selector, target_boxes);
@@ -194,149 +319,58 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
                              search_id_pairs);
   const size_t num_neighbors = search_id_pairs.size();
 
-  // Step 3: Determin which process should create the linker between the source and target entities, if any.
+  // Step 3: Determine which process should create the linker between the source and target entities, if any.
   // No linker will be created if one already exists.
-  std::vector<int> new_linker_required(num_neighbors);       // int required for std::partial_sum
-  std::vector<int> we_need_to_create_linker(num_neighbors);  // int required for std::partial_sum
-  std::vector<std::pair<bool, stk::mesh::Entity>> linker_already_exists(num_neighbors);
-
   stk::mesh::Part &neighbor_linkers_part = *neighbor_linkers_part_ptr_;
   LinkedEntitiesFieldType &linked_entities_field = *linked_entities_field_ptr_;
-  stk::mesh::communicate_field_data(*bulk_data_ptr_, {linked_entities_field_ptr_});
+  stk::mesh::Field<int> &linked_entity_owners_field = *linked_entity_owners_field_ptr_;
+  stk::mesh::communicate_field_data(*bulk_data_ptr_, {linked_entities_field_ptr_, linked_entity_owners_field_ptr_});
 
-  auto are_entities_connected_by_a_neighbor_linker =
-      [&neighbor_linkers_part, &linked_entities_field](
-          mundy::mesh::BulkData &bulk_data, const stk::mesh::EntityKey &source_entity_key,
-          const stk::mesh::EntityKey &target_entity_key) -> std::pair<bool, stk::mesh::Entity> {
-    // If either the source or the target entity is invalid, then no linkers can exist between them.
-    const stk::mesh::Entity &source_entity = bulk_data.get_entity(source_entity_key);
-    const stk::mesh::Entity &target_entity = bulk_data.get_entity(target_entity_key);
-    const bool is_source_valid = bulk_data.is_valid(source_entity);
-    const bool is_target_valid = bulk_data.is_valid(target_entity);
-    if (!is_source_valid || !is_target_valid) {
-      return std::make_pair(false, stk::mesh::Entity());
-    }
-
-    // If either the source or target entity has no constraint-rank entities, then no linkers can exist between them.
-    MUNDY_THROW_ASSERT(bulk_data.num_nodes(source_entity) >= 1, std::invalid_argument,
-                       "STKSearch: source entity must have at least one node.");
-    MUNDY_THROW_ASSERT(bulk_data.num_nodes(target_entity) >= 1, std::invalid_argument,
-                       "STKSearch: target entity must have at least one node.");
-    const stk::mesh::Entity &a_source_node = bulk_data.begin_nodes(source_entity)[0];
-    const stk::mesh::Entity &a_target_node = bulk_data.begin_nodes(target_entity)[0];
-    const auto num_connected_constraint_rank_entities_source_node =
-        bulk_data.num_connectivity(a_source_node, stk::topology::CONSTRAINT_RANK);
-    const auto num_connected_constraint_rank_entities_target_node =
-        bulk_data.num_connectivity(a_target_node, stk::topology::CONSTRAINT_RANK);
-    if (num_connected_constraint_rank_entities_source_node == 0 ||
-        num_connected_constraint_rank_entities_target_node == 0) {
-      return std::make_pair(false, stk::mesh::Entity());
-    }
-
-    const stk::mesh::Entity *source_node_constraint_entities =
-        bulk_data.begin(a_source_node, stk::topology::CONSTRAINT_RANK);
-    for (size_t j = 0; j < num_connected_constraint_rank_entities_source_node; ++j) {
-      const stk::mesh::Entity &source_constraint_entity = source_node_constraint_entities[j];
-      const bool is_source_constraint_entity_a_valid_linker =
-          bulk_data.is_valid(source_constraint_entity) &&
-          bulk_data.bucket(source_constraint_entity).member(neighbor_linkers_part);
-
-      if (is_source_constraint_entity_a_valid_linker) {
-        // The connected constraint-rank entity is a valid linker, is it connected to the target entity?
-        const stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
-            stk::mesh::field_data(linked_entities_field, source_constraint_entity));
-        const bool linker_connects_to_source_and_target_entity =
-            ((bulk_data.get_entity(key_t_ptr[0]) == source_entity) &&
-             (bulk_data.get_entity(key_t_ptr[1]) == target_entity)) ||
-            ((bulk_data.get_entity(key_t_ptr[0]) == target_entity) &&
-             (bulk_data.get_entity(key_t_ptr[1]) == source_entity));
-        if (linker_connects_to_source_and_target_entity) {
-          return std::make_pair(true, source_constraint_entity);
-        }
-      }
-    }
-
-    return std::make_pair(false, stk::mesh::Entity());
-  };
+  /**
+   * We have a collection of pairs and a collection of linkers which connect pairs. We need to optimize the process of
+   * determining if the inverse of a pair exists and if a linker already exists between a pair.
+   *
+   * We will try to use an std::set to aid us in this process. We will loop over each linker and store their source and
+   * target entities in a sorted pair (such that we don't need to check both orders) and stash that in an std::set. We
+   * will then loop over the search pairs and append the sorted pair into the set if it doesn't already exist. This will
+   * automatically skip duplicates.
+   *
+   * If enforce_symmetry is true, we will only store the sorted pair in the set. If it is false, we will store the pair
+   * as is.
+   */
 
   // Identify if the inverse of a (source, target) pair exists in the search_id_pairs vector.
-  std::vector<bool> inverse_exists(num_neighbors, false);
-  std::unordered_map<std::pair<stk::mesh::EntityKey, stk::mesh::EntityKey>, size_t, pair_hash> pair_map;
-  for (size_t i = 0; i < num_neighbors; ++i) {
-    if (search_id_pairs[i].first.id() == search_id_pairs[i].second.id()) {
-      // No lookup is needed for self-linkers.
-      inverse_exists[i] = true;
-      continue;
-    } else {
-      const auto entity_key_pair = std::make_pair(search_id_pairs[i].first.id(), search_id_pairs[i].second.id());
-      const auto entity_key_pair_inverse = std::make_pair(entity_key_pair.second, entity_key_pair.first);
+  stk::mesh::EntityVector existing_linkers;
+  stk::mesh::get_selected_entities(neighbor_linkers_part, bulk_data_ptr_->buckets(stk::topology::CONSTRAINT_RANK),
+                                   existing_linkers);
 
-      // Check if the inverse pair exists in the map
-      if (pair_map.find(entity_key_pair_inverse) != pair_map.end()) {
-        inverse_exists[i] = true;
-        inverse_exists[pair_map[entity_key_pair_inverse]] = true;  // Also mark the original inverse pair
-      }
+  std::set<std::pair<SearchIdentProc, SearchIdentProc>> existing_pairs;
+  get_existing_pairs(existing_pairs, existing_linkers, linked_entities_field, linked_entity_owners_field,
+                     enforce_symmetry_);
 
-      // Store the index of the current pair in the map
-      pair_map[entity_key_pair] = i;
-    }
-  }
-
-#pragma omp parallel for
-  for (size_t i = 0; i < num_neighbors; ++i) {
-    // To prevent duplicates:
-    //   The process that owns the source will create the linker.
-    //   If an inverse pair exists, the pair with the lowest source entity key will create the linker.
-    //   No self-linkers are allowed.
-    //   If a linker already exists, then no new linker will be created.
-    //
-    // This means that some pairs will simply not recieve linkers.
-
-    linker_already_exists[i] = are_entities_connected_by_a_neighbor_linker(
-        *bulk_data_ptr_, search_id_pairs[i].first.id(), search_id_pairs[i].second.id());
-    new_linker_required[i] =
-        (inverse_exists[i] ? (search_id_pairs[i].first.id() < search_id_pairs[i].second.id()) : true) &&
-        !linker_already_exists[i].first;
-    we_need_to_create_linker[i] = new_linker_required[i] && (search_id_pairs[i].first.proc() == parallel_rank);
-  }
-
-  // Step 4: For any neighbor linker that already exists, move it into the specialized neighbor linkers part.
-  std::vector<stk::mesh::Entity> existing_neighbor_linkers_to_move;
-  for (size_t i = 0; i < num_neighbors; ++i) {
-    if (linker_already_exists[i].first) {
-      // Only move locally owned linkers
-      const bool is_existing_linker_locally_owned = bulk_data_ptr_->is_valid(linker_already_exists[i].second) &&
-                                                    bulk_data_ptr_->bucket(linker_already_exists[i].second).owned();
-      if (is_existing_linker_locally_owned) {
-        existing_neighbor_linkers_to_move.push_back(linker_already_exists[i].second);
-      }
-    }
-  }
-
-  bulk_data_ptr_->batch_change_entity_parts(existing_neighbor_linkers_to_move,
-                                            stk::mesh::PartVector{specialized_neighbor_linkers_part_ptrs_},
-                                            stk::mesh::PartVector{});
+  std::set<std::pair<SearchIdentProc, SearchIdentProc>> new_pairs;
+  filter_and_add_pairs(existing_pairs, new_pairs, search_id_pairs, enforce_symmetry_);
 
   // Step 5: Ghost the search results
   bulk_data_ptr_->modification_begin();
   std::vector<stk::mesh::EntityProc> send_ghosts;
-  for (size_t i = 0; i < num_neighbors; ++i) {
-    if (new_linker_required[i] && (search_id_pairs[i].first.proc() != search_id_pairs[i].second.proc())) {
-      if (we_need_to_create_linker[i]) {
-        const int target_proc = search_id_pairs[i].second.proc();
-        const stk::mesh::EntityKey source_entity_key = search_id_pairs[i].first.id();
+  for (const auto &new_pair : new_pairs) {
+    const bool ghosting_is_required = (new_pair.first.proc() != new_pair.second.proc());
+    if (ghosting_is_required) {
+      const bool we_need_to_create_linker = (new_pair.first.proc() == parallel_rank);
+      if (we_need_to_create_linker) {
+        const int target_proc = new_pair.second.proc();
+        const stk::mesh::EntityKey source_entity_key = new_pair.first.id();
         const stk::mesh::Entity source_entity = bulk_data_ptr_->get_entity(source_entity_key);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(source_entity).owned(), std::invalid_argument,
                            "STKSearch: source entity must be owned.");
-
         send_ghosts.push_back(std::make_pair(source_entity, target_proc));
       } else {
-        const int source_proc = search_id_pairs[i].first.proc();
-        const stk::mesh::EntityKey target_entity_key = search_id_pairs[i].second.id();
+        const int source_proc = new_pair.first.proc();
+        const stk::mesh::EntityKey target_entity_key = new_pair.second.id();
         const stk::mesh::Entity target_entity = bulk_data_ptr_->get_entity(target_entity_key);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(target_entity).owned(), std::invalid_argument,
                            "STKSearch: target entity must be owned.");
-
         send_ghosts.push_back(std::make_pair(target_entity, source_proc));
       }
     }
@@ -351,48 +385,70 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   // Because the total number of linkers does not match the number of search_id_pairs, we use an offset vector to allow
   // each pair to know its index in the requested_entities vector. This is just the cumulative sum of the
   // we_need_to_create_linker boolean vector minus 1.
-  bulk_data_ptr_->modification_begin();
-  std::vector<size_t> linker_offset(num_neighbors, 0);
-  std::partial_sum(we_need_to_create_linker.begin(), we_need_to_create_linker.end(), linker_offset.begin(),
-                   [](const int a, const int b) { return a + b; });
-  const size_t num_linkers_to_create = num_neighbors > 0 ? linker_offset[num_neighbors - 1] : 0;
-#pragma omp parallel for
-  for (size_t i = 0; i < num_neighbors; i++) {
-    linker_offset[i] -= (linker_offset[i] > 0) * 1;
+  size_t num_linkers_to_create = 0;
+  for (const auto &new_pair : new_pairs) {
+    const bool we_need_to_create_linker = (new_pair.first.proc() == parallel_rank);
+    num_linkers_to_create += we_need_to_create_linker;
   }
 
+  bulk_data_ptr_->modification_begin();
   std::vector<size_t> requests(bulk_data_ptr_->mesh_meta_data().entity_rank_count(), 0);
   requests[stk::topology::CONSTRAINT_RANK] = num_linkers_to_create;
   std::vector<stk::mesh::Entity> requested_entities;
-  bulk_data_ptr_->generate_new_entities(requests, requested_entities);
-  bulk_data_ptr_->change_entity_parts(requested_entities, specialized_neighbor_linkers_part_ptrs_);
+  // Unpacked version of generate_new_entities to avoid a costly change of part post creation.
+  {
+    size_t num_ranks = requests.size();
+    std::vector<std::vector<stk::mesh::EntityId>> requested_ids(num_ranks);
+    for (size_t i = 0; i < num_ranks; ++i) {
+      stk::topology::rank_t rank = static_cast<stk::topology::rank_t>(i);
+      bulk_data_ptr_->generate_new_ids(rank, requests[i], requested_ids[i]);
+    }
+
+    // generating 'owned' entities
+    stk::mesh::PartVector add_parts;
+    add_parts.push_back(&bulk_data_ptr_->mesh_meta_data().locally_owned_part());
+    for (stk::mesh::Part *part : specialized_neighbor_linkers_part_ptrs_) {
+      add_parts.push_back(part);
+    }
+
+    requested_entities.clear();
+    for (size_t i = 0; i < num_ranks; ++i) {
+      stk::topology::rank_t rank = static_cast<stk::topology::rank_t>(i);
+      std::vector<stk::mesh::Entity> new_entities;
+      bulk_data_ptr_->declare_entities(rank, requested_ids[i], add_parts, new_entities);
+      requested_entities.insert(requested_entities.end(), new_entities.begin(), new_entities.end());
+    }
+  }
 
   // Connect the linkers that were created on this process.
-  for (size_t i = 0; i < num_neighbors; ++i) {
-    if (we_need_to_create_linker[i]) {
-      stk::mesh::EntityKey source_entity_key = search_id_pairs[i].first.id();
-      stk::mesh::EntityKey target_entity_key = search_id_pairs[i].second.id();
-      stk::mesh::Entity source_entity = bulk_data_ptr_->get_entity(source_entity_key);
-      stk::mesh::Entity target_entity = bulk_data_ptr_->get_entity(target_entity_key);
-      stk::mesh::Entity linker_i = requested_entities[linker_offset[i]];
+  size_t offset = 0;
+  for (const auto &new_pair : new_pairs) {
+    const bool we_need_to_create_linker = (new_pair.first.proc() == parallel_rank);
+    if (we_need_to_create_linker) {
+      const stk::mesh::EntityKey source_entity_key = new_pair.first.id();
+      const stk::mesh::EntityKey target_entity_key = new_pair.second.id();
+      const stk::mesh::Entity source_entity = bulk_data_ptr_->get_entity(source_entity_key);
+      const stk::mesh::Entity target_entity = bulk_data_ptr_->get_entity(target_entity_key);
+      stk::mesh::Entity linker = requested_entities[offset];
 
       MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(source_entity), std::invalid_argument,
-                         "STKSearch: source entity " << source_entity_key << " is invalid. On rank " << parallel_rank);
+                         "STKSearch: source entity is invalid");
       MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(target_entity), std::invalid_argument,
-                         "STKSearch: target entity " << target_entity_key << " is invalid. On rank " << parallel_rank);
-      MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(linker_i), std::invalid_argument,
-                         "STKSearch: linker entity " << bulk_data_ptr_->entity_key(linker_i) << " is invalid. On rank "
-                                                     << parallel_rank);
+                         "STKSearch: target entity is invalid.");
+      MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(linker), std::invalid_argument,
+                         "STKSearch: linker entity is invalid.");
 
       // Connect the linker to the source and target entities' nodes and stash their entity keys in the linker's field.
-      mundy::linkers::connect_linker_to_entitys_nodes(*bulk_data_ptr_, linker_i, source_entity, target_entity);
-      stk::mesh::field_data(*linked_entities_field_ptr_, linker_i)[0] = source_entity_key;
-      stk::mesh::field_data(*linked_entities_field_ptr_, linker_i)[1] = target_entity_key;
+      mundy::linkers::connect_linker_to_entitys_nodes(*bulk_data_ptr_, linker, source_entity, target_entity);
+      stk::mesh::field_data(linked_entities_field, linker)[0] = source_entity_key;
+      stk::mesh::field_data(linked_entities_field, linker)[1] = target_entity_key;
+      offset++;
     }
   }
 
   // We're using one-sided linker creation, so we need to fixup the ghosted to shared nodes.
   stk::mesh::fixup_ghosted_to_shared_nodes(*bulk_data_ptr_);
+
   bulk_data_ptr_->modification_end();
 
   // Ghost the linked entities to any process that owns any of the other linked entities.
@@ -405,7 +461,6 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
 
   // Step 7: Communicate every field defined on the source and target selectors.
   // for each rank: Selector -> buckets -> bucket to field -> sort and unique all fields
-
   // TODO(palmerb4: Use the following once we upgrade STK)
   // std::vector<stk::mesh::Part *> domain_parts;
   // std::vector<stk::mesh::Part *> range_parts;

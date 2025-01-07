@@ -29,7 +29,7 @@
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_math/Quaternion.hpp>                                        // for mundy::math::Quaternion
@@ -52,7 +52,7 @@ namespace kernels {
 Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
@@ -70,11 +70,11 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
   element_bounding_radius_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_bounding_radius_field_name);
 
-  MUNDY_THROW_ASSERT(element_radius_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(element_radius_field_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: element_radius_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(element_length_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(element_length_field_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: element_length_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(
+  MUNDY_THROW_REQUIRE(
       element_bounding_radius_field_ptr_ != nullptr, std::invalid_argument,
       "Spherocylinder: element_bounding_radius_field_ptr cannot be a nullptr. Check that the field exists.");
 
@@ -86,8 +86,8 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
-                         "Spherocylinder: Part " << part_name << " cannot be a nullptr. Check that the part exists.");
+      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
+                         std::string("Spherocylinder: Part ") + part_name + " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;
@@ -130,7 +130,7 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
   // At the end of this loop, all locally owned and ghosted entities will be up-to-date.
   stk::mesh::Selector intersection_with_valid_entity_parts =
       stk::mesh::selectUnion(valid_entity_parts_) & spherocylinder_selector;
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
       [&element_radius_field, &element_length_field, &element_bounding_radius_field, &buffer_distance](
           [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spherocylinder_element) {

@@ -21,29 +21,33 @@
 # and more complex classes are tested later. This is not a hard and fast rule, but it is a good guideline to follow, 
 # as it produces more logical error messages when a test fails.
 tribits_add_executable_and_test(
-    UnitTestComputeAABB
-    SOURCES
-      UnitTestComputeAABB.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    )
+  UnitTestComputeAABB
+  SOURCES
+    UnitTestComputeAABB.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
 
 tribits_add_executable_and_test(
-    UnitTestComputeBoundingRadius
-    SOURCES
-      UnitTestComputeBoundingRadius.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    )
+  UnitTestComputeBoundingRadius
+  SOURCES
+    UnitTestComputeBoundingRadius.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
 
 tribits_add_executable_and_test(
-    UnitTestComputeOBB
-    SOURCES
-      UnitTestComputeOBB.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    )
+  UnitTestComputeOBB
+  SOURCES
+    UnitTestComputeOBB.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
 
 tribits_add_executable_and_test(
   UnitTestDeclareAndInitShapes
   SOURCES
-  UnitTestDeclareAndInitShapes.cpp
+    UnitTestDeclareAndInitShapes.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-  )
+  NUM_MPI_PROCS 1-4
+)

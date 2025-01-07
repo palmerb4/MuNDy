@@ -27,6 +27,7 @@
 #include <vector>     // for std::vector
 
 // Trilinos libs
+#include <Trilinos_version.h>     // for TRILINOS_MAJOR_MINOR_VERSION
 #include <stk_util/stk_config.h>  // for MPI_COMM_NULL (MPI_COMM_NULL is defined by STK even if MPI is not enabled.)
 
 #include <stk_mesh/base/BulkData.hpp>                              // for stk::mesh::BulkData
@@ -105,10 +106,17 @@ MeshBuilder &MeshBuilder::set_add_fmwk_data_flag(bool add_fmwk_data_flag) {
   return *this;
 }
 
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+MeshBuilder &MeshBuilder::set_field_data_manager(std::unique_ptr<stk::mesh::FieldDataManager> field_data_manager_ptr) {
+  field_data_manager_ptr_ = std::move(field_data_manager_ptr);
+  return *this;
+}
+#else
 MeshBuilder &MeshBuilder::set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr) {
   field_data_manager_ptr_ = field_data_manager_ptr;
   return *this;
 }
+#endif
 
 MeshBuilder &MeshBuilder::set_bucket_capacity(const unsigned bucket_capacity) {
   initial_bucket_capacity_ = bucket_capacity;
@@ -155,16 +163,20 @@ std::unique_ptr<BulkData> MeshBuilder::create_bulk_data() {
 }
 
 std::unique_ptr<BulkData> MeshBuilder::create_bulk_data(std::shared_ptr<MetaData> meta_data_ptr) {
-  MUNDY_THROW_ASSERT(has_comm_, std::logic_error,
-                     "MeshBuilder: Must be given an MPI communicator before creating BulkData.");
+  MUNDY_THROW_REQUIRE(has_comm_, std::logic_error,
+                      "MeshBuilder: Must be given an MPI communicator before creating BulkData.");
 
   return std::unique_ptr<BulkData>(new BulkData(meta_data_ptr, comm_, auto_aura_option_,
 #ifdef SIERRA_MIGRATION
                                                 add_fmwk_data_flag_,
 #endif
-                                                field_data_manager_ptr_, initial_bucket_capacity_,
-                                                maximum_bucket_capacity_, create_aura_ghosting(),
-                                                upward_connectivity_flag_));
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+                                                std::move(field_data_manager_ptr_),
+#else
+                                                field_data_manager_ptr_,
+#endif
+                                                initial_bucket_capacity_, maximum_bucket_capacity_,
+                                                create_aura_ghosting(), upward_connectivity_flag_));
 }
 //}
 

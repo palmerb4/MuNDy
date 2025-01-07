@@ -20,6 +20,9 @@
 /// \file DestroyFlaggedEntities.cpp
 /// \brief Definition of the destroy_flagged_entities helper functions.
 
+// External
+#include <fmt/format.h>  // for fmt::format
+
 // C++ core libs
 #include <memory>   // for std::shared_ptr, std::unique_ptr
 #include <tuple>    // for std::tuple, std::make_tuple
@@ -34,6 +37,7 @@
 #include <mundy_core/throw_assert.hpp>                  // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                      // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                      // for mundy::mesh::MetaData
+#include <mundy_mesh/fmt_stk_types.hpp>                 // adds fmt::format for stk types
 #include <mundy_mesh/utils/DestroyFlaggedEntities.hpp>  // for mundy::mesh::utils::destroy_flagged_entities
 
 namespace mundy {
@@ -45,8 +49,8 @@ namespace utils {
 void destroy_flagged_entities(BulkData &bulk_data, const stk::mesh::EntityVector &entities_to_maybe_destroy,
                               const stk::mesh::Field<int> &flag_field, const int &deletion_flag_value) {
   // Assert that the bulk data is in a modification cycle
-  MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
-                     "Bulk data must be in a modification cycle to destroy entities.");
+  MUNDY_THROW_REQUIRE(bulk_data.in_modifiable_state(), std::logic_error,
+                      "Bulk data must be in a modification cycle to destroy entities.");
 
   // Iterate over the entities to destroy and destroy them
   for (const stk::mesh::Entity &entity : entities_to_maybe_destroy) {
@@ -54,8 +58,8 @@ void destroy_flagged_entities(BulkData &bulk_data, const stk::mesh::EntityVector
     if (should_destroy_entity) {
       bool success = bulk_data.destroy_entity(entity);
       MUNDY_THROW_ASSERT(success, std::runtime_error,
-                         "Failed to destroy entity. Entity rank: " << bulk_data.entity_rank(entity)
-                                                                   << ", entity id: " << bulk_data.identifier(entity));
+                         fmt::format("Failed to destroy entity. Entity rank: {}, entity id: {}",
+                                     bulk_data.entity_rank(entity), bulk_data.identifier(entity)));
     }
   }
 }

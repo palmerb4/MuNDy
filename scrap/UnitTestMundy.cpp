@@ -524,7 +524,7 @@ void generate_collision_constraints(stk::mesh::BulkData &bulkData, const SearchI
 
   // set topologies of new entities
   std::cout << "Setting topologies..." << std::endl;
-// #pragma omp parallel for
+  // #pragma omp parallel for
   for (int i = 0; i < num_linkers; i++) {
     stk::mesh::Entity linker_i = requested_entities[i];
     bulkData.change_entity_parts(linker_i, add_linkerPart);
@@ -1107,10 +1107,10 @@ class ParMETISSettings : public stk::balance::BalanceSettings {
 
 }  // namespace
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   if (argc != 3) {
-      std::cerr << "Usage: " << argv[0] << " <box_size> <global_num_particles>" << std::endl;
-      return 1;
+    std::cerr << "Usage: " << argv[0] << " <box_size> <global_num_particles>" << std::endl;
+    return 1;
   }
 
   double box_size = std::stod(argv[1]);
@@ -1438,8 +1438,8 @@ int main(int argc, char** argv) {
   std::cout << "Generating collision constraints..." << std::endl;
   auto start_time2 = std::chrono::high_resolution_clock::now();
   generate_collision_constraints(bulkData, neighborPairs, linkerPart, nodeCoordField, particleRadiusField,
-                                  linkerSignedSepField, linkerSignedSepDotField, linkerSignedSepDotTmpField,
-                                  linkerLagMultField, linkerLagMultTmpField, conLocField, conNormField);
+                                 linkerSignedSepField, linkerSignedSepDotField, linkerSignedSepDotTmpField,
+                                 linkerLagMultField, linkerLagMultTmpField, conLocField, conNormField);
   auto end_time2 = std::chrono::high_resolution_clock::now();
   long long total_time2 = std::chrono::duration_cast<std::chrono::microseconds>(end_time2 - start_time2).count();
 
@@ -1447,60 +1447,57 @@ int main(int argc, char** argv) {
   ParMETISSettings balanceSettings;
   stk::balance::balanceStkMesh(balanceSettings, bulkData);
 
-
   // Time and memory tracking for resolve_collisions
   std::cout << "Resolving collisions..." << std::endl;
   auto start_time3 = std::chrono::high_resolution_clock::now();
   resolve_collisions(bulkData, nodeCoordField, nodeVelocityField, nodeOmegaField, nodeForceField, nodeTorqueField,
-                      particleOrientationField, particleRadiusField, linkerSignedSepField, linkerSignedSepDotField,
-                      linkerSignedSepDotTmpField, linkerLagMultField, linkerLagMultTmpField, conLocField, conNormField,
-                      viscosity, dt, con_tol, con_ite_max);
+                     particleOrientationField, particleRadiusField, linkerSignedSepField, linkerSignedSepDotField,
+                     linkerSignedSepDotTmpField, linkerLagMultField, linkerLagMultTmpField, conLocField, conNormField,
+                     viscosity, dt, con_tol, con_ite_max);
   auto end_time3 = std::chrono::high_resolution_clock::now();
   long long total_time3 = std::chrono::duration_cast<std::chrono::microseconds>(end_time3 - start_time3).count();
 
-  const char *labels[] = {"generate_neighbor_pairs Time (μs)", 
-                          "generate_collision_constraints Time (μs)", 
+  const char *labels[] = {"generate_neighbor_pairs Time (μs)", "generate_collision_constraints Time (μs)",
                           "resolve_collisions Time (μs)"};
   long long times[] = {total_time1, total_time2, total_time3};
 
   if (bulkData.parallel_rank() == 0) {
-      // Get total number of processes
-      int num_procs;
-      MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+    // Get total number of processes
+    int num_procs;
+    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
 
-      // Create the filename string
-      std::string filename = "timings_for_box_size_" + std::to_string(box_size) +
-                            "_and_num_particles_" + std::to_string(num_particles_global) +
-                            "_with_" + std::to_string(num_procs * omp_get_max_threads()) + "_procs.csv";
+    // Create the filename string
+    std::string filename = "timings_for_box_size_" + std::to_string(box_size) + "_and_num_particles_" +
+                           std::to_string(num_particles_global) + "_with_" +
+                           std::to_string(num_procs * omp_get_max_threads()) + "_procs.csv";
 
-      // Open the file for writing
-      std::ofstream outFile(filename);
+    // Open the file for writing
+    std::ofstream outFile(filename);
 
-      // Write headers to the file
-      for (int i = 0; i < 3; i++) {
-          outFile << labels[i];
-          if (i != 2) outFile << ",";  // Add comma for separation except for the last label
-      }
-      outFile << std::endl;
+    // Write headers to the file
+    for (int i = 0; i < 3; i++) {
+      outFile << labels[i];
+      if (i != 2) outFile << ",";  // Add comma for separation except for the last label
+    }
+    outFile << std::endl;
 
-      // Write timings to the file
-      for (int i = 0; i < 3; i++) {
-          outFile << times[i];
-          if (i != 2) outFile << ",";  // Add comma for separation except for the last timing
-      }
-      outFile << std::endl;
+    // Write timings to the file
+    for (int i = 0; i < 3; i++) {
+      outFile << times[i];
+      if (i != 2) outFile << ",";  // Add comma for separation except for the last timing
+    }
+    outFile << std::endl;
 
-      // Close the file
-      outFile.close();
+    // Close the file
+    outFile.close();
 
-      // Print timings to console (optional)
-      for (int i = 0; i < 3; i++) {
-          std::cout << labels[i] << ": " << times[i] << std::endl;
-      }
+    // Print timings to console (optional)
+    for (int i = 0; i < 3; i++) {
+      std::cout << labels[i] << ": " << times[i] << std::endl;
+    }
   }
 
   stk::parallel_print_time_without_output_and_hwm(MPI_COMM_WORLD, total_time1 + total_time2 + total_time3);
-
 
   // // write out the balanced results (with linkers)
   // {

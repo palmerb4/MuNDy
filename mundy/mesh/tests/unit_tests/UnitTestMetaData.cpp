@@ -168,10 +168,12 @@ struct CountCopiesStruct {
   CountCopiesStruct(const CountCopiesStruct &) {
     ++num_copies;
   }  // Copy constructable
-  CountCopiesStruct &operator=(const CountCopiesStruct &) {
-    ++num_copies;
-    return *this;
-  }  // Copy assignable
+
+  // Never used
+  // CountCopiesStruct &operator=(const CountCopiesStruct &) {
+  //   ++num_copies;
+  //   return *this;
+  // }  // Copy assignable
 
   static int num_copies;
   int value = 1;

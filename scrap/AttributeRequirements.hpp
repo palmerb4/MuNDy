@@ -173,11 +173,11 @@ bool AttributeRequirements::is_fully_specified() const {
 }
 
 std::string AttributeRequirements::get_attribute_name() const {
-  MUNDY_THROW_ASSERT(this->constrains_attribute_name(), std::logic_error,
-                     "AttributeRequirements: Attempting to access the attribute name requirement even though attribute "
-                     "name is unconstrained.\n"
-                         << "The current set of requirements is:\n"
-                         << get_reqs_as_a_string());
+  MUNDY_THROW_REQUIRE(this->constrains_attribute_name(), std::logic_error,
+                     std::string("AttributeRequirements: Attempting to access the attribute name requirement even though attribute ")
+                     + "name is unconstrained.\n"
+                         + "The current set of requirements is:\n"
+                         + get_reqs_as_a_string());
 
   return attribute_name_;
 }
@@ -188,12 +188,12 @@ std::string AttributeRequirements::get_attribute_name() const {
 
 void AttributeRequirements::declare_attribute_on_field(mundy::mesh::MetaData *const meta_data_ptr,
                                                        const stk::mesh::Field &field) const {
-  MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(meta_data_ptr != nullptr, std::invalid_argument,
                      "AttributeRequirements: MetaData pointer cannot be null).");
-  MUNDY_THROW_ASSERT(this->constrains_attribute_name(), std::logic_error,
-                     "AttributeRequirements: Attribute name must be set before calling declare_attribute*.\n"
-                         << "The current set of requirements is:\n"
-                         << get_reqs_as_a_string());
+  MUNDY_THROW_REQUIRE(this->constrains_attribute_name(), std::logic_error,
+                     std::string("AttributeRequirements: Attribute name must be set before calling declare_attribute*.\n")
+                         + "The current set of requirements is:\n"
+                         + get_reqs_as_a_string());
 
   std::any empty_attribute;
   meta_data_ptr->declare_attribute(field, attribute_name_, empty_attribute);
@@ -201,24 +201,24 @@ void AttributeRequirements::declare_attribute_on_field(mundy::mesh::MetaData *co
 
 void AttributeRequirements::declare_attribute_on_part(mundy::mesh::MetaData *const meta_data_ptr,
                                                       const stk::mesh::Part &part) const {
-  MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(meta_data_ptr != nullptr, std::invalid_argument,
                      "AttributeRequirements: MetaData pointer cannot be null).");
-  MUNDY_THROW_ASSERT(this->constrains_attribute_name(), std::logic_error,
-                     "AttributeRequirements: Attribute name must be set before calling declare_attribute*.\n"
-                         << "The current set of requirements is:\n"
-                         << get_reqs_as_a_string());
+  MUNDY_THROW_REQUIRE(this->constrains_attribute_name(), std::logic_error,
+                     std::string("AttributeRequirements: Attribute name must be set before calling declare_attribute*.\n")
+                         + "The current set of requirements is:\n"
+                         + get_reqs_as_a_string());
 
   std::any empty_attribute;
   meta_data_ptr->declare_attribute(part, attribute_name_, empty_attribute);
 }
 
 void AttributeRequirements::declare_attribute_on_entire_mesh(mundy::mesh::MetaData *const meta_data_ptr) const {
-  MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(meta_data_ptr != nullptr, std::invalid_argument,
                      "AttributeRequirements: MetaData pointer cannot be null).");
-  MUNDY_THROW_ASSERT(this->constrains_attribute_name(), std::logic_error,
-                     "AttributeRequirements: Attribute name must be set before calling declare_attribute*.\n"
-                         << "The current set of requirements is:\n"
-                         << get_reqs_as_a_string());
+  MUNDY_THROW_REQUIRE(this->constrains_attribute_name(), std::logic_error,
+                     std::string("AttributeRequirements: Attribute name must be set before calling declare_attribute*.\n")
+                         + "The current set of requirements is:\n"
+                         + get_reqs_as_a_string());
 
   std::any empty_attribute;
   meta_data_ptr->declare_attribute(attribute_name_, empty_attribute);

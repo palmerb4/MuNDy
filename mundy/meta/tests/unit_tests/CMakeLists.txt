@@ -24,36 +24,41 @@ add_subdirectory(utils)
 # and more complex classes are tested later. This is not a hard and fast rule, but it is a good guideline to follow, 
 # as it produces more logical error messages when a test fails.
 tribits_add_executable_and_test(
-    UnitTestFieldReqs
-    SOURCES
-      UnitTestFieldReqs.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    )
+  UnitTestFieldReqs
+  SOURCES
+    UnitTestFieldReqs.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
 
 tribits_add_executable_and_test(
-    UnitTestPartReqs
-    SOURCES
-      UnitTestPartReqs.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    )
+  UnitTestPartReqs
+  SOURCES
+    UnitTestPartReqs.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
 
 tribits_add_executable_and_test(
-    UnitTestMeshReqs
-    SOURCES
-      UnitTestMeshReqs.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    )
+  UnitTestMeshReqs
+  SOURCES
+    UnitTestMeshReqs.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
 
 tribits_add_executable_and_test(
-    UnitTestMetaFactory
-    SOURCES
-      UnitTestMetaFactory.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    )
+  UnitTestMetaFactory
+  SOURCES
+    UnitTestMetaFactory.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
 
 tribits_add_executable_and_test(
-    UnitTestMetaRegistry
-    SOURCES
-      UnitTestMetaRegistry.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    )
+  UnitTestMetaRegistry
+  SOURCES
+    UnitTestMetaRegistry.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)

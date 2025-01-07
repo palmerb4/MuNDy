@@ -114,7 +114,7 @@ TEST(ComputeSignedSeparationDistanceAndContactNormal,
   // This test is designed for either 1 or 2 ranks.
   const int num_ranks = bulk_data_ptr->parallel_size();
   const int rank = bulk_data_ptr->parallel_rank();
-  MUNDY_THROW_ASSERT(num_ranks == 1 || num_ranks == 2, std::logic_error, "This test is designed for 1 or 2 ranks.");
+  MUNDY_THROW_REQUIRE(num_ranks == 1 || num_ranks == 2, std::logic_error, "This test is designed for 1 or 2 ranks.");
 
   // Fetch the parts.
   stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part(mundy::shapes::Spheres::get_name());

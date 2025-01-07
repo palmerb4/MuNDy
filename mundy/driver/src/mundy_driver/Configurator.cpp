@@ -119,7 +119,7 @@ Configurator &Configurator::set_driver(std::shared_ptr<Driver> driver) {
   }
 
   // If this isn't the same driver, and we already have a driver, throw an exception
-  MUNDY_THROW_ASSERT(driver_ptr_ == nullptr, std::logic_error,
+  MUNDY_THROW_REQUIRE(driver_ptr_ == nullptr, std::logic_error,
                      "mundy::driver::Configurator Driver already initialized.");
 
   // Assign driver at this point
@@ -147,23 +147,23 @@ Configurator &Configurator::parse_parameters() {
   if (input_file_type_ == "yaml") {
     param_list_ = *Teuchos::getParametersFromYamlFile(input_file_name_);
   } else if (input_file_type_ == "xml") {
-    MUNDY_THROW_ASSERT(false, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(false, std::invalid_argument,
                        "mundy::driver::Configurator XML files are not implemented for reading yet.");
   } else {
-    MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                       "mundy::driver::Configurator file_format " + input_file_type_ + " not recognized.");
+    MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                       std::string("mundy::driver::Configurator file_format ") + input_file_type_ + " not recognized.");
   }
 
   // At this point we are expecting to have a valid param_list_. Get into the Configuration section first, and configure
   // the MetaMethod* that we need
-  MUNDY_THROW_ASSERT(param_list_.isSublist("configuration"), std::invalid_argument,
+  MUNDY_THROW_REQUIRE(param_list_.isSublist("configuration"), std::invalid_argument,
                      "mundy::driver::ParseParameters parameters does not contain an 'configuration' sublist.");
 
   const Teuchos::ParameterList config_params = param_list_.sublist("configuration");
   parse_configuration(config_params);
 
   // Parse the action list
-  MUNDY_THROW_ASSERT(param_list_.isSublist("actions"), std::invalid_argument,
+  MUNDY_THROW_REQUIRE(param_list_.isSublist("actions"), std::invalid_argument,
                      "mundy::driver::ParseParameters parameters does not contain an 'actions' sublist.");
   const Teuchos::ParameterList action_params = param_list_.sublist("actions");
   parse_actions(action_params);
@@ -219,8 +219,8 @@ Configurator &Configurator::parse_actions(const Teuchos::ParameterList &action_p
         const std::string &method_name = pit->first;
         const Teuchos::ParameterEntry &entry = pit->second;
 
-        MUNDY_THROW_ASSERT(enabled_meta_methods_.contains(method_name), std::invalid_argument,
-                           "Configurator did not find enabled meta method " + method_name + " when parsing actions.");
+        MUNDY_THROW_REQUIRE(enabled_meta_methods_.contains(method_name), std::invalid_argument,
+                           std::string("Configurator did not find enabled meta method ") + method_name + " when parsing actions.");
 
         // Get the parameters for the type of trigger we are going to use
         const Teuchos::ParameterList action_sublist = Teuchos::getValue<Teuchos::ParameterList>(entry);
@@ -244,9 +244,9 @@ Configurator &Configurator::parse_meta_method_type(const std::string &method_typ
     const Teuchos::ParameterEntry &entry = pit->second;
 
     // Dive into the sublist of this method and get the method it's trying to call
-    MUNDY_THROW_ASSERT(
+    MUNDY_THROW_REQUIRE(
         entry.isList(), std::invalid_argument,
-        "mundy::driver::Configurator::parse_meta_method_type Invalid specification of method " + param_name);
+        std::string("mundy::driver::Configurator::parse_meta_method_type Invalid specification of method ") + param_name);
     const Teuchos::ParameterList method_sublist = Teuchos::getValue<Teuchos::ParameterList>(entry);
 
     // Check to see if the method is a valid one (registered with MetaFactory). Unfortunately, without reflection, we
@@ -254,18 +254,18 @@ Configurator &Configurator::parse_meta_method_type(const std::string &method_typ
     const std::string method_name = method_sublist.get<std::string>("method");
     if (method_type == "meta_method_execution_interface") {
       bool is_valid_metamethod = FactoryMM::is_valid_key(method_name);
-      MUNDY_THROW_ASSERT(is_valid_metamethod, std::invalid_argument,
-                         "mundy::driver::Configurator::parse_meta_method_type Could not find MetaMethod " +
+      MUNDY_THROW_REQUIRE(is_valid_metamethod, std::invalid_argument,
+                         std::string("mundy::driver::Configurator::parse_meta_method_type Could not find MetaMethod ") +
                              method_name + " for name " + param_name);
     } else if (method_type == "meta_method_subset_execution_interface") {
       bool is_valid_metamethod = FactoryMMS::is_valid_key(method_name);
-      MUNDY_THROW_ASSERT(is_valid_metamethod, std::invalid_argument,
-                         "mundy::driver::Configurator::parse_meta_method_type Could not find MetaMethod " +
+      MUNDY_THROW_REQUIRE(is_valid_metamethod, std::invalid_argument,
+                         std::string("mundy::driver::Configurator::parse_meta_method_type Could not find MetaMethod ") +
                              method_name + " for name " + param_name);
     } else if (method_type == "meta_method_pairwise_subset_execution_interface") {
       bool is_valid_metamethod = FactoryMMPS::is_valid_key(method_name);
-      MUNDY_THROW_ASSERT(is_valid_metamethod, std::invalid_argument,
-                         "mundy::driver::Configurator::parse_meta_method_type Could not find MetaMethod " +
+      MUNDY_THROW_REQUIRE(is_valid_metamethod, std::invalid_argument,
+                         std::string("mundy::driver::Configurator::parse_meta_method_type Could not find MetaMethod ") +
                              method_name + " for name " + param_name);
     }
 
@@ -300,8 +300,8 @@ Configurator &Configurator::parse_meta_method_type(const std::string &method_typ
     // this action, and if so, throw an error up that the user cannot do this, each name they give to a meta method must
     // be unique.
     if (enabled_meta_methods_.find(param_name) != enabled_meta_methods_.end()) {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                         "User-defined MetaMethod name " + param_name +
+      MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                         std::string("User-defined MetaMethod name ") + param_name +
                              " already exist, check configuration for duplicate MetaMethod names");
     }
     // Now that we have a unique name, create the structure for the map for later (this is two commands because getting
@@ -342,7 +342,7 @@ std::shared_ptr<Driver> Configurator::generate_driver() {
   }
 
   // Check to make sure we've already called build_mesh_requirements (mesh_reqs_ptr_ isn't null)
-  MUNDY_THROW_ASSERT(mesh_reqs_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(mesh_reqs_ptr_ != nullptr, std::invalid_argument,
                      "Cannot create a Driver without mesh requirements.");
 
   // This does not commit the mesh as it is supposed to play nicely with IO, which sometimes commits the mesh on a
@@ -359,7 +359,7 @@ std::shared_ptr<Driver> Configurator::generate_driver() {
 
   // Here is where we might read in a restart mesh file, for now, throw an error if this is the case
   if (is_restart_) {
-    MUNDY_THROW_ASSERT(false, std::invalid_argument, "Mundy currently does not enable restarts.");
+    MUNDY_THROW_REQUIRE(false, std::invalid_argument, "Mundy currently does not enable restarts.");
   } else {
     // Commit the mesh if not a restart
     meta_data_ptr_->commit();

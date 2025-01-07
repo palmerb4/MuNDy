@@ -327,7 +327,7 @@ int main(int argc, char **argv) {
     // const double periphery_radius = 100.0;
     // const double sphere_radius_min = 1.0;
     // const double sphere_radius_max = 3.0;
-    // const double num_spheres = 10000;
+    // const double num_spheres = 30000;
     // const double time_step = 0.00001;
     // const size_t num_time_steps = 1000 / time_step;
     // const size_t num_equilibriation_steps = 1000;
@@ -345,12 +345,13 @@ int main(int argc, char **argv) {
     const size_t io_frequency = 20;
 
     // Setup the periphery
-    const size_t spectral_order = 32;
+    const size_t spectral_order = 28;
     const bool include_poles = false;
     const bool invert = true;
     auto [host_points, host_weights, host_normals] =
         mundy::alens::periphery::SphereQuadFunctor(periphery_radius, include_poles, invert)(spectral_order);
     const size_t num_surface_nodes = host_weights.extent(0);
+    std::cout << "Num surface nodes: " << num_surface_nodes << std::endl;
     auto perif = mundy::alens::periphery::Periphery(num_surface_nodes, viscosity);
     perif.set_surface_positions(host_points).set_surface_normals(host_normals).set_quadrature_weights(host_weights);
     const bool write_to_file = false;
@@ -448,7 +449,7 @@ int main(int argc, char **argv) {
                                                  num_surface_nodes, surface_positions, surface_positions,
                                                  surface_normals, surface_weights, M);
       KokkosBlas::gemv(DeviceExecutionSpace(), "N", 1.0, M, surface_forces, 1.0, surface_velocities);
-      MUNDY_THROW_ASSERT(std::abs(mundy::alens::periphery::max_speed(surface_velocities)) < 1.0e-10, std::runtime_error,
+      MUNDY_THROW_REQUIRE(std::abs(mundy::alens::periphery::max_speed(surface_velocities)) < 1.0e-10, std::runtime_error,
                          "No-slip boundary conditions not satisfied");
 
       mundy::alens::periphery::apply_weighted_stokes_kernel(DeviceExecutionSpace(), viscosity, surface_positions,
@@ -465,8 +466,8 @@ int main(int argc, char **argv) {
       // Write the spheres to a VTP file
       if (t % io_frequency == 0) {
         std::cout << "Writing spheres to file: " << t
-                  << " | max_speed: " << mundy::alens::periphery::max_speed(sphere_velocities)
-                  << " tps (avg): " << static_cast<double>(t) / main_loop_timer.seconds() << std::endl;
+                  << "\t |\t max_speed: " << mundy::alens::periphery::max_speed(sphere_velocities)
+                  << "\t |\t tps (avg): " << static_cast<double>(t) / main_loop_timer.seconds() << std::endl;
         Kokkos::deep_copy(sphere_positions_host, sphere_positions);
         Kokkos::deep_copy(sphere_velocities_host, sphere_velocities);
         Kokkos::deep_copy(sphere_forces_host, sphere_forces);

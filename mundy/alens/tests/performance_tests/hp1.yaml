@@ -5,43 +5,51 @@
 HP1:
   simulation:
     num_time_steps: 1000
-    num_time_steps_equilibrate: 1000
-    timestep_size: 0.01
-    kt_brownian: 0.1
-    kt_kmc: 0.1
-    io_frequency: 1
-    log_frequency: 1
-    initial_loadbalance: true
-    do_equilibrate: true
-    initialization_type: "HILBERT_RANDOM_UNIT_CELL"
+    timestep_size: 5e-6
     viscosity: 1.0
-
-  periphery:
-    spring_constant: 1000.0
-    shape: "ELLIPSOID"
-    axis_radius1: 28.0
-    axis_radius2: 28.0
-    axis_radius3: 28.0
-    quadrature: "GAUSS_LEGENDRE"
-    spectral_order: 16
-    bind_sites_type: "RANDOM"
-    num_bind_sites: 1000
-  
-  chromatin:
-    spring_type: "HARMONIC"
-    spring_constant: 3.0
-    spring_rest_length: 1.0
     num_chromosomes: 1
     num_chromatin_repeats: 7
     num_euchromatin_per_repeat: 315
     num_heterochromatin_per_repeat: 90
+    backbone_sphere_hydrodynamic_radius: 0.5
+    initial_chromosome_separation: 1.0
+    initialization_type: "FROM_DAT"
+    initialize_from_dat_filename: "hp1_pos.dat"
+    unit_cell_size: [0.0, 0.0, 0.0]
+    loadbalance_post_initialization: true
+    check_maximum_speed_pre_position_update: true
+    max_allowable_speed: 10.0
+    hydro_update_frequency: 2
+
+    io_frequency: 20
+    log_frequency: 20
+    output_filename: "HP1"
+    enable_continuation_if_available: true
+
+    enable_chromatin_brownian_motion: true
+    enable_backbone_springs: true
+    enable_backbone_collision: true
+    enable_backbone_n_body_hydrodynamics: true
+    enable_crosslinkers: true
+    enable_periphery_collision: true
+    enable_periphery_hydrodynamics: true
+    enable_periphery_binding: true
+
+  brownian_motion:
+    kt: 0.1
+  
+  backbone_springs:
+    spring_type: "HARMONIC"
+    spring_constant: 3.0
+    spring_rest_length: 1.0
+
+  backbone_collision:
     backbone_excluded_volume_radius: 0.5
-    sphere_hydrodynamic_radius: 0.1
-    initial_sphere_separation: 1.0
     backbone_youngs_modulus: 1000.0
     backbone_poissons_ratio: 0.3
-
+ 
   crosslinker:
+    kt: 0.1
     spring_type: "HARMONIC"
     spring_constant: 30.0
     rest_length: 1.0
@@ -49,6 +57,34 @@ HP1:
     right_binding_rate: 0.02
     left_unbinding_rate: 0.0
     right_unbinding_rate: 0.0
+
+  periphery_hydro:
+    check_maximum_periphery_overlap: false
+    maximum_allowed_periphery_overlap: 1e-3
+    shape: "ELLIPSOID"
+    axis_radius1: 28.0
+    axis_radius2: 28.0
+    axis_radius3: 28.0
+    quadrature: "GAUSS_LEGENDRE"
+    spectral_order: 16
+
+  periphery_collision:
+    shape: "ELLIPSOID"
+    axis_radius1: 28.0
+    axis_radius2: 28.0
+    axis_radius3: 28.0
+    use_fast_approx: true
+    shrink_periphery_over_time: true
+    shrinkage:
+      num_shrinkage_steps: 1000
+      scale_factor_before_shrinking: 2.0
+
+  periphery_binding:
+    binding_rate: 0.02
+    unbinding_rate: 0.0
+    spring_constant: 1000.0
+    bind_sites_type: "RANDOM"
+    num_bind_sites: 1000
 
   neighbor_list:
     skin_distance: 1.0

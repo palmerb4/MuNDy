@@ -45,34 +45,35 @@
       const Teuchos::ParameterEntry &entry, const std::string &param_name, const std::string &sublist_name,         \
       const bool active_query) const {                                                                              \
     const Teuchos::any &any_value = entry.getAny(active_query);                                                     \
+    TYPE output;                                                                                                    \
     if (accepted_types_.is_short_allowed() && any_value.type() == typeid(short)) {                                  \
-      return CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<short>(any_value));                                        \
+      output = CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<short>(any_value));                                      \
     } else if (accepted_types_.is_unsigned_short_allowed() && any_value.type() == typeid(unsigned short)) {         \
-      return CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<unsigned short>(any_value));                               \
+      output = CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<unsigned short>(any_value));                             \
     } else if (accepted_types_.is_int_allowed() && any_value.type() == typeid(int)) {                               \
-      return CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<int>(any_value));                                          \
+      output = CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<int>(any_value));                                        \
     } else if (accepted_types_.is_unsigned_int_allowed() && any_value.type() == typeid(unsigned int)) {             \
-      return CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<unsigned int>(any_value));                                 \
+      output = CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<unsigned int>(any_value));                               \
     } else if (accepted_types_.is_long_allowed() && any_value.type() == typeid(long)) {                             \
-      return CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<long>(any_value));                                         \
+      output = CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<long>(any_value));                                       \
     } else if (accepted_types_.is_unsigned_long_allowed() && any_value.type() == typeid(unsigned long)) {           \
-      return CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<unsigned long>(any_value));                                \
+      output = CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<unsigned long>(any_value));                              \
     } else if (accepted_types_.is_long_long_allowed() && any_value.type() == typeid(long long)) {                   \
-      return CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<long long>(any_value));                                    \
+      output = CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<long long>(any_value));                                  \
     } else if (accepted_types_.is_unsigned_long_long_allowed() && any_value.type() == typeid(unsigned long long)) { \
-      return CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<unsigned long long>(any_value));                           \
+      output = CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<unsigned long long>(any_value));                         \
     } else if (accepted_types_.is_float_allowed() && any_value.type() == typeid(float)) {                           \
-      return CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<float>(any_value));                                        \
+      output = CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<float>(any_value));                                      \
     } else if (accepted_types_.is_double_allowed() && any_value.type() == typeid(double)) {                         \
-      return CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<double>(any_value));                                       \
+      output = CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<double>(any_value));                                     \
     } else if (accepted_types_.is_long_double_allowed() && any_value.type() == typeid(long double)) {               \
-      return CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<long double>(any_value));                                  \
+      output = CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<long double>(any_value));                                \
     } else if (accepted_types_.is_string_allowed() && any_value.type() == typeid(std::string)) {                    \
-      return CONVERT_STRING_USING_FUNC<TYPE>(Teuchos::any_cast<std::string>(any_value));                            \
+      output = CONVERT_STRING_USING_FUNC<TYPE>(Teuchos::any_cast<std::string>(any_value));                          \
+    } else {                                                                                                        \
+      throw_type_error(entry, param_name, sublist_name);                                                            \
     }                                                                                                               \
-    throw_type_error(entry, param_name, sublist_name);                                                              \
-    TYPE default_initialized_unused_return_value;                                                                   \
-    return default_initialized_unused_return_value;                                                                 \
+    return output;                                                                                                  \
   }                                                                                                                 \
   TYPE OurAnyNumberParameterEntryValidator::MUNDY_CONCAT2(get_, TYPE_NAME)(                                         \
       Teuchos::ParameterList & param_list, const std::string &param_name, const TYPE &default_value) const {        \
@@ -131,9 +132,10 @@ inline ConvertToType convert_string_using_stoll(const std::string &str) {
 
 template <typename ConvertToType>
 inline ConvertToType convert_string_using_stod(const std::string &str) {
-  const double d = std::stod(str);
+  const long double d = std::stod(str);
 
-  if ((d < std::numeric_limits<ConvertToType>::min()) || (d > std::numeric_limits<ConvertToType>::max())) {
+  if ((d < static_cast<long double>(std::numeric_limits<ConvertToType>::min())) ||
+      (d > static_cast<long double>(std::numeric_limits<ConvertToType>::max()))) {
     throw std::out_of_range("Error: value out of range for type " + std::string(typeid(ConvertToType).name()));
   }
   return static_cast<ConvertToType>(d);
@@ -342,7 +344,7 @@ void OurAnyNumberParameterEntryValidator::throw_type_error(Teuchos::ParameterEnt
                                              ",type=\""
                                           << entry_name << "\"}" << "\nin the sublist \"" << sublist_name << "\""
                                           << "\nhas the wrong type."
-                                          << "\n\nThe accepted types are: " << accepted_types_string_ << "!";);
+                                          << "\n\nThe accepted types are: " << accepted_types_string_;);
 }
 
 }  // namespace core

@@ -64,7 +64,7 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 #include <stk_io/StkMeshIoBroker.hpp>        // for stk::io::StkMeshIoBroker
 #include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>   // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>   // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>            // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>        // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>         // for stk::topology
@@ -228,21 +228,21 @@ class SpermSimulation {
 
   void check_input_parameters() {
     debug_print("Checking input parameters.");
-    MUNDY_THROW_ASSERT(num_sperm_ > 0, std::invalid_argument, "num_sperm_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(num_nodes_per_sperm_ > 0, std::invalid_argument, "num_nodes_per_sperm_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(sperm_radius_ > 0, std::invalid_argument, "sperm_radius_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(sperm_initial_segment_length_ > -1e-12, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(num_sperm_ > 0, std::invalid_argument, "num_sperm_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(num_nodes_per_sperm_ > 0, std::invalid_argument, "num_nodes_per_sperm_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(sperm_radius_ > 0, std::invalid_argument, "sperm_radius_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(sperm_initial_segment_length_ > -1e-12, std::invalid_argument,
                        "sperm_initial_segment_length_ must be greater than or equal to 0.");
-    MUNDY_THROW_ASSERT(sperm_rest_segment_length_ > -1e-12, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(sperm_rest_segment_length_ > -1e-12, std::invalid_argument,
                        "sperm_rest_segment_length_ must be greater than or equal to 0.");
-    MUNDY_THROW_ASSERT(sperm_youngs_modulus_ > 0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(sperm_youngs_modulus_ > 0, std::invalid_argument,
                        "sperm_youngs_modulus_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(sperm_poissons_ratio_ > 0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(sperm_poissons_ratio_ > 0, std::invalid_argument,
                        "sperm_poissons_ratio_ must be greater than 0.");
 
-    MUNDY_THROW_ASSERT(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(skin_distance_ > -1e-12, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(skin_distance_ > -1e-12, std::invalid_argument,
                        "skin_distance_ must be greater than or equal to 0.");
   }
 
@@ -415,15 +415,15 @@ class SpermSimulation {
   template <typename FieldType>
   stk::mesh::Field<FieldType> *fetch_field(const std::string &field_name, stk::topology::rank_t rank) {
     auto field_ptr = meta_data_ptr_->get_field<FieldType>(rank, field_name);
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
-                       "Field " << field_name << " not found in the mesh meta data.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                       std::string("Field ") + field_name + " not found in the mesh meta data.");
     return field_ptr;
   }
 
   stk::mesh::Part *fetch_part(const std::string &part_name) {
     auto part_ptr = meta_data_ptr_->get_part(part_name);
-    MUNDY_THROW_ASSERT(part_ptr != nullptr, std::invalid_argument,
-                       "Part " << part_name << " not found in the mesh meta data.");
+    MUNDY_THROW_REQUIRE(part_ptr != nullptr, std::invalid_argument,
+                       std::string("Part ") + part_name + " not found in the mesh meta data.");
     return part_ptr;
   }
 
@@ -571,7 +571,7 @@ class SpermSimulation {
 
     // Update the position and twist of the nodes
     auto locally_owned_selector = stk::mesh::Selector(centerline_twist_part) & meta_data_ptr_->locally_owned_part();
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         bulk_data, node_rank_, locally_owned_selector,
         [&node_coordinates_field, &node_coordinates_field_old, &node_velocity_field_old, &node_acceleration_field_old,
          &node_twist_field, &node_twist_field_old, &node_twist_velocity_field_old, &node_twist_acceleration_field_old,
@@ -644,7 +644,7 @@ class SpermSimulation {
     // edge_tangent^i = (x_{i+1} - x_i) / length
     // edge_binormal^i = (2 edge_tangent_old^i x edge_tangent^i) / (1 + edge_tangent_old^i dot edge_tangent^i)
     auto locally_owned_selector = stk::mesh::Selector(centerline_twist_part) & meta_data_ptr_->locally_owned_part();
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         bulk_data, stk::topology::EDGE_RANK, locally_owned_selector,
         [&node_coordinates_field, &edge_orientation_field, &edge_tangent_field, &edge_tangent_field_old,
          &edge_binormal_field,
@@ -691,7 +691,7 @@ class SpermSimulation {
     // where
     //   q_i = conj(d^{i-1}) d^i is the Lagrangian rotation gradient.
     auto locally_owned_selector = stk::mesh::Selector(centerline_twist_part) & meta_data_ptr_->locally_owned_part();
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         bulk_data, stk::topology::ELEMENT_RANK, locally_owned_selector,
         [&edge_orientation_field, &node_curvature_field, &node_rotation_gradient_field](
             const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &element) {
@@ -740,7 +740,7 @@ class SpermSimulation {
 
     // Compute internal force and torque induced by differences in rest and current curvature
     auto locally_owned_selector = stk::mesh::Selector(centerline_twist_part) & meta_data_ptr_->locally_owned_part();
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         bulk_data, element_rank_, locally_owned_selector,
         [&node_force_field, &node_twist_torque_field, &node_curvature_field, &node_rest_curvature_field,
          &node_twist_field, &node_rotation_gradient_field, &edge_tangent_field, &edge_binormal_field,
@@ -840,7 +840,7 @@ class SpermSimulation {
 
     // Compute internal force induced by differences in rest and current length
     double rest_length = sperm_rest_segment_length_;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         bulk_data, edge_rank_, locally_owned_selector,
         [&node_force_field, &edge_tangent_field, &edge_length_field, &rest_length](const stk::mesh::BulkData &bulk_data,
                                                                                    const stk::mesh::Entity &edge) {

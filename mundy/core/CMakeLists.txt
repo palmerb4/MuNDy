@@ -12,14 +12,14 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 
 # Headers are relative to the tribits_include_directory
 # We don't recommend typing these by hand. Use 
-# find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
+# find src/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 SET(NOINSTALLHEADERS 
-  include/mundy_core/attribute_unused.hpp
-  include/mundy_core/MakeStringArray.hpp
-  include/mundy_core/OurAnyNumberParameterEntryValidator.hpp
-  include/mundy_core/StringLiteral.hpp
-  include/mundy_core/throw_assert.hpp
+  src/mundy_core/attribute_unused.hpp
+  src/mundy_core/MakeStringArray.hpp
+  src/mundy_core/OurAnyNumberParameterEntryValidator.hpp
+  src/mundy_core/StringLiteral.hpp
+  src/mundy_core/throw_assert.hpp
   )
 
 SET(SOURCES 
@@ -27,7 +27,7 @@ SET(SOURCES
   )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)
-tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 #
@@ -39,7 +39,7 @@ mundy_tribits_add_library(
   mundy_core
   HEADERS ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
   NOINSTALLHEADERS ${NOINSTALLHEADERS}
-  DIRECTORIES include/mundy_core
+  DIRECTORIES src/mundy_core
   FILES_MATCHING PATTERN "*.hpp"
   SOURCES ${SOURCES}
   )
