@@ -1,7 +1,3 @@
-
-
-
-
 HP1:
   simulation:
     num_time_steps: 1000
@@ -69,6 +65,7 @@ HP1:
   periphery_collision:
     shape: "SPHERE"
     radius: 28.0
+    use_fast_approx: true
     shrink_periphery_over_time: false
     shrinkage:
       num_shrinkage_steps: 1000

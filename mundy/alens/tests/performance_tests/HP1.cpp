@@ -3706,10 +3706,43 @@ class HP1 {
         });
   }
 
+  void compute_spherical_periphery_collision_forces_fast_approximate() {
+    const double periphery_collision_radius = periphery_collision_radius_;
+
+    // Fetch local references to the fields
+    stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+    stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+    mundy::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
+        [&node_coord_field, &node_force_field, &element_aabb_field, &element_radius_field, &periphery_collision_radius](
+          const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+          const stk::mesh::Entity sphere_node = bulk_data.begin_nodes(sphere_element)[0];
+          auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
+
+          const double node_coords_norm = mundy::math::two_norm(node_coords);
+          const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
+          const double shared_normal_ssd = periphery_collision_radius - node_coords_norm - sphere_radius;
+          const bool sphere_collides_with_periphery = shared_normal_ssd < 0.0;
+          if (sphere_collides_with_periphery) {
+            // Just shift the nodes along the normal to no longer overlap
+            auto inward_normal = -node_coords / node_coords_norm;
+            node_coords -= inward_normal * shared_normal_ssd;
+          }
+        });
+  }
+
   void compute_periphery_collision_forces() {
     Kokkos::Profiling::pushRegion("HP1::compute_periphery_collision_forces");
     if (periphery_collision_shape_ == PERIPHERY_SHAPE::SPHERE) {
-      compute_spherical_periphery_collision_forces();
+      if (periphery_collision_use_fast_approx_) {
+        compute_spherical_periphery_collision_forces_fast_approximate();
+      } else {
+        compute_spherical_periphery_collision_forces();
+      }
     } else if (periphery_collision_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
       if (periphery_collision_use_fast_approx_) {
         compute_ellipsoidal_periphery_collision_forces_fast_approximate();
