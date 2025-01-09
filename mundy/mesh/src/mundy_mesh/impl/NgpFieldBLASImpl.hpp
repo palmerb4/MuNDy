@@ -290,6 +290,41 @@ struct FieldAXPBYZFunctor {
 };
 
 template <class Field>
+struct FieldAXPBYGZFunctor {
+  using value_type = typename Field::value_type;
+  static_assert(is_ngp_field<Field>, "FieldAXPBYGZFunctor requires an stk::mesh::NgpField");
+
+  KOKKOS_FUNCTION
+  FieldAXPBYGZFunctor(const value_type alpha, Field& field_x, const value_type beta, Field& field_y, 
+  const value_type gamma, Field& field_z)
+      : field_x_(field_x), field_y_(field_y), field_z_(field_z), alpha_(alpha), beta_(beta), gamma_(gamma) {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const stk::mesh::FastMeshIndex& f) const {
+    // Use the smallest number of components of the three fields
+    unsigned num_components = field_z_.get_num_components_per_entity(f);
+    unsigned other = field_x_.get_num_components_per_entity(f);
+    num_components = (other < num_components) ? other : num_components;
+    other = field_y_.get_num_components_per_entity(f);
+    num_components = (other < num_components) ? other : num_components;
+
+    for (unsigned d = 0; d < num_components; ++d) {
+      field_z_.get(f, d) = alpha_ * field_x_.get(f, d) + beta_ * field_y_.get(f, d) + gamma_ * field_z_.get(f, d);
+    }
+  }
+
+ private:
+  Field field_x_;
+  Field field_y_;
+  Field field_z_;
+
+  const value_type alpha_;
+  const value_type beta_;
+  const value_type gamma_;
+};
+
+template <class Field>
 struct FieldProductFunctor {
   using value_type = typename Field::value_type;
   static_assert(is_ngp_field<Field>, "FieldProductFunctor requires an stk::mesh::NgpField");
@@ -749,6 +784,8 @@ void ngp_field_product(stk::mesh::FieldBase& field_x,                  //
                        const ExecSpace& exec_space) {
   sync_field_to_space(field_x, exec_space);
   sync_field_to_space(field_y, exec_space);
+  sync_field_to_space(field_z, exec_space);
+
   stk::mesh::Selector field_selector = if_nullptr_select_fields(selector_ptr, field_x, field_y, field_z);
   using NgpScalarField = stk::mesh::NgpField<Scalar>;
   NgpScalarField ngp_field_x = stk::mesh::get_updated_ngp_field<Scalar>(field_x);
@@ -773,6 +810,8 @@ void ngp_field_axpbyz(const Scalar alpha,                             //
                       const ExecSpace& exec_space) {
   sync_field_to_space(field_x, exec_space);
   sync_field_to_space(field_y, exec_space);
+  sync_field_to_space(field_z, exec_space);
+
   stk::mesh::Selector field_selector = if_nullptr_select_fields(selector_ptr, field_x, field_y, field_z);
   using NgpScalarField = stk::mesh::NgpField<Scalar>;
   NgpScalarField ngp_field_x = stk::mesh::get_updated_ngp_field<Scalar>(field_x);
@@ -785,6 +824,34 @@ void ngp_field_axpbyz(const Scalar alpha,                             //
 
   mark_field_modified_on_space(field_z, exec_space);
 }
+
+/// \brief Compute the element-wise sum of three fields z = alpha x + beta y + gamma z
+template <typename Scalar, typename ExecSpace>
+void ngp_field_axpbygz(const Scalar alpha,                             //
+                      stk::mesh::FieldBase& field_x,                  //
+                      const Scalar beta,                              //
+                      stk::mesh::FieldBase& field_y,                  //
+                      const Scalar gamma,                             //
+                      stk::mesh::FieldBase& field_z,                  //
+                      const stk::mesh::Selector* const selector_ptr,  //
+                      const ExecSpace& exec_space) {
+  sync_field_to_space(field_x, exec_space);
+  sync_field_to_space(field_y, exec_space);
+  sync_field_to_space(field_z, exec_space);
+
+  stk::mesh::Selector field_selector = if_nullptr_select_fields(selector_ptr, field_x, field_y, field_z);
+  using NgpScalarField = stk::mesh::NgpField<Scalar>;
+  NgpScalarField ngp_field_x = stk::mesh::get_updated_ngp_field<Scalar>(field_x);
+  NgpScalarField ngp_field_y = stk::mesh::get_updated_ngp_field<Scalar>(field_y);
+  NgpScalarField ngp_field_z = stk::mesh::get_updated_ngp_field<Scalar>(field_z);
+  stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(field_x.get_mesh());
+
+  FieldAXPBYGZFunctor<NgpScalarField> functor(alpha, ngp_field_x, beta, ngp_field_y, gamma, ngp_field_z);
+  stk::mesh::for_each_entity_run(ngp_mesh, ngp_field_x.get_rank(), field_selector, functor);
+
+  mark_field_modified_on_space(field_z, exec_space);
+}
+
 
 /// \brief Compute the dot product of two fields
 template <typename Scalar, typename ExecSpace>

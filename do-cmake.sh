@@ -3,6 +3,9 @@ TPL_ROOT_DIR=$2
 MUNDY_SOURCE_DIR=$3
 
 # bash ../do-cmake.sh /mnt/sw/nix/store/ajfmwdjwipp5rrpkq8dj4aff23ar4cix-trilinos-14.2.0 ~/envs/MundyScratch/ ../
+
+# bash ../do-cmake.sh /mnt/ceph/users/bpalmer/envs/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.4.0/trilinos-master-ek7lwb5ilssmazas2p3zhavykp6kiyf4 ~/envs/MundyScratch/ ../
+
 echo "Using Trilinos dir: $TRILINOS_ROOT_DIR"
 echo "Using TPL dir: $TPL_ROOT_DIR"
 echo "Using STK test-app dir: $MUNDY_SOURCE_DIR"

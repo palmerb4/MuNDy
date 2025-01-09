@@ -153,7 +153,7 @@ auto create_ngp_line_segment_data(stk::mesh::NgpMesh ngp_mesh, NodeCoordsDataTyp
   return NgpLineSegmentData<Scalar, OurTopology, NodeCoordsDataType>{ngp_mesh, node_coords_data};
 }
 
-/// \brief A concept to check if a type provides the same data as LineSegmentData
+/// \brief Check if the type provides the same data as LineSegmentData
 template <typename Agg>
 concept ValidLineSegmentDataType = requires(Agg agg) {
   typename Agg::scalar_t;
@@ -164,7 +164,7 @@ concept ValidLineSegmentDataType = requires(Agg agg) {
   { agg.node_coords_data() } -> std::convertible_to<typename Agg::node_coords_data_t&>;
 };  // ValidLineSegmentDataType
 
-/// \brief A concept to check if a type provides the same data as NgpLineSegmentData
+/// \brief Check if the type provides the same data as NgpLineSegmentData
 template <typename Agg>
 concept ValidNgpLineSegmentDataType = requires(Agg agg) {
   typename Agg::scalar_t;

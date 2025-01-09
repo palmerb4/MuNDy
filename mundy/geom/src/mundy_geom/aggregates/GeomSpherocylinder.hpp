@@ -292,7 +292,7 @@ auto create_ngp_spherocylinder_data(stk::mesh::NgpMesh ngp_mesh, CenterDataType&
                                LengthDataType>{ngp_mesh, center_data, orientation_data, radius_data, length_data};
 }
 
-/// \brief A concept to check if a type provides the same data as SpherocylinderData
+/// \brief Check if the type provides the same data as SpherocylinderData
 template <typename Agg>
 concept ValidSpherocylinderDataType = requires(Agg agg) {
   typename Agg::scalar_t;
@@ -315,7 +315,7 @@ concept ValidSpherocylinderDataType = requires(Agg agg) {
   { agg.length_data() } -> std::convertible_to<typename Agg::length_data_t&>;
 };  // ValidSpherocylinderDataType
 
-/// \brief A concept to check if a type provides the same data as NgpSpherocylinderData
+/// \brief Check if the type provides the same data as NgpSpherocylinderData
 template <typename Agg>
 concept ValidNgpSpherocylinderDataType = requires(Agg agg) {
   typename Agg::scalar_t;

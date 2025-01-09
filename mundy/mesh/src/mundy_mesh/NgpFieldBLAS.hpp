@@ -45,6 +45,7 @@ List of available field operations:
   - field_axpy
   - field_axpby
   - field_axpbyz
+  - field_axpbygz
   - field_dot
   - field_nrm2
   - field_sum
@@ -311,6 +312,31 @@ void field_axpbyz(const Scalar alpha,       //
                   stk::mesh::FieldBase &z,  //
                   const ExecSpace &exec_space) {
   impl::ngp_field_axpbyz(alpha, x, beta, y, z, nullptr, exec_space);
+}
+
+/// \brief Compute the element-wise sum of three fields z = alpha x + beta y + gamma z
+template <typename Scalar, typename ExecSpace>
+void field_axpbygz(const Scalar alpha,                   //
+                  stk::mesh::FieldBase &x,              //
+                  const Scalar beta,                    //
+                  stk::mesh::FieldBase &y,              //
+                  const Scalar gamma,                   //
+                  stk::mesh::FieldBase &z,              //
+                  const stk::mesh::Selector &selector,  //
+                  const ExecSpace &exec_space) {
+  impl::ngp_field_axpbygz(alpha, x, beta, y, gamma, z, &selector, exec_space);
+}
+
+/// \brief Compute the element-wise sum of three fields z = alpha x + beta y + gamma z
+template <typename Scalar, typename ExecSpace>
+void field_axpbygz(const Scalar alpha,       //
+                  stk::mesh::FieldBase &x,  //
+                  const Scalar beta,        //
+                  stk::mesh::FieldBase &y,  //
+                  const Scalar gamma,       //
+                  stk::mesh::FieldBase &z,  //
+                  const ExecSpace &exec_space) {
+  impl::ngp_field_axpbygz(alpha, x, beta, y, gamma, z, nullptr, exec_space);
 }
 
 /// \brief Compute the dot product of two fields

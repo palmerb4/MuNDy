@@ -204,7 +204,7 @@ auto create_ngp_spherocylinder_segment_data(stk::mesh::NgpMesh ngp_mesh, NodeCoo
       ngp_mesh, node_coords_data, radius_data};
 }
 
-/// \brief A concept to check if a type provides the same data as SpherocylinderSegmentData
+/// \brief Check if the type provides the same data as SpherocylinderSegmentData
 template <typename Agg>
 concept ValidSpherocylinderSegmentDataType = requires(Agg agg) {
   typename Agg::scalar_t;
@@ -219,7 +219,7 @@ concept ValidSpherocylinderSegmentDataType = requires(Agg agg) {
   { agg.radius_data() } -> std::convertible_to<typename Agg::radius_data_t&>;
 };  // ValidSpherocylinderSegmentDataType
 
-/// \brief A concept to check if a type provides the same data as NgpSpherocylinderSegmentData
+/// \brief Check if the type provides the same data as NgpSpherocylinderSegmentData
 template <typename Agg>
 concept ValidNgpSpherocylinderSegmentDataType = requires(Agg agg) {
   typename Agg::scalar_t;

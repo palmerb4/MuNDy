@@ -3959,12 +3959,13 @@ class HP1 {
     double &kt = brownian_kt_;
     double sphere_drag_coeff = 6.0 * M_PI * viscosity_ * backbone_sphere_hydrodynamic_radius_;
     double inv_drag_coeff = 1.0 / sphere_drag_coeff;
+    const double coeff = Kokkos::sqrt(2.0 * kt * sphere_drag_coeff / timestep_size) * inv_drag_coeff;
 
     // Compute the total velocity of the nonorientable spheres
     mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
-        [&node_velocity_field, &node_rng_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff,
-         &kt](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+        [&node_velocity_field, &node_rng_field,
+         &coeff](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           // Get the specific values for each sphere
           double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
           const stk::mesh::EntityId sphere_node_gid = bulk_data.identifier(sphere_node);
@@ -3972,7 +3973,7 @@ class HP1 {
 
           // U_brown = sqrt(2 * kt * gamma / dt) * randn / gamma
           openrand::Philox rng(sphere_node_gid, node_rng_counter[0]);
-          const double coeff = std::sqrt(2.0 * kt * sphere_drag_coeff / timestep_size) * inv_drag_coeff;
+             
           node_velocity[0] += coeff * rng.randn<double>();
           node_velocity[1] += coeff * rng.randn<double>();
           node_velocity[2] += coeff * rng.randn<double>();

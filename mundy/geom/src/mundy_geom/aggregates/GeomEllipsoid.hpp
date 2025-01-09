@@ -254,7 +254,7 @@ auto create_ngp_ellipsoid_data(stk::mesh::NgpMesh ngp_mesh, CenterDataType& cent
       ngp_mesh, center_data, orientation_data, axis_lengths_data};
 }
 
-/// \brief A concept to check if a type provides the same data as EllipsoidData
+/// \brief Check if the type provides the same data as EllipsoidData
 template <typename Agg>
 concept ValidEllipsoidDataType = requires(Agg agg) {
   typename Agg::scalar_t;
@@ -273,7 +273,7 @@ concept ValidEllipsoidDataType = requires(Agg agg) {
   { agg.axis_lengths_data() } -> std::convertible_to<typename Agg::axis_lengths_data_t&>;
 };  // ValidEllipsoidDataType
 
-/// \brief A concept to check if a type provides the same data as NgpEllipsoidData
+/// \brief Check if the type provides the same data as NgpEllipsoidData
 template <typename Agg>
 concept ValidNgpEllipsoidDataType = requires(Agg agg) {
   typename Agg::scalar_t;

@@ -57,3 +57,4 @@ tribits_add_executable(
     NGPSpheresLCP.cpp
     CATEGORIES PERFORMANCE
     )
+

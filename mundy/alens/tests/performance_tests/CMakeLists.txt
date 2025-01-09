@@ -161,3 +161,10 @@ tribits_add_executable(
 #     hp1_pos.dat
 #     EXEDEPS NgpHP1
 #     )
+
+tribits_add_executable(
+    NGPSabastion
+    SOURCES
+    NGPSabastion.cpp
+    CATEGORIES PERFORMANCE
+    )

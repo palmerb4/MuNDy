@@ -42,6 +42,10 @@ namespace geom {
 //! \name Aggregate traits
 //@{
 
+EllipsoidMotilityMixin
+
+
+
 /// \brief Aggregate to hold the data for a collection of motile_ellipsoids
 template <ValidEllipsoidDataType EllipsoidDataType,                                            //
           typename VelocityDataType = stk::mesh::Field<typename EllipsoidDataType::scalar_t>,  //
@@ -202,7 +206,7 @@ auto create_ngp_motile_ellipsoid_data(stk::mesh::NgpMesh ngp_mesh, CenterDataTyp
                                                                angular_velocity_data);
 }
 
-/// \brief A concept to check if a type provides the same data as MotileEllipsoidData
+/// \brief Check if the type provides the same data as MotileEllipsoidData
 template <typename Agg>
 concept ValidMotileEllipsoidDataType = requires(Agg agg) {
   ValidEllipsoidDataType<Agg>;
@@ -214,7 +218,7 @@ concept ValidMotileEllipsoidDataType = requires(Agg agg) {
   { agg.angular_velocity_data() } -> std::convertible_to<typename Agg::angular_velocity_data_t&>;
 };  // ValidMotileEllipsoidDataType
 
-/// \brief A concept to check if a type provides the same data as NgpMotileEllipsoidData
+/// \brief Check if the type provides the same data as NgpMotileEllipsoidData
 template <typename Agg>
 concept ValidNgpMotileEllipsoidDataType = requires(Agg agg) {
   ValidNgpEllipsoidDataType<Agg>;

@@ -131,7 +131,7 @@ auto create_ngp_aabb_data(stk::mesh::NgpMesh ngp_mesh, AABBDataType& aabb_data) 
   return NgpAABBData<Scalar, AABBDataType>{ngp_mesh, aabb_data};
 }
 
-/// \brief A concept to check if a type provides the same data as AABBData
+/// \brief Check if the type provides the same data as AABBData
 template <typename Agg>
 concept ValidAABBDataType = requires(Agg agg) {
   typename Agg::scalar_t;
@@ -141,7 +141,7 @@ concept ValidAABBDataType = requires(Agg agg) {
   { agg.aabb_data() } -> std::convertible_to<typename Agg::aabb_data_t&>;
 };  // ValidAABBDataType
 
-/// \brief A concept to check if a type provides the same data as NgpAABBData
+/// \brief Check if the type provides the same data as NgpAABBData
 template <typename Agg>
 concept ValidNgpAABBDataType = requires(Agg agg) {
   typename Agg::scalar_t;

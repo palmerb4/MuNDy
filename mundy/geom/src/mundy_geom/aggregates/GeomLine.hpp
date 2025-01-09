@@ -192,7 +192,7 @@ auto create_ngp_line_data(stk::mesh::NgpMesh ngp_mesh, CenterDataType& center_da
   return NgpLineData<Scalar, OurTopology, CenterDataType, DirectionDataType>{ngp_mesh, center_data, direction_data};
 }
 
-/// \brief A concept to check if a type provides the same data as LineData
+/// \brief Check if the type provides the same data as LineData
 template <typename Agg>
 concept ValidLineDataType = requires(Agg agg) {
   typename Agg::scalar_t;
@@ -207,7 +207,7 @@ concept ValidLineDataType = requires(Agg agg) {
   { agg.direction_data() } -> std::convertible_to<typename Agg::direction_data_t&>;
 };  // ValidLineDataType
 
-/// \brief A concept to check if a type provides the same data as NgpLineData
+/// \brief Check if the type provides the same data as NgpLineData
 template <typename Agg>
 concept ValidNgpLineDataType = requires(Agg agg) {
   typename Agg::scalar_t;

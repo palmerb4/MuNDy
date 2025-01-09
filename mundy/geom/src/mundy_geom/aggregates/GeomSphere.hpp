@@ -195,7 +195,7 @@ auto create_ngp_sphere_data(stk::mesh::NgpMesh ngp_mesh, CenterDataType& center_
   return NgpSphereData<Scalar, OurTopology, CenterDataType, RadiusDataType>{ngp_mesh, center_data, radius_data};
 }
 
-/// \brief A concept to check if a type provides the same data as SphereData
+/// \brief Check if the type provides the same data as SphereData
 template <typename Agg>
 concept ValidSphereDataType = requires(Agg agg) {
   typename Agg::scalar_t;
@@ -210,7 +210,7 @@ concept ValidSphereDataType = requires(Agg agg) {
   { agg.radius_data() } -> std::convertible_to<typename Agg::radius_data_t&>;
 };  // ValidSphereDataType
 
-/// \brief A concept to check if a type provides the same data as NgpSphereData
+/// \brief Check if the type provides the same data as NgpSphereData
 template <typename Agg>
 concept ValidNgpSphereDataType = requires(Agg agg) {
   typename Agg::scalar_t;

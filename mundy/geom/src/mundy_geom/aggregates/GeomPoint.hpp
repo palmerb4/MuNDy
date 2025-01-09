@@ -147,7 +147,7 @@ auto create_ngp_point_data(stk::mesh::NgpMesh ngp_mesh, NodeCoordsType& node_coo
   return NgpPointData<Scalar, OurTopology, NodeCoordsType>{ngp_mesh, node_coords_data};
 }
 
-/// \brief A concept to check if a type provides the same data as PointData
+/// \brief Check if the type provides the same data as PointData
 template <typename Agg>
 concept ValidPointDataType = requires(Agg agg) {
   typename Agg::scalar_t;
@@ -158,7 +158,7 @@ concept ValidPointDataType = requires(Agg agg) {
   { agg.node_coords_data() } -> std::convertible_to<typename Agg::node_coords_data_t&>;
 };  // ValidPointDataType
 
-/// \brief A concept to check if a type provides the same data as NgpPointData
+/// \brief Check if the type provides the same data as NgpPointData
 template <typename Agg>
 concept ValidNgpPointDataType = requires(Agg agg) {
   typename Agg::scalar_t;
