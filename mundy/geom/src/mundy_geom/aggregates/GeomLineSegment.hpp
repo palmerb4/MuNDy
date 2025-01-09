@@ -48,19 +48,16 @@ namespace geom {
 /// However, how we access those nodes changes based on the rank of the line segment. Allowable topologies are:
 ///   - LINE_2, LINE_3, BEAM_2, BEAM_3, SPRING_2, SPRING_3
 template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology,  //
-          typename NodeCoordsDataType = stk::mesh::Field<Scalar>>
+          stk::topology::topology_t OurTopology>
 class LineSegmentData {
   static_assert(OurTopology == stk::topology::LINE_2 || OurTopology == stk::topology::LINE_3 ||
                     OurTopology == stk::topology::BEAM_2 || OurTopology == stk::topology::BEAM_3 ||
                     OurTopology == stk::topology::SPRING_2 || OurTopology == stk::topology::SPRING_3,
                 "The topology of a line segment must be LINE_2, LINE_3, BEAM_2, BEAM_3, SPRING_2, or SPRING_3");
-  static_assert(std::is_same_v<std::decay_t<NodeCoordsDataType>, stk::mesh::Field<Scalar>>,
-                "NodeCoordsDataType must be either a const or non-const field of scalars");
 
  public:
   using scalar_t = Scalar;
-  using node_coords_data_t = NodeCoordsDataType;
+  using node_coords_data_t = stk::mesh::Field<Scalar>;
   static constexpr stk::topology::topology_t topology_t = OurTopology;
 
   /// \brief Constructor
@@ -94,19 +91,16 @@ class LineSegmentData {
 /// \brief Aggregate to hold the data for a collection of NGP-compatible line segments
 /// See the discussion for LineSegmentData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology,  //
-          typename NodeCoordsDataType = stk::mesh::NgpField<Scalar>>
+          stk::topology::topology_t OurTopology>
 class NgpLineSegmentData {
   static_assert(OurTopology == stk::topology::LINE_2 || OurTopology == stk::topology::LINE_3 ||
                     OurTopology == stk::topology::BEAM_2 || OurTopology == stk::topology::BEAM_3 ||
                     OurTopology == stk::topology::SPRING_2 || OurTopology == stk::topology::SPRING_3,
                 "The topology of a line segment must be LINE_2, LINE_3, BEAM_2, BEAM_3, SPRING_2, or SPRING_3");
-  static_assert(std::is_same_v<std::decay_t<NodeCoordsDataType>, stk::mesh::NgpField<Scalar>>,
-                "NodeCoordsDataType must be either a const or non-const field of scalars");
 
  public:
   using scalar_t = Scalar;
-  using node_coords_data_t = NodeCoordsDataType;
+  using node_coords_data_t = stk::mesh::NgpField<Scalar>;
   static constexpr stk::topology::topology_t topology_t = OurTopology;
 
   /// \brief Constructor
@@ -138,19 +132,17 @@ class NgpLineSegmentData {
 /// This function creates a LineSegmentData object given its rank and data (be they shared or field data)
 /// and is used to automatically deduce the template parameters.
 template <typename Scalar,                        // Must be provided
-          stk::topology::topology_t OurTopology,  // Must be provided
-          typename NodeCoordsDataType>            // deduced
-auto create_line_segment_data(stk::mesh::BulkData& bulk_data, NodeCoordsDataType& node_coords_data) {
-  return LineSegmentData<Scalar, OurTopology, NodeCoordsDataType>{bulk_data, node_coords_data};
+          stk::topology::topology_t OurTopology>  // Must be provided
+auto create_line_segment_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& node_coords_data) {
+  return LineSegmentData<Scalar, OurTopology>{bulk_data, node_coords_data};
 }
 
 /// \brief A helper function to create a NgpLineSegmentData object
 /// See the discussion for create_line_segment_data for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                        // Must be provided
-          stk::topology::topology_t OurTopology,  // Must be provided
-          typename NodeCoordsDataType>            // deduced
-auto create_ngp_line_segment_data(stk::mesh::NgpMesh ngp_mesh, NodeCoordsDataType& node_coords_data) {
-  return NgpLineSegmentData<Scalar, OurTopology, NodeCoordsDataType>{ngp_mesh, node_coords_data};
+          stk::topology::topology_t OurTopology>  // Must be provided
+auto create_ngp_line_segment_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& node_coords_data) {
+  return NgpLineSegmentData<Scalar, OurTopology>{ngp_mesh, node_coords_data};
 }
 
 /// \brief Check if the type provides the same data as LineSegmentData
@@ -176,19 +168,15 @@ concept ValidNgpLineSegmentDataType = requires(Agg agg) {
 };  // ValidNgpLineSegmentDataType
 
 static_assert(ValidLineSegmentDataType<LineSegmentData<float,                  //
-                                                       stk::topology::LINE_2,  //
-                                                       stk::mesh::Field<float>>> &&
+                                                       stk::topology::LINE_2>> &&
                   ValidLineSegmentDataType<LineSegmentData<float,                  //
-                                                           stk::topology::BEAM_2,  //
-                                                           stk::mesh::Field<float>>>,
+                                                           stk::topology::BEAM_2>>,
               "LineSegmentData must satisfy the ValidLineSegmentDataType concept");
 
 static_assert(ValidNgpLineSegmentDataType<NgpLineSegmentData<float,                  //
-                                                             stk::topology::LINE_2,  //
-                                                             stk::mesh::NgpField<float>>> &&
+                                                             stk::topology::LINE_2>> &&
                   ValidNgpLineSegmentDataType<NgpLineSegmentData<float,                  //
-                                                                 stk::topology::BEAM_2,  //
-                                                                 stk::mesh::NgpField<float>>>,
+                                                                 stk::topology::BEAM_2>>,
               "NgpLineSegmentData must satisfy the ValidNgpLineSegmentDataType concept");
 
 /// \brief A helper function to get an updated NgpLineSegmentData object from a LineSegmentData object
@@ -442,20 +430,16 @@ class NgpLineSegmentEntityView {
 
 static_assert(ValidLineSegmentType<LineSegmentEntityView<stk::topology::LINE_2,
                                                          LineSegmentData<float,                  //
-                                                                         stk::topology::LINE_2,  //
-                                                                         stk::mesh::Field<float>>>> &&
+                                                                         stk::topology::LINE_2>>> &&
                   ValidLineSegmentType<LineSegmentEntityView<stk::topology::BEAM_2,
                                                              LineSegmentData<float,                  //
-                                                                             stk::topology::BEAM_2,  //
-                                                                             stk::mesh::Field<float>>>> &&
+                                                                             stk::topology::BEAM_2>>> &&
                   ValidLineSegmentType<NgpLineSegmentEntityView<stk::topology::LINE_2,
                                                                 NgpLineSegmentData<float,                  //
-                                                                                   stk::topology::LINE_2,  //
-                                                                                   stk::mesh::NgpField<float>>>> &&
+                                                                                   stk::topology::LINE_2>>> &&
                   ValidLineSegmentType<NgpLineSegmentEntityView<stk::topology::BEAM_2,
                                                                 NgpLineSegmentData<float,                  //
-                                                                                   stk::topology::BEAM_2,  //
-                                                                                   stk::mesh::NgpField<float>>>>,
+                                                                                   stk::topology::BEAM_2>>>,
               "LineSegmentEntityView and NgpLineSegmentEntityView must be valid LineSegment types");
 
 /// \brief A helper function to create a LineSegmentEntityView object with type deduction

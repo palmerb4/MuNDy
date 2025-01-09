@@ -50,15 +50,11 @@ namespace geom {
 /// spheres. In and of itself, the aabb data isn't very useful.
 ///
 /// \tparam Scalar The scalar type of the aabb's aabb.
-/// \tparam AABBDataType The type of the aabb data. Can be a const or non-const stk::mesh::Field of scalars.
-template <typename Scalar, typename AABBDataType = stk::mesh::Field<Scalar>>
+template <typename Scalar>
 class AABBData {
-  static_assert(std::is_same_v<std::decay_t<AABBDataType>, stk::mesh::Field<Scalar>>,
-                "AABBDataType must be a const or non-const field of scalars");
-
  public:
   using scalar_t = Scalar;
-  using aabb_data_t = AABBDataType;
+  using aabb_data_t = stk::mesh::Field<Scalar>;
 
   AABBData(stk::mesh::BulkData& bulk_data, aabb_data_t& aabb_data) : bulk_data_(bulk_data), aabb_data_(aabb_data) {
   }
@@ -86,14 +82,11 @@ class AABBData {
 
 /// \brief A struct to hold the data for a collection of NGP-compatible aabbs
 /// See the discussion for AABBData for more information. Only difference is NgpFields over Fields.
-template <typename Scalar, typename AABBDataType = stk::mesh::NgpField<Scalar>>
+template <typename Scalar>
 class NgpAABBData {
-  static_assert(std::is_same_v<std::decay_t<AABBDataType>, stk::mesh::NgpField<Scalar>>,
-                "AABBDataType must be a const or non-const ngp field of scalars");
-
  public:
   using scalar_t = Scalar;
-  using aabb_data_t = AABBDataType;
+  using aabb_data_t = stk::mesh::NgpField<Scalar>;
 
   NgpAABBData(stk::mesh::NgpMesh ngp_mesh, aabb_data_t& aabb_data) : ngp_mesh_(ngp_mesh), aabb_data_(aabb_data) {
   }
@@ -115,20 +108,20 @@ class NgpAABBData {
   aabb_data_t& aabb_data_;
 };  // NgpAABBData
 
-/// \brief A helper function to create a AABBData object
+/// \brief A helper function to create an AABBData object
 ///
-/// This function creates a AABBData object given its rank and data
-/// and is used to automatically deduce the template parameters.
-template <typename Scalar, typename AABBDataType>
-auto create_aabb_data(stk::mesh::BulkData& bulk_data, AABBDataType& aabb_data) {
-  return AABBData<Scalar, AABBDataType>{bulk_data, aabb_data};
+/// Only provided to keep the interface consistent with other aggregate types.
+/// The aabb data doesn't need automatic deduction.
+template <typename Scalar>
+auto create_aabb_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& aabb_data) {
+  return AABBData<Scalar>{bulk_data, aabb_data};
 }
 
 /// \brief A helper function to create a NgpAABBData object
 /// See the discussion for create_aabb_data for more information. Only difference is NgpFields over Fields.
-template <typename Scalar, typename AABBDataType>
-auto create_ngp_aabb_data(stk::mesh::NgpMesh ngp_mesh, AABBDataType& aabb_data) {
-  return NgpAABBData<Scalar, AABBDataType>{ngp_mesh, aabb_data};
+template <typename Scalar>
+auto create_ngp_aabb_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& aabb_data) {
+  return NgpAABBData<Scalar>{ngp_mesh, aabb_data};
 }
 
 /// \brief Check if the type provides the same data as AABBData
@@ -151,12 +144,10 @@ concept ValidNgpAABBDataType = requires(Agg agg) {
   { agg.aabb_data() } -> std::convertible_to<typename Agg::aabb_data_t&>;
 };  // ValidNgpAABBDataType
 
-static_assert(ValidAABBDataType<AABBData<float, stk::mesh::Field<float>>> &&
-                  ValidAABBDataType<AABBData<float, const stk::mesh::Field<float>>>,
+static_assert(ValidAABBDataType<AABBData<float>> && ValidAABBDataType<AABBData<float>>,
               "AABBData must satisfy the ValidAABBDataType concept");
 
-static_assert(ValidNgpAABBDataType<NgpAABBData<float, stk::mesh::NgpField<float>>> &&
-                  ValidNgpAABBDataType<NgpAABBData<float, const stk::mesh::NgpField<float>>>,
+static_assert(ValidNgpAABBDataType<NgpAABBData<float>> && ValidNgpAABBDataType<NgpAABBData<float>>,
               "NgpAABBData must satisfy the ValidNgpAABBDataType concept");
 
 /// \brief A helper function to get an updated NgpAABBData object from a AABBData object
@@ -175,11 +166,11 @@ auto get_updated_ngp_data(AABBDataType data) {
 /// Users can specialize this class to support other aggregate types.
 template <typename Agg>
 struct AABBDataTraits {
-  static_assert(
-      ValidAABBDataType<Agg>,
-      "Agg must satisfy the ValidAABBDataType concept.\n"
-      "Basically, Agg must have the same getters and types aliases as NgpAABBData but is free to extend it as needed without "
-      "having to rely on inheritance.");
+  static_assert(ValidAABBDataType<Agg>,
+                "Agg must satisfy the ValidAABBDataType concept.\n"
+                "Basically, Agg must have the same getters and types aliases as NgpAABBData but is free to extend it "
+                "as needed without "
+                "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
   using aabb_data_t = typename Agg::aabb_data_t;
@@ -224,11 +215,11 @@ struct AABBDataTraits {
 /// See the discussion for AABBDataTraits for more information. Only difference is Ngp-compatible data.
 template <typename Agg>
 struct NgpAABBDataTraits {
-  static_assert(
-      ValidNgpAABBDataType<Agg>,
-      "Agg must satisfy the ValidNgpAABBDataType concept.\n"
-      "Basically, Agg must have the same getters and types aliases as NgpAABBData but is free to extend it as needed without "
-      "having to rely on inheritance.");
+  static_assert(ValidNgpAABBDataType<Agg>,
+                "Agg must satisfy the ValidNgpAABBDataType concept.\n"
+                "Basically, Agg must have the same getters and types aliases as NgpAABBData but is free to extend it "
+                "as needed without "
+                "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
   using aabb_data_t = typename Agg::aabb_data_t;
@@ -295,11 +286,11 @@ class AABBEntityView {
     return data_;
   }
 
-  stk::mesh::Entity &aabb_entity() {
+  stk::mesh::Entity& aabb_entity() {
     return aabb_entity_;
   }
 
-  const stk::mesh::Entity &aabb_entity() const {
+  const stk::mesh::Entity& aabb_entity() const {
     return aabb_entity_;
   }
 
@@ -397,12 +388,12 @@ class NgpAABBEntityView {
   }
 
   KOKKOS_INLINE_FUNCTION
-  stk::mesh::FastMeshIndex &aabb_index() {
+  stk::mesh::FastMeshIndex& aabb_index() {
     return aabb_index_;
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex &aabb_index() const {
+  const stk::mesh::FastMeshIndex& aabb_index() const {
     return aabb_index_;
   }
 
@@ -491,10 +482,7 @@ class NgpAABBEntityView {
   stk::mesh::FastMeshIndex aabb_index_;
 };  // NgpAABBEntityView
 
-static_assert(ValidAABBType<AABBEntityView<AABBData<float, stk::mesh::Field<float>>>> &&
-                  ValidAABBType<AABBEntityView<AABBData<float, const stk::mesh::Field<float>>>> &&
-                  ValidAABBType<NgpAABBEntityView<NgpAABBData<float, stk::mesh::NgpField<float>>>> &&
-                  ValidAABBType<NgpAABBEntityView<NgpAABBData<float, const stk::mesh::NgpField<float>>>>,
+static_assert(ValidAABBType<AABBEntityView<AABBData<float>>> && ValidAABBType<NgpAABBEntityView<NgpAABBData<float>>>,
               "AABBEntityView and NgpAABBEntityView must be valid AABB types");
 
 /// \brief A helper function to create a AABBEntityView object with type deduction

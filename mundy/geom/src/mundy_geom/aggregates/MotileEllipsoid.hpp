@@ -42,23 +42,17 @@ namespace geom {
 //! \name Aggregate traits
 //@{
 
-EllipsoidMotilityMixin
-
-
-
 /// \brief Aggregate to hold the data for a collection of motile_ellipsoids
-template <ValidEllipsoidDataType EllipsoidDataType,                                            //
-          typename VelocityDataType = stk::mesh::Field<typename EllipsoidDataType::scalar_t>,  //
-          typename AngularVelocityDataType = stk::mesh::Field<typename EllipsoidDataType::scalar_t>>
+template <ValidEllipsoidDataType EllipsoidDataType>
 class MotileEllipsoidData : public EllipsoidDataType {
-  static_assert(std::is_same_v<std::decay_t<VelocityDataType>, stk::mesh::Field<scalar_t>> &&
-                    std::is_same_v<std::decay_t<AngularVelocityDataType>, stk::mesh::Field<scalar_t>>,
-                "VelocityDataType and AngularVelocityDataType must be a const or non-const field of scalars");
-
  public:
-  using velocity_data_t = VelocityDataType;
-  using angular_velocity_data_t = AngularVelocityDataType;
   using ellipsoid_data_t = EllipsoidDataType;
+  using scalar_t = typename EllipsoidDataType::scalar_t;
+  using center_data_t = typename EllipsoidDataType::center_data_t;
+  using orientation_data_t = typename EllipsoidDataType::orientation_data_t;
+  using axis_lengths_data_t = typename EllipsoidDataType::axis_lengths_data_t;
+  using velocity_data_t = stk::mesh::Field<scalar_t>;
+  using angular_velocity_data_t = stk::mesh::Field<scalar_t>;
 
   /// \brief Constructor
   MotileEllipsoidData(ellipsoid_data_t ellipsoid_data, velocity_data_t& velocity_data,
@@ -96,18 +90,16 @@ class MotileEllipsoidData : public EllipsoidDataType {
 
 /// \brief Aggregate to hold the data for a collection of NGP-compatible motile_ellipsoids
 /// See the discussion for MotileEllipsoidData for more information. Only difference is NgpFields over Fields.
-template <ValidNgpEllipsoidDataType NgpEllipsoidDataType,                                            //
-          typename VelocityDataType = stk::mesh::NgpField<typename NgpEllipsoidDataType::scalar_t>,  //
-          typename AngularVelocityDataType = stk::mesh::NgpField<typename NgpEllipsoidDataType::scalar_t>>
+template <ValidNgpEllipsoidDataType NgpEllipsoidDataType>
 class NgpMotileEllipsoidData : public NgpEllipsoidDataType {
-  static_assert(std::is_same_v<std::decay_t<VelocityDataType>, stk::mesh::NgpField<scalar_t>> &&
-                    std::is_same_v<std::decay_t<AngularVelocityDataType>, stk::mesh::NgpField<scalar_t>>,
-                "VelocityDataType and AngularVelocityDataType must be a const or non-const field of scalars");
-
  public:
-  using velocity_data_t = VelocityDataType;
-  using angular_velocity_data_t = AngularVelocityDataType;
   using ellipsoid_data_t = NgpEllipsoidDataType;
+  using scalar_t = typename NgpEllipsoidDataType::scalar_t;
+  using center_data_t = typename NgpEllipsoidDataType::center_data_t;
+  using orientation_data_t = typename NgpEllipsoidDataType::orientation_data_t;
+  using axis_lengths_data_t = typename NgpEllipsoidDataType::axis_lengths_data_t;
+  using velocity_data_t = stk::mesh::NgpField<scalar_t>;
+  using angular_velocity_data_t = stk::mesh::NgpField<scalar_t>;
 
   /// \brief Constructor
   NgpMotileEllipsoidData(ellipsoid_data_t ellipsoid_data, velocity_data_t& velocity_data,
@@ -178,10 +170,10 @@ auto create_motile_ellipsoid_data(stk::mesh::BulkData& bulk_data, CenterDataType
 
 /// \brief A helper function to create a NgpMotileEllipsoidData object
 /// See the discussion for create_motile_ellipsoid_data for more information. Only difference is NgpFields over Fields.
-template <typename EllipsoidDataType,        // deduced
+template <typename NgpEllipsoidDataType,        // deduced
           typename VelocityDataType,         // deduced
           typename AngularVelocityDataType>  // deduced
-auto create_ngp_motile_ellipsoid_data(stk::mesh::NgpMesh ngp_mesh, EllipsoidDataType& ellipsoid_data,
+auto create_ngp_motile_ellipsoid_data(stk::mesh::NgpMesh ngp_mesh, NgpEllipsoidDataType& ellipsoid_data,
                                       VelocityDataType& velocity_data, AngularVelocityDataType& angular_velocity_data) {
   return NgpMotileEllipsoidData<NgpEllipsoidDataType, VelocityDataType, AngularVelocityDataType>{
       ellipsoid_data, velocity_data, angular_velocity_data};

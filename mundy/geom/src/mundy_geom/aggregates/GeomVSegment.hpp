@@ -52,18 +52,15 @@ namespace geom {
 ///   - TRI_3: Left, middle, right
 ///   - SHELL_TRI_3: Left, middle, right
 template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology,  //
-          typename NodeCoordsDataType = stk::mesh::Field<Scalar>>
+          stk::topology::topology_t OurTopology>
 class VSegmentData {
   static_assert(OurTopology == stk::topology::SPRING_3 || OurTopology == stk::topology::TRI_3 ||
                     OurTopology == stk::topology::SHELL_TRI_3,
                 "The topology of a v segment must be SPRING_3, TRI_3, or SHELL_TRI_3");
-  static_assert(std::is_same_v<std::decay_t<NodeCoordsDataType>, stk::mesh::Field<Scalar>>,
-                "NodeCoordsDataType must be either a const or non-const field of scalars");
 
  public:
   using scalar_t = Scalar;
-  using node_coords_data_t = NodeCoordsDataType;
+  using node_coords_data_t = stk::mesh::Field<Scalar>;
   static constexpr stk::topology::topology_t topology_t = OurTopology;
 
   /// \brief Constructor
@@ -97,18 +94,15 @@ class VSegmentData {
 /// \brief Aggregate to hold the data for a collection of NGP-compatible line segments
 /// See the discussion for VSegmentData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology,  //
-          typename NodeCoordsDataType = stk::mesh::NgpField<Scalar>>
+          stk::topology::topology_t OurTopology>
 class NgpVSegmentData {
   static_assert(OurTopology == stk::topology::SPRING_3 || OurTopology == stk::topology::TRI_3 ||
                     OurTopology == stk::topology::SHELL_TRI_3,
                 "The topology of a v segment must be SPRING_3, TRI_3, or SHELL_TRI_3");
-  static_assert(std::is_same_v<std::decay_t<NodeCoordsDataType>, stk::mesh::NgpField<Scalar>>,
-                "NodeCoordsDataType must be either a const or non-const field of scalars");
 
  public:
   using scalar_t = Scalar;
-  using node_coords_data_t = NodeCoordsDataType;
+  using node_coords_data_t = stk::mesh::NgpField<Scalar>;
   static constexpr stk::topology::topology_t topology_t = OurTopology;
 
   /// \brief Constructor
@@ -144,19 +138,17 @@ class NgpVSegmentData {
 /// This function creates a VSegmentData object given its rank and data (be they shared or field data)
 /// and is used to automatically deduce the template parameters.
 template <typename Scalar,                        // Must be provided
-          stk::topology::topology_t OurTopology,  // Must be provided
-          typename NodeCoordsDataType>            // deduced
-auto create_v_segment_data(stk::mesh::BulkData& bulk_data, NodeCoordsDataType& node_coords_data) {
-  return VSegmentData<Scalar, OurTopology, NodeCoordsDataType>{bulk_data, node_coords_data};
+          stk::topology::topology_t OurTopology>  // Must be provided
+auto create_v_segment_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& node_coords_data) {
+  return VSegmentData<Scalar, OurTopology>{bulk_data, node_coords_data};
 }
 
 /// \brief A helper function to create a NgpVSegmentData object
 /// See the discussion for create_v_segment_data for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                        // Must be provided
-          stk::topology::topology_t OurTopology,  // Must be provided
-          typename NodeCoordsDataType>            // deduced
-auto create_ngp_v_segment_data(stk::mesh::NgpMesh ngp_mesh, NodeCoordsDataType& node_coords_data) {
-  return NgpVSegmentData<Scalar, OurTopology, NodeCoordsDataType>{ngp_mesh, node_coords_data};
+          stk::topology::topology_t OurTopology>  // Must be provided
+auto create_ngp_v_segment_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& node_coords_data) {
+  return NgpVSegmentData<Scalar, OurTopology>{ngp_mesh, node_coords_data};
 }
 
 /// \brief Check if the type provides the same data as VSegmentData
@@ -182,19 +174,15 @@ concept ValidNgpVSegmentDataType = requires(Agg agg) {
 };  // ValidNgpVSegmentDataType
 
 static_assert(ValidVSegmentDataType<VSegmentData<float,                    //
-                                                 stk::topology::SPRING_3,  //
-                                                 stk::mesh::Field<float>>> &&
+                                                 stk::topology::SPRING_3>> &&
                   ValidVSegmentDataType<VSegmentData<float,                 //
-                                                     stk::topology::TRI_3,  //
-                                                     stk::mesh::Field<float>>>,
+                                                     stk::topology::TRI_3>>,
               "VSegmentData must satisfy the ValidVSegmentDataType concept");
 
 static_assert(ValidNgpVSegmentDataType<NgpVSegmentData<float,                    //
-                                                       stk::topology::SPRING_3,  //
-                                                       stk::mesh::NgpField<float>>> &&
+                                                       stk::topology::SPRING_3>> &&
                   ValidNgpVSegmentDataType<NgpVSegmentData<float,                 //
-                                                           stk::topology::TRI_3,  //
-                                                           stk::mesh::NgpField<float>>>,
+                                                           stk::topology::TRI_3>>,
               "NgpVSegmentData must satisfy the ValidNgpVSegmentDataType concept");
 
 /// \brief A helper function to get an updated NgpVSegmentData object from a VSegmentData object
@@ -511,20 +499,16 @@ class NgpVSegmentEntityView {
 
 static_assert(ValidVSegmentType<VSegmentEntityView<stk::topology::SPRING_3,
                                                    VSegmentData<float,                    //
-                                                                stk::topology::SPRING_3,  //
-                                                                stk::mesh::Field<float>>>> &&
+                                                                stk::topology::SPRING_3>>> &&
                   ValidVSegmentType<VSegmentEntityView<stk::topology::TRI_3,
                                                        VSegmentData<float,                 //
-                                                                    stk::topology::TRI_3,  //
-                                                                    stk::mesh::Field<float>>>> &&
+                                                                    stk::topology::TRI_3>>> &&
                   ValidVSegmentType<NgpVSegmentEntityView<stk::topology::SPRING_3,
                                                           NgpVSegmentData<float,                    //
-                                                                          stk::topology::SPRING_3,  //
-                                                                          stk::mesh::NgpField<float>>>> &&
+                                                                          stk::topology::SPRING_3>>> &&
                   ValidVSegmentType<NgpVSegmentEntityView<stk::topology::TRI_3,
                                                           NgpVSegmentData<float,                 //
-                                                                          stk::topology::TRI_3,  //
-                                                                          stk::mesh::NgpField<float>>>>,
+                                                                          stk::topology::TRI_3>>>,
               "VSegmentEntityView and NgpVSegmentEntityView must be valid VSegment types");
 
 /// \brief A helper function to create a VSegmentEntityView object with type deduction

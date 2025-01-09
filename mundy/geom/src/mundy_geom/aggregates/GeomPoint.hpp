@@ -47,18 +47,15 @@ namespace geom {
 /// Regardless of the topology, the node coordinates are stored on the node of the point.
 /// However, how we access this node changes based on the rank of the point. Allowable topologies are:
 ///   - NODE, PARTICLE
-template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology,  //
-          typename NodeCoordsType = stk::mesh::Field<Scalar>>
+template <typename Scalar,  //
+          stk::topology::topology_t OurTopology>
 class PointData {
   static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
                 "The topology of a point must be NODE or PARTICLE");
-  static_assert(std::is_same_v<std::decay_t<NodeCoordsType>, stk::mesh::Field<Scalar>>,
-                "NodeCoordsType must be either a const or non-const field of scalars");
 
  public:
   using scalar_t = Scalar;
-  using node_coords_data_t = NodeCoordsType;
+  using node_coords_data_t = stk::mesh::Field<Scalar>;
   static constexpr stk::topology::topology_t topology_t = OurTopology;
 
   /// \brief Constructor
@@ -91,19 +88,15 @@ class PointData {
 
 /// \brief Aggregate to hold the data for a collection of NGP-compatible points
 /// See the discussion for PointData for more information. Only difference is NgpFields over Fields.
-template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology,  //
-          typename NodeCoordsType = stk::mesh::NgpField<Scalar>>
+template <typename Scalar,  //
+          stk::topology::topology_t OurTopology>
 class NgpPointData {
   static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
                 "The topology of a point must be NODE or PARTICLE");
-  static_assert(is_point_v<std::decay_t<NodeCoordsType>> ||
-                    std::is_same_v<std::decay_t<NodeCoordsType>, stk::mesh::NgpField<Scalar>>,
-                "NodeCoordsType must be either a const or non-const field of scalars");
 
  public:
   using scalar_t = Scalar;
-  using node_coords_data_t = NodeCoordsType;
+  using node_coords_data_t = stk::mesh::NgpField<Scalar>;
   static constexpr stk::topology::topology_t topology_t = OurTopology;
 
   /// \brief Constructor
@@ -132,19 +125,17 @@ class NgpPointData {
 
 /// \brief A helper function to create a PointData object with automatic template deduction
 template <typename Scalar,                        // Must be provided
-          stk::topology::topology_t OurTopology,  // Must be provided
-          typename NodeCoordsType>                // deduced
-auto create_point_data(stk::mesh::BulkData& bulk_data, NodeCoordsType& node_coords_data) {
-  return PointData<Scalar, OurTopology, NodeCoordsType>{bulk_data, node_coords_data};
+          stk::topology::topology_t OurTopology>  // Must be provided
+auto create_point_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& node_coords_data) {
+  return PointData<Scalar, OurTopology>{bulk_data, node_coords_data};
 }
 
 /// \brief A helper function to create a NgpPointData object
 /// See the discussion for create_point_data for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                        // Must be provided
-          stk::topology::topology_t OurTopology,  // Must be provided
-          typename NodeCoordsType>                // deduced
-auto create_ngp_point_data(stk::mesh::NgpMesh ngp_mesh, NodeCoordsType& node_coords_data) {
-  return NgpPointData<Scalar, OurTopology, NodeCoordsType>{ngp_mesh, node_coords_data};
+          stk::topology::topology_t OurTopology>  // Must be provided
+auto create_ngp_point_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& node_coords_data) {
+  return NgpPointData<Scalar, OurTopology>{ngp_mesh, node_coords_data};
 }
 
 /// \brief Check if the type provides the same data as PointData
@@ -169,20 +160,16 @@ concept ValidNgpPointDataType = requires(Agg agg) {
   { agg.node_coords_data() } -> std::convertible_to<typename Agg::node_coords_data_t&>;
 };  // ValidNgpPointDataType
 
-static_assert(ValidPointDataType<PointData<float,                //
-                                           stk::topology::NODE,  //
-                                           stk::mesh::Field<float>>> &&
-                  ValidPointDataType<PointData<float,                    //
-                                               stk::topology::PARTICLE,  //
-                                               stk::mesh::Field<float>>>,
+static_assert(ValidPointDataType<PointData<float,  //
+                                           stk::topology::NODE>> &&
+                  ValidPointDataType<PointData<float,  //
+                                               stk::topology::PARTICLE>>,
               "PointData must satisfy the ValidPointDataType concept");
 
-static_assert(ValidNgpPointDataType<NgpPointData<float,                //
-                                                 stk::topology::NODE,  //
-                                                 stk::mesh::NgpField<float>>> &&
-                  ValidNgpPointDataType<NgpPointData<float,                    //
-                                                     stk::topology::PARTICLE,  //
-                                                     stk::mesh::NgpField<float>>>,
+static_assert(ValidNgpPointDataType<NgpPointData<float,  //
+                                                 stk::topology::NODE>> &&
+                  ValidNgpPointDataType<NgpPointData<float,  //
+                                                     stk::topology::PARTICLE>>,
               "NgpPointData must satisfy the ValidNgpPointDataType concept");
 
 /// \brief A helper function to get an updated NgpPointData object from a PointData object
@@ -518,21 +505,17 @@ class NgpPointEntityView<stk::topology::PARTICLE, NgpPointDataType> {
 };  // NgpElemPointView
 
 static_assert(ValidPointType<PointEntityView<stk::topology::NODE,
-                                             PointData<float,                //
-                                                       stk::topology::NODE,  //
-                                                       stk::mesh::Field<float>>>> &&
+                                             PointData<float,  //
+                                                       stk::topology::NODE>>> &&
                   ValidPointType<PointEntityView<stk::topology::PARTICLE,
-                                                 PointData<float,                    //
-                                                           stk::topology::PARTICLE,  //
-                                                           stk::mesh::Field<float>>>> &&
+                                                 PointData<float,  //
+                                                           stk::topology::PARTICLE>>> &&
                   ValidPointType<NgpPointEntityView<stk::topology::NODE,
-                                                    NgpPointData<float,                //
-                                                                 stk::topology::NODE,  //
-                                                                 stk::mesh::NgpField<float>>>> &&
+                                                    NgpPointData<float,  //
+                                                                 stk::topology::NODE>>> &&
                   ValidPointType<NgpPointEntityView<stk::topology::PARTICLE,
-                                                    NgpPointData<float,                    //
-                                                                 stk::topology::PARTICLE,  //
-                                                                 stk::mesh::NgpField<float>>>>,
+                                                    NgpPointData<float,  //
+                                                                 stk::topology::PARTICLE>>>,
               "PointEntityView and NgpPointEntityView must be valid Point types");
 
 /// \brief A helper function to create a PointEntityView object with type deduction

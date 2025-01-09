@@ -49,40 +49,20 @@ namespace geom {
 ///   particle
 ///
 /// Use \ref create_spherocylinder_data to build a SpherocylinderData object with automatic template deduction.
-///
-/// \tparam Scalar The scalar type of the spherocylinder
-/// \tparam OurTopology Can be NODE or PARTICLE.
-/// \tparam CenterDataType Can either be a const or non-const stk::mesh::Field of scalars.
-/// \tparam OrientationDataType Can either be a Quaternion or a const or non-const
-/// \tparam RadiusDataType Can either be a scalar or an stk::mesh::Field of scalars.
-/// \tparam LengthDataType Can either be a scalar or an stk::mesh::Field of scalars.
 template <typename Scalar,                        //
           stk::topology::topology_t OurTopology,  //
-          typename CenterDataType = stk::mesh::Field<Scalar>,
-          typename OrientationDataType = stk::mesh::Field<Scalar>,  //
-          typename RadiusDataType = stk::mesh::Field<Scalar>,       //
-          typename LengthDataType = stk::mesh::Field<Scalar>>
+          bool HasSharedRadius = false, //
+          bool HasSharedLength = false>
 class SpherocylinderData {
   static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
                 "The topology of a spherocylinder must be either NODE or PARTICLE");
-  static_assert((std::is_same_v<std::decay_t<RadiusDataType>, Scalar> ||
-                 std::is_same_v<std::decay_t<RadiusDataType>, stk::mesh::Field<Scalar>>) &&
-                    (std::is_same_v<std::decay_t<LengthDataType>, Scalar> ||
-                     std::is_same_v<std::decay_t<LengthDataType>, stk::mesh::Field<Scalar>>) &&
-                    std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>> &&
-                    (mundy::math::is_quaternion_v<std::decay_t<OrientationDataType>> ||
-                     std::is_same_v<std::decay_t<OrientationDataType>, stk::mesh::Field<Scalar>>),
-                "RadiusDataType must be either a scalar or a field of scalars\n"
-                "LengthDataType must be either a scalar or a field of scalars\n"
-                "CenterDataType must be either a const or non-const field of scalars\n"
-                "OrientationDataType must be either a quaternion or a field of scalars");
 
  public:
   using scalar_t = Scalar;
-  using center_data_t = CenterDataType;
-  using orientation_data_t = OrientationDataType;
-  using radius_data_t = RadiusDataType;
-  using length_data_t = LengthDataType;
+  using center_data_t = stk::mesh::Field<Scalar>;
+  using orientation_data_t = stk::mesh::Field<Scalar>;
+  using radius_data_t = std::conditional_t<HasSharedRadius, Scalar, stk::mesh::Field<Scalar>>;
+  using length_data_t = std::conditional_t<HasSharedLength, Scalar, stk::mesh::Field<Scalar>>;
   static constexpr stk::topology::topology_t topology_t = OurTopology;
 
   /// \brief Constructor
@@ -93,19 +73,14 @@ class SpherocylinderData {
         orientation_data_(orientation_data),
         radius_data_(radius_data),
         length_data_(length_data) {
-    constexpr bool is_orientation_a_field = std::is_same_v<std::decay_t<OrientationDataType>, stk::mesh::Field<Scalar>>;
-    constexpr bool is_radius_a_field = std::is_same_v<std::decay_t<RadiusDataType>, stk::mesh::Field<Scalar>>;
-    constexpr bool is_length_a_field = std::is_same_v<std::decay_t<LengthDataType>, stk::mesh::Field<Scalar>>;
     stk::topology our_topology = OurTopology;
-    if constexpr (is_orientation_a_field) {
-      MUNDY_THROW_ASSERT(orientation_data.entity_rank() == our_topology.rank(), std::invalid_argument,
-                         "The orientation data must be a field of the same rank as the spherocylinder");
-    }
-    if constexpr (is_radius_a_field) {
+    MUNDY_THROW_ASSERT(orientation_data.entity_rank() == our_topology.rank(), std::invalid_argument,
+                        "The orientation data must be a field of the same rank as the spherocylinder");
+    if constexpr (!HasSharedRadius) {
       MUNDY_THROW_ASSERT(radius_data.entity_rank() == our_topology.rank(), std::invalid_argument,
                          "The radius data must be a field of the same rank as the spherocylinder");
     }
-    if constexpr (is_length_a_field) {
+    if constexpr (!HasSharedLength) {
       MUNDY_THROW_ASSERT(length_data.entity_rank() == our_topology.rank(), std::invalid_argument,
                          "The length data must be a field of the same rank as the spherocylinder");
     }
@@ -163,30 +138,18 @@ class SpherocylinderData {
 /// See the discussion for SpherocylinderData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                                             //
           stk::topology::topology_t OurTopology,                       //
-          typename CenterDataType = stk::mesh::NgpField<Scalar>,       //
-          typename OrientationDataType = stk::mesh::NgpField<Scalar>,  //
-          typename RadiusDataType = stk::mesh::NgpField<Scalar>, typename LengthDataType = stk::mesh::NgpField<Scalar>>
+          bool HasSharedRadius = false,                                //
+          bool HasSharedLength = false>
 class NgpSpherocylinderData {
   static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
                 "The topology of a spherocylinder must be either NODE or PARTICLE");
-  static_assert((std::is_same_v<std::decay_t<RadiusDataType>, Scalar> ||
-                 std::is_same_v<std::decay_t<RadiusDataType>, stk::mesh::NgpField<Scalar>>) &&
-                    (std::is_same_v<std::decay_t<LengthDataType>, Scalar> ||
-                     std::is_same_v<std::decay_t<LengthDataType>, stk::mesh::NgpField<Scalar>>) &&
-                    std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::NgpField<Scalar>> &&
-                    (mundy::math::is_quaternion_v<std::decay_t<OrientationDataType>> ||
-                     std::is_same_v<std::decay_t<OrientationDataType>, stk::mesh::NgpField<Scalar>>),
-                "RadiusDataType must be either a scalar or a field of scalars\n"
-                "LengthDataType must be either a scalar or a field of scalars\n"
-                "CenterDataType must be either a const or non-const field of scalars\n"
-                "OrientationDataType must be either a quaternion or a field of scalars");
 
  public:
   using scalar_t = Scalar;
-  using center_data_t = CenterDataType;
-  using orientation_data_t = OrientationDataType;
-  using radius_data_t = RadiusDataType;
-  using length_data_t = LengthDataType;
+  using center_data_t = stk::mesh::NgpField<Scalar>;
+  using orientation_data_t = stk::mesh::NgpField<Scalar>;
+  using radius_data_t = std::conditional_t<HasSharedRadius, Scalar, stk::mesh::NgpField<Scalar>>;
+  using length_data_t = std::conditional_t<HasSharedLength, Scalar, stk::mesh::NgpField<Scalar>>;
   static constexpr stk::topology::topology_t topology_t = OurTopology;
 
   /// \brief Constructor
@@ -197,20 +160,14 @@ class NgpSpherocylinderData {
         orientation_data_(orientation_data),
         radius_data_(radius_data),
         length_data_(length_data) {
-    constexpr bool is_orientation_a_field =
-        std::is_same_v<std::decay_t<OrientationDataType>, stk::mesh::NgpField<Scalar>>;
-    constexpr bool is_radius_a_field = std::is_same_v<std::decay_t<RadiusDataType>, stk::mesh::NgpField<Scalar>>;
-    constexpr bool is_length_a_field = std::is_same_v<std::decay_t<LengthDataType>, stk::mesh::NgpField<Scalar>>;
     stk::topology our_topology = OurTopology;
-    if constexpr (is_orientation_a_field) {
-      MUNDY_THROW_ASSERT(orientation_data.get_rank() == our_topology.rank(), std::invalid_argument,
-                         "The orientation data must be a field of the same rank as the spherocylinder");
-    }
-    if constexpr (is_radius_a_field) {
+    MUNDY_THROW_ASSERT(orientation_data.get_rank() == our_topology.rank(), std::invalid_argument,
+                        "The orientation data must be a field of the same rank as the spherocylinder");
+    if constexpr (!HasSharedRadius) {
       MUNDY_THROW_ASSERT(radius_data.get_rank() == our_topology.rank(), std::invalid_argument,
                          "The radius data must be a field of the same rank as the spherocylinder");
     }
-    if constexpr (is_length_a_field) {
+    if constexpr (!HasSharedLength) {
       MUNDY_THROW_ASSERT(length_data.get_rank() == our_topology.rank(), std::invalid_argument,
                          "The length data must be a field of the same rank as the spherocylinder");
     }
@@ -266,14 +223,14 @@ class NgpSpherocylinderData {
 /// and is used to automatically deduce the template parameters.
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
-          typename CenterDataType,                // deduced
-          typename OrientationDataType,           // deduced
           typename RadiusDataType,                // deduced
           typename LengthDataType>                // deduced
-auto create_spherocylinder_data(stk::mesh::BulkData& bulk_data, CenterDataType& center_data,
-                                OrientationDataType& orientation_data, RadiusDataType& radius_data,
+auto create_spherocylinder_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& center_data,
+                                stk::mesh::Field<Scalar>& orientation_data, RadiusDataType& radius_data,
                                 LengthDataType& length_data) {
-  return SpherocylinderData<Scalar, OurTopology, CenterDataType, OrientationDataType, RadiusDataType, LengthDataType>{
+  constexpr bool is_radius_shared = std::is_same_v<std::decay_t<RadiusDataType>, Scalar>;
+  constexpr bool is_length_shared = std::is_same_v<std::decay_t<LengthDataType>, Scalar>;
+  return SpherocylinderData<Scalar, OurTopology, is_radius_shared, is_length_shared>{
       bulk_data, center_data, orientation_data, radius_data, length_data};
 }
 
@@ -281,15 +238,15 @@ auto create_spherocylinder_data(stk::mesh::BulkData& bulk_data, CenterDataType& 
 /// See the discussion for create_spherocylinder_data for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
-          typename CenterDataType,                // deduced
-          typename OrientationDataType,           // deduced
           typename RadiusDataType,                // deduced
           typename LengthDataType>                // deduced
-auto create_ngp_spherocylinder_data(stk::mesh::NgpMesh ngp_mesh, CenterDataType& center_data,
-                                    OrientationDataType& orientation_data, RadiusDataType& radius_data,
+auto create_ngp_spherocylinder_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& center_data,
+                                    stk::mesh::NgpField<Scalar>& orientation_data, RadiusDataType& radius_data,
                                     LengthDataType& length_data) {
-  return NgpSpherocylinderData<Scalar, OurTopology, CenterDataType, OrientationDataType, RadiusDataType,
-                               LengthDataType>{ngp_mesh, center_data, orientation_data, radius_data, length_data};
+  constexpr bool is_radius_shared = std::is_same_v<std::decay_t<RadiusDataType>, Scalar>;
+  constexpr bool is_length_shared = std::is_same_v<std::decay_t<LengthDataType>, Scalar>;
+  return NgpSpherocylinderData<Scalar, OurTopology, is_radius_shared, is_length_shared>{
+      ngp_mesh, center_data, orientation_data, radius_data, length_data};
 }
 
 /// \brief Check if the type provides the same data as SpherocylinderData
@@ -301,8 +258,7 @@ concept ValidSpherocylinderDataType = requires(Agg agg) {
   typename Agg::radius_data_t;
   typename Agg::length_data_t;
   std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  mundy::math::is_quaternion_v<std::decay_t<typename Agg::orientation_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::orientation_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
+  std::is_same_v<std::decay_t<typename Agg::orientation_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
   std::is_same_v<std::decay_t<typename Agg::radius_data_t>, typename Agg::scalar_t> ||
       std::is_same_v<std::decay_t<typename Agg::radius_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
   std::is_same_v<std::decay_t<typename Agg::length_data_t>, typename Agg::scalar_t> ||
@@ -324,8 +280,7 @@ concept ValidNgpSpherocylinderDataType = requires(Agg agg) {
   typename Agg::radius_data_t;
   typename Agg::length_data_t;
   std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  mundy::math::is_quaternion_v<std::decay_t<typename Agg::orientation_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::orientation_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
+  std::is_same_v<std::decay_t<typename Agg::orientation_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
   std::is_same_v<std::decay_t<typename Agg::radius_data_t>, typename Agg::scalar_t> ||
       std::is_same_v<std::decay_t<typename Agg::radius_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
   std::is_same_v<std::decay_t<typename Agg::length_data_t>, typename Agg::scalar_t> ||
@@ -341,32 +296,21 @@ concept ValidNgpSpherocylinderDataType = requires(Agg agg) {
 static_assert(ValidSpherocylinderDataType<                            //
                   SpherocylinderData<float,                           //
                                      stk::topology::NODE,             //
-                                     stk::mesh::Field<float>,         //
-                                     mundy::math::Quaternion<float>,  //
-                                     float,                           //
-                                     float>> &&
+                                     true, true>> &&
                   ValidSpherocylinderDataType<                     //
                       SpherocylinderData<float,                    //
                                          stk::topology::PARTICLE,  //
-                                         stk::mesh::Field<float>,  //
-                                         stk::mesh::Field<float>,  //
-                                         stk::mesh::Field<float>,  //
-                                         stk::mesh::Field<float>>>,
+                                         false, false>>,
               "SpherocylinderData must satisfy the ValidSpherocylinderDataType concept");
 
 static_assert(ValidNgpSpherocylinderDataType<                            //
                   NgpSpherocylinderData<float,                           //
                                         stk::topology::NODE,             //
-                                        stk::mesh::NgpField<float>,      //
-                                        mundy::math::Quaternion<float>,  //
-                                        float,                           //
-                                        float>> &&
+                                        true, true>> &&
                   ValidNgpSpherocylinderDataType<                        //
                       NgpSpherocylinderData<float,                       //
                                             stk::topology::NODE,         //
-                                            stk::mesh::NgpField<float>,  //
-                                            stk::mesh::NgpField<float>,  //
-                                            stk::mesh::NgpField<float>, stk::mesh::NgpField<float>>>,
+                                            false, false>>,
               "NgpSpherocylinderData must satisfy the ValidNgpSpherocylinderDataType concept");
 
 /// \brief A helper function to get an updated NgpSpherocylinderData object from a SpherocylinderData object
@@ -378,65 +322,36 @@ auto get_updated_ngp_data(SpherocylinderDataType data) {
   using radius_data_t = typename SpherocylinderDataType::radius_data_t;
   using length_data_t = typename SpherocylinderDataType::length_data_t;
 
-  constexpr bool is_orientation_a_field = std::is_same_v<std::decay_t<orientation_data_t>, stk::mesh::Field<scalar_t>>;
   constexpr bool is_radius_a_field = std::is_same_v<std::decay_t<radius_data_t>, stk::mesh::Field<scalar_t>>;
   constexpr bool is_length_a_field = std::is_same_v<std::decay_t<length_data_t>, stk::mesh::Field<scalar_t>>;
   constexpr stk::topology::topology_t topology_t = SpherocylinderDataType::topology_t;
-  if constexpr (is_radius_a_field && is_orientation_a_field && is_length_a_field) {
+  if constexpr (is_radius_a_field && is_length_a_field) {
     return create_ngp_spherocylinder_data<scalar_t, topology_t>(              //
         stk::mesh::get_updated_ngp_mesh(data.bulk_data()),                    //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),       //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.orientation_data()),  //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.radius_data()),       //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.length_data()));
-  } else if constexpr (is_radius_a_field && is_orientation_a_field && !is_length_a_field) {
+  } else if constexpr (is_radius_a_field && !is_length_a_field) {
     return create_ngp_spherocylinder_data<scalar_t, topology_t>(              //
         stk::mesh::get_updated_ngp_mesh(data.bulk_data()),                    //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),       //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.orientation_data()),  //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.radius_data()),       //
         data.length_data());
-  } else if constexpr (is_radius_a_field && !is_orientation_a_field && is_length_a_field) {
-    return create_ngp_spherocylinder_data<scalar_t, topology_t>(         //
-        stk::mesh::get_updated_ngp_mesh(data.bulk_data()),               //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),  //
-        data.orientation_data(),                                         //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.radius_data()),  //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.length_data()));
-  } else if constexpr (!is_radius_a_field && is_orientation_a_field && is_length_a_field) {
+  } else if constexpr (!is_radius_a_field && is_length_a_field) {
     return create_ngp_spherocylinder_data<scalar_t, topology_t>(              //
         stk::mesh::get_updated_ngp_mesh(data.bulk_data()),                    //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),       //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.orientation_data()),  //
         data.radius_data(),                                                   //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.length_data()));
-  } else if constexpr (is_radius_a_field && !is_orientation_a_field && !is_length_a_field) {
-    return create_ngp_spherocylinder_data<scalar_t, topology_t>(         //
-        stk::mesh::get_updated_ngp_mesh(data.bulk_data()),               //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),  //
-        data.orientation_data(),                                         //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.radius_data()),  //
-        data.length_data());
-  } else if constexpr (!is_radius_a_field && is_orientation_a_field && !is_length_a_field) {
-    return create_ngp_spherocylinder_data<scalar_t, topology_t>(              //
-        stk::mesh::get_updated_ngp_mesh(data.bulk_data()),                    //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),       //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.orientation_data()),  //
-        data.radius_data(),                                                   //
-        data.length_data());
-  } else if constexpr (!is_radius_a_field && !is_orientation_a_field && is_length_a_field) {
-    return create_ngp_spherocylinder_data<scalar_t, topology_t>(         //
-        stk::mesh::get_updated_ngp_mesh(data.bulk_data()),               //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),  //
-        data.orientation_data(),                                         //
-        data.radius_data(),                                              //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.length_data()));
   } else {
-    return create_ngp_spherocylinder_data<scalar_t, topology_t>(         //
-        stk::mesh::get_updated_ngp_mesh(data.bulk_data()),               //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),  //
-        data.orientation_data(),                                         //
-        data.radius_data(),                                              //
+    return create_ngp_spherocylinder_data<scalar_t, topology_t>(              //
+        stk::mesh::get_updated_ngp_mesh(data.bulk_data()),                    //
+        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),       //
+        stk::mesh::get_updated_ngp_field<scalar_t>(data.orientation_data()),  //
+        data.radius_data(),                                                   //
         data.length_data());
   }
 }
@@ -461,10 +376,6 @@ struct SpherocylinderDataTraits {
   using length_data_t = typename Agg::length_data_t;
   static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
 
-  static constexpr decltype(auto) has_shared_orientation() {
-    return mundy::math::is_quaternion_v<std::decay_t<orientation_data_t>>;
-  }
-
   static constexpr bool has_shared_radius() {
     return std::is_same_v<std::decay_t<radius_data_t>, scalar_t>;
   }
@@ -478,11 +389,7 @@ struct SpherocylinderDataTraits {
   }
 
   static decltype(auto) orientation(Agg agg, stk::mesh::Entity spherocylinder) {
-    if constexpr (has_shared_orientation()) {
-      return agg.orientation_data();
-    } else {
-      return mundy::mesh::quaternion_field_data(agg.orientation_data(), spherocylinder);
-    }
+    return mundy::mesh::quaternion_field_data(agg.orientation_data(), spherocylinder);
   }
 
   static decltype(auto) radius(Agg agg, stk::mesh::Entity spherocylinder) {
@@ -522,11 +429,6 @@ struct NgpSpherocylinderDataTraits {
   static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
 
   KOKKOS_INLINE_FUNCTION
-  static constexpr bool has_shared_orientation() {
-    return mundy::math::is_quaternion_v<std::decay_t<orientation_data_t>>;
-  }
-
-  KOKKOS_INLINE_FUNCTION
   static constexpr bool has_shared_radius() {
     return std::is_same_v<std::decay_t<radius_data_t>, scalar_t>;
   }
@@ -543,11 +445,7 @@ struct NgpSpherocylinderDataTraits {
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) orientation(Agg agg, stk::mesh::FastMeshIndex spherocylinder_index) {
-    if constexpr (has_shared_orientation()) {
-      return agg.orientation_data();
-    } else {
-      return mundy::mesh::quaternion_field_data(agg.orientation_data(), spherocylinder_index);
-    }
+    return mundy::mesh::quaternion_field_data(agg.orientation_data(), spherocylinder_index);
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -946,34 +844,22 @@ static_assert(ValidSpherocylinderType<  //
                   SpherocylinderEntityView<stk::topology::NODE,
                                            SpherocylinderData<float,                           //
                                                               stk::topology::NODE,             //
-                                                              stk::mesh::Field<float>,         //
-                                                              mundy::math::Quaternion<float>,  //
-                                                              float,                           //
-                                                              float>>> &&
+                                                              true, true>>> &&
                   ValidSpherocylinderType<  //
                       SpherocylinderEntityView<stk::topology::PARTICLE,
                                                SpherocylinderData<float,                    //
                                                                   stk::topology::PARTICLE,  //
-                                                                  stk::mesh::Field<float>,  //
-                                                                  stk::mesh::Field<float>,  //
-                                                                  stk::mesh::Field<float>,  //
-                                                                  stk::mesh::Field<float>>>> &&
+                                                                  false, false>>> &&
                   ValidSpherocylinderType<  //
                       NgpSpherocylinderEntityView<stk::topology::NODE,
                                                   NgpSpherocylinderData<float,                           //
                                                                         stk::topology::NODE,             //
-                                                                        stk::mesh::NgpField<float>,      //
-                                                                        mundy::math::Quaternion<float>,  //
-                                                                        float,                           //
-                                                                        float>>> &&
+                                                                        true, true>>> &&
                   ValidSpherocylinderType<  //
                       NgpSpherocylinderEntityView<stk::topology::PARTICLE,
                                                   NgpSpherocylinderData<float,                       //
                                                                         stk::topology::PARTICLE,     //
-                                                                        stk::mesh::NgpField<float>,  //
-                                                                        stk::mesh::NgpField<float>,  //
-                                                                        stk::mesh::NgpField<float>,  //
-                                                                        stk::mesh::NgpField<float>>>>,
+                                                                        false, false>>>,
               "SpherocylinderEntityView and NgpSpherocylinderEntityView must be valid Spherocylinder types");
 
 /// \brief A helper function to create a SpherocylinderEntityView object with type deduction
