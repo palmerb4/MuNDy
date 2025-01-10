@@ -20,6 +20,9 @@
 #ifndef MUNDY_GEOM_AGGREGATES_LINESEGMENT_HPP_
 #define MUNDY_GEOM_AGGREGATES_LINESEGMENT_HPP_
 
+// C++ core
+#include <type_traits>  // for std::conditional_t, std::false_type, std::true_type
+
 // Kokkos
 #include <Kokkos_Core.hpp>  // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
 
@@ -48,17 +51,17 @@ namespace geom {
 /// However, how we access those nodes changes based on the rank of the line segment. Allowable topologies are:
 ///   - LINE_2, LINE_3, BEAM_2, BEAM_3, SPRING_2, SPRING_3
 template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology>
+          typename OurTopology>
 class LineSegmentData {
-  static_assert(OurTopology == stk::topology::LINE_2 || OurTopology == stk::topology::LINE_3 ||
-                    OurTopology == stk::topology::BEAM_2 || OurTopology == stk::topology::BEAM_3 ||
-                    OurTopology == stk::topology::SPRING_2 || OurTopology == stk::topology::SPRING_3,
+  static_assert(OurTopology::value == stk::topology::LINE_2 || OurTopology::value == stk::topology::LINE_3 ||
+                    OurTopology::value == stk::topology::BEAM_2 || OurTopology::value == stk::topology::BEAM_3 ||
+                    OurTopology::value == stk::topology::SPRING_2 || OurTopology::value == stk::topology::SPRING_3,
                 "The topology of a line segment must be LINE_2, LINE_3, BEAM_2, BEAM_3, SPRING_2, or SPRING_3");
 
  public:
   using scalar_t = Scalar;
   using node_coords_data_t = stk::mesh::Field<Scalar>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   LineSegmentData(stk::mesh::BulkData& bulk_data, node_coords_data_t& node_coords_data)
@@ -83,6 +86,16 @@ class LineSegmentData {
     return node_coords_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<LineSegmentData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::BulkData& bulk_data_;
   node_coords_data_t& node_coords_data_;
@@ -91,17 +104,17 @@ class LineSegmentData {
 /// \brief Aggregate to hold the data for a collection of NGP-compatible line segments
 /// See the discussion for LineSegmentData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology>
+          typename OurTopology>
 class NgpLineSegmentData {
-  static_assert(OurTopology == stk::topology::LINE_2 || OurTopology == stk::topology::LINE_3 ||
-                    OurTopology == stk::topology::BEAM_2 || OurTopology == stk::topology::BEAM_3 ||
-                    OurTopology == stk::topology::SPRING_2 || OurTopology == stk::topology::SPRING_3,
+  static_assert(OurTopology::value == stk::topology::LINE_2 || OurTopology::value == stk::topology::LINE_3 ||
+                    OurTopology::value == stk::topology::BEAM_2 || OurTopology::value == stk::topology::BEAM_3 ||
+                    OurTopology::value == stk::topology::SPRING_2 || OurTopology::value == stk::topology::SPRING_3,
                 "The topology of a line segment must be LINE_2, LINE_3, BEAM_2, BEAM_3, SPRING_2, or SPRING_3");
 
  public:
   using scalar_t = Scalar;
   using node_coords_data_t = stk::mesh::NgpField<Scalar>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   NgpLineSegmentData(stk::mesh::NgpMesh ngp_mesh, node_coords_data_t& node_coords_data)
@@ -110,7 +123,11 @@ class NgpLineSegmentData {
                        "The node_coords data must be a field of NODE_RANK");
   }
 
-  stk::mesh::NgpMesh ngp_mesh() const {
+  stk::mesh::NgpMesh &ngp_mesh() {
+    return ngp_mesh_;
+  }
+
+  const stk::mesh::NgpMesh &ngp_mesh() const {
     return ngp_mesh_;
   }
 
@@ -120,6 +137,16 @@ class NgpLineSegmentData {
 
   node_coords_data_t& node_coords_data() {
     return node_coords_data_;
+  }
+
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<NgpLineSegmentData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
   }
 
  private:
@@ -134,7 +161,7 @@ class NgpLineSegmentData {
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology>  // Must be provided
 auto create_line_segment_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& node_coords_data) {
-  return LineSegmentData<Scalar, OurTopology>{bulk_data, node_coords_data};
+  return LineSegmentData<Scalar, stk::topology_detail::topology_data<OurTopology>>{bulk_data, node_coords_data};
 }
 
 /// \brief A helper function to create a NgpLineSegmentData object
@@ -142,42 +169,26 @@ auto create_line_segment_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<S
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology>  // Must be provided
 auto create_ngp_line_segment_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& node_coords_data) {
-  return NgpLineSegmentData<Scalar, OurTopology>{ngp_mesh, node_coords_data};
+  return NgpLineSegmentData<Scalar, stk::topology_detail::topology_data<OurTopology>>{ngp_mesh, node_coords_data};
 }
 
 /// \brief Check if the type provides the same data as LineSegmentData
 template <typename Agg>
-concept ValidLineSegmentDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::node_coords_data_t;
-  std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.bulk_data() } -> std::convertible_to<stk::mesh::BulkData&>;
-  { agg.node_coords_data() } -> std::convertible_to<typename Agg::node_coords_data_t&>;
-};  // ValidLineSegmentDataType
+concept ValidLineSegmentDataType = requires(Agg agg) { 
+      typename Agg::scalar_t; 
+    { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    }
+  && std::convertible_to<decltype(std::declval<Agg>().bulk_data()), stk::mesh::BulkData&>
+  && std::convertible_to<decltype(std::declval<Agg>().node_coords_data()), stk::mesh::Field<typename Agg::scalar_t>&>;
 
 /// \brief Check if the type provides the same data as NgpLineSegmentData
 template <typename Agg>
-concept ValidNgpLineSegmentDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::node_coords_data_t;
-  std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.ngp_mesh() } -> std::convertible_to<stk::mesh::NgpMesh>;
-  { agg.node_coords_data() } -> std::convertible_to<typename Agg::node_coords_data_t&>;
-};  // ValidNgpLineSegmentDataType
-
-static_assert(ValidLineSegmentDataType<LineSegmentData<float,                  //
-                                                       stk::topology::LINE_2>> &&
-                  ValidLineSegmentDataType<LineSegmentData<float,                  //
-                                                           stk::topology::BEAM_2>>,
-              "LineSegmentData must satisfy the ValidLineSegmentDataType concept");
-
-static_assert(ValidNgpLineSegmentDataType<NgpLineSegmentData<float,                  //
-                                                             stk::topology::LINE_2>> &&
-                  ValidNgpLineSegmentDataType<NgpLineSegmentData<float,                  //
-                                                                 stk::topology::BEAM_2>>,
-              "NgpLineSegmentData must satisfy the ValidNgpLineSegmentDataType concept");
+concept ValidNgpLineSegmentDataType = requires(Agg agg) { 
+      typename Agg::scalar_t; 
+    { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    }
+  && std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh&>
+  && std::convertible_to<decltype(std::declval<Agg>().node_coords_data()), stk::mesh::NgpField<typename Agg::scalar_t>&>;
 
 /// \brief A helper function to get an updated NgpLineSegmentData object from a LineSegmentData object
 /// \param data The LineSegmentData object to convert
@@ -200,7 +211,6 @@ struct LineSegmentDataTraits {
       "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using node_coords_data_t = typename Agg::node_coords_data_t;
   static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
 
   static decltype(auto) node_coords(Agg agg, stk::mesh::Entity line_segment_node) {
@@ -219,7 +229,6 @@ struct NgpLineSegmentDataTraits {
       "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using node_coords_data_t = typename Agg::node_coords_data_t;
   static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
 
   KOKKOS_INLINE_FUNCTION
@@ -427,20 +436,6 @@ class NgpLineSegmentEntityView {
   stk::mesh::FastMeshIndex start_node_index_;
   stk::mesh::FastMeshIndex end_node_index_;
 };  // NgpLineSegmentEntityView<OurTopology, NgpLineSegmentDataType>
-
-static_assert(ValidLineSegmentType<LineSegmentEntityView<stk::topology::LINE_2,
-                                                         LineSegmentData<float,                  //
-                                                                         stk::topology::LINE_2>>> &&
-                  ValidLineSegmentType<LineSegmentEntityView<stk::topology::BEAM_2,
-                                                             LineSegmentData<float,                  //
-                                                                             stk::topology::BEAM_2>>> &&
-                  ValidLineSegmentType<NgpLineSegmentEntityView<stk::topology::LINE_2,
-                                                                NgpLineSegmentData<float,                  //
-                                                                                   stk::topology::LINE_2>>> &&
-                  ValidLineSegmentType<NgpLineSegmentEntityView<stk::topology::BEAM_2,
-                                                                NgpLineSegmentData<float,                  //
-                                                                                   stk::topology::BEAM_2>>>,
-              "LineSegmentEntityView and NgpLineSegmentEntityView must be valid LineSegment types");
 
 /// \brief A helper function to create a LineSegmentEntityView object with type deduction
 template <typename LineSegmentDataType>  // deduced

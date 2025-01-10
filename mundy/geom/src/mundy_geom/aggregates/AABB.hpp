@@ -20,6 +20,9 @@
 #ifndef MUNDY_GEOM_AGGREGATES_AABB_HPP_
 #define MUNDY_GEOM_AGGREGATES_AABB_HPP_
 
+// C++ core
+#include <type_traits>  // for std::conditional_t, std::false_type, std::true_type
+
 // Kokkos
 #include <Kokkos_Core.hpp>  // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
 
@@ -54,7 +57,7 @@ template <typename Scalar>
 class AABBData {
  public:
   using scalar_t = Scalar;
-  using aabb_data_t = stk::mesh::Field<Scalar>;
+  using aabb_data_t = stk::mesh::Field<scalar_t>;
 
   AABBData(stk::mesh::BulkData& bulk_data, aabb_data_t& aabb_data) : bulk_data_(bulk_data), aabb_data_(aabb_data) {
   }
@@ -75,6 +78,16 @@ class AABBData {
     return aabb_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<AABBData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::BulkData& bulk_data_;
   aabb_data_t& aabb_data_;
@@ -86,14 +99,19 @@ template <typename Scalar>
 class NgpAABBData {
  public:
   using scalar_t = Scalar;
-  using aabb_data_t = stk::mesh::NgpField<Scalar>;
+  using aabb_data_t = stk::mesh::NgpField<scalar_t>;
 
   NgpAABBData(stk::mesh::NgpMesh ngp_mesh, aabb_data_t& aabb_data) : ngp_mesh_(ngp_mesh), aabb_data_(aabb_data) {
   }
 
-  stk::mesh::NgpMesh ngp_mesh() const {
+  stk::mesh::NgpMesh &ngp_mesh() {
     return ngp_mesh_;
   }
+
+  const stk::mesh::NgpMesh &ngp_mesh() const {
+    return ngp_mesh_;
+  }
+
 
   const aabb_data_t& aabb_data() const {
     return aabb_data_;
@@ -103,8 +121,18 @@ class NgpAABBData {
     return aabb_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<NgpAABBData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
-  stk::mesh::NgpMesh ngp_mesh_;
+  stk::mesh::NgpMesh &ngp_mesh_;
   aabb_data_t& aabb_data_;
 };  // NgpAABBData
 
@@ -112,52 +140,39 @@ class NgpAABBData {
 ///
 /// Only provided to keep the interface consistent with other aggregate types.
 /// The aabb data doesn't need automatic deduction.
-template <typename Scalar>
+template <typename Scalar>  // Must be provided
 auto create_aabb_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& aabb_data) {
   return AABBData<Scalar>{bulk_data, aabb_data};
 }
 
 /// \brief A helper function to create a NgpAABBData object
 /// See the discussion for create_aabb_data for more information. Only difference is NgpFields over Fields.
-template <typename Scalar>
+template <typename Scalar>  // Must be provided
 auto create_ngp_aabb_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& aabb_data) {
   return NgpAABBData<Scalar>{ngp_mesh, aabb_data};
 }
 
-/// \brief Check if the type provides the same data as AABBData
+/// \brief A concept to check if a type provides the same data as AABBData
 template <typename Agg>
-concept ValidAABBDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::aabb_data_t;
-  std::is_same_v<std::decay_t<typename Agg::aabb_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  { agg.bulk_data() } -> std::convertible_to<stk::mesh::BulkData&>;
-  { agg.aabb_data() } -> std::convertible_to<typename Agg::aabb_data_t&>;
-};  // ValidAABBDataType
+concept ValidAABBDataType =
+    requires(Agg agg) { typename Agg::scalar_t; } &&
+    std::convertible_to<decltype(std::declval<Agg>().bulk_data()), stk::mesh::BulkData&> &&
+    std::convertible_to<decltype(std::declval<Agg>().aabb_data()), stk::mesh::Field<typename Agg::scalar_t>&>;
 
-/// \brief Check if the type provides the same data as NgpAABBData
+/// \brief A concept to check if a type provides the same data as NgpAABBData
 template <typename Agg>
-concept ValidNgpAABBDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::aabb_data_t;
-  std::is_same_v<std::decay_t<typename Agg::aabb_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { agg.ngp_mesh() } -> std::convertible_to<stk::mesh::NgpMesh>;
-  { agg.aabb_data() } -> std::convertible_to<typename Agg::aabb_data_t&>;
-};  // ValidNgpAABBDataType
-
-static_assert(ValidAABBDataType<AABBData<float>> && ValidAABBDataType<AABBData<float>>,
-              "AABBData must satisfy the ValidAABBDataType concept");
-
-static_assert(ValidNgpAABBDataType<NgpAABBData<float>> && ValidNgpAABBDataType<NgpAABBData<float>>,
-              "NgpAABBData must satisfy the ValidNgpAABBDataType concept");
+concept ValidNgpAABBDataType =
+    requires(Agg agg) { typename Agg::scalar_t; } &&
+    std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh&> &&
+    std::convertible_to<decltype(std::declval<Agg>().aabb_data()), stk::mesh::NgpField<typename Agg::scalar_t>&>;
 
 /// \brief A helper function to get an updated NgpAABBData object from a AABBData object
 /// \param data The AABBData object to convert
 template <ValidAABBDataType AABBDataType>
 auto get_updated_ngp_data(AABBDataType data) {
   using scalar_t = typename AABBDataType::scalar_t;
-  using aabb_data_t = typename AABBDataType::aabb_data_t;
-  return create_ngp_aabb_data<scalar_t>(stk::mesh::get_updated_ngp_mesh(data.bulk_data()),  //
-                                        stk::mesh::get_updated_ngp_field<scalar_t>(data.aabb_data()));
+  return create_ngp_aabb_data(stk::mesh::get_updated_ngp_mesh(data.bulk_data()),  //
+                              stk::mesh::get_updated_ngp_field<scalar_t>(data.aabb_data()));
 }
 
 /// \brief A traits class to provide abstracted access to a aabb's data via an aggregate
@@ -173,7 +188,6 @@ struct AABBDataTraits {
                 "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using aabb_data_t = typename Agg::aabb_data_t;
 
   static decltype(auto) min_corner(Agg agg, stk::mesh::Entity aabb_entity) {
     return mundy::math::get_vector3_view<scalar_t>(stk::mesh::field_data(agg.aabb_data(), aabb_entity));
@@ -222,7 +236,6 @@ struct NgpAABBDataTraits {
                 "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using aabb_data_t = typename Agg::aabb_data_t;
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) min_corner(Agg agg, stk::mesh::FastMeshIndex aabb_index) {
@@ -481,9 +494,6 @@ class NgpAABBEntityView {
   NgpAABBDataType data_;
   stk::mesh::FastMeshIndex aabb_index_;
 };  // NgpAABBEntityView
-
-static_assert(ValidAABBType<AABBEntityView<AABBData<float>>> && ValidAABBType<NgpAABBEntityView<NgpAABBData<float>>>,
-              "AABBEntityView and NgpAABBEntityView must be valid AABB types");
 
 /// \brief A helper function to create a AABBEntityView object with type deduction
 template <typename AABBDataType>

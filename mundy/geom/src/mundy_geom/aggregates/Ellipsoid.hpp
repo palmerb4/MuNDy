@@ -20,6 +20,9 @@
 #ifndef MUNDY_GEOM_AGGREGATES_ELLIPSOID_HPP_
 #define MUNDY_GEOM_AGGREGATES_ELLIPSOID_HPP_
 
+// C++ core
+#include <type_traits>  // for std::conditional_t, std::false_type, std::true_type
+
 // Kokkos
 #include <Kokkos_Core.hpp>  // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
 
@@ -49,20 +52,20 @@ namespace geom {
 ///   element-rank particle
 ///
 /// Use \ref create_ellipsoid_data to build an EllipsoidData object with automatic template deduction.
-template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology,  //
-          bool HasSharedAxisLengths = false>
+template <typename Scalar,       //
+          typename OurTopology,  //
+          typename HasSharedAxisLengths = std::false_type>
 class EllipsoidData {
-  static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
+  static_assert(OurTopology::value == stk::topology::NODE || OurTopology::value == stk::topology::PARTICLE,
                 "The topology of an ellipsoid must be either NODE or PARTICLE");
 
  public:
   using scalar_t = Scalar;
-  using center_data_t = stk::mesh::Field<Scalar>;
+  using center_data_t = stk::mesh::Field<scalar_t>;
   using orientation_data_t = stk::mesh::Field<Scalar>;
-  using axis_lengths_data_t =
-      std::conditional_t<HasSharedAxisLengths, mundy::math::Vector3<Scalar>, stk::mesh::Field<Scalar>>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+  using axis_lengths_data_t = std::conditional_t<HasSharedAxisLengths::value,  //
+                                                 mundy::math::Vector3<scalar_t>, stk::mesh::Field<scalar_t>>;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   EllipsoidData(stk::mesh::BulkData& bulk_data, center_data_t& center_data, orientation_data_t& orientation_data,
@@ -75,8 +78,8 @@ class EllipsoidData {
     MUNDY_THROW_ASSERT(center_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                        "The center_data data must be a field of NODE_RANK");
     MUNDY_THROW_ASSERT(orientation_data.entity_rank() == our_topology.rank(), std::invalid_argument,
-                        "The orientation data must be a field of the same rank as the ellipsoid");
-    if constexpr (!HasSharedAxisLengths) {
+                       "The orientation data must be a field of the same rank as the ellipsoid");
+    if constexpr (!HasSharedAxisLengths::value) {
       MUNDY_THROW_ASSERT(axis_lengths_data.entity_rank() == our_topology.rank(), std::invalid_argument,
                          "The axis lengths data must be a field of the same rank as the ellipsoid");
     }
@@ -114,6 +117,16 @@ class EllipsoidData {
     return axis_lengths_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<EllipsoidData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::BulkData& bulk_data_;
   center_data_t& center_data_;
@@ -123,11 +136,11 @@ class EllipsoidData {
 
 /// \brief Aggregate to hold the data for a collection of NGP-compatible ellipsoids
 /// See the discussion for EllipsoidData for more information. Only difference is NgpFields over Fields.
-template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology,  //
-          bool HasSharedAxisLengths = false>
+template <typename Scalar,       //
+          typename OurTopology,  //
+          typename HasSharedAxisLengths = std::false_type>
 class NgpEllipsoidData {
-  static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
+  static_assert(OurTopology::value == stk::topology::NODE || OurTopology::value == stk::topology::PARTICLE,
                 "The topology of an ellipsoid must be either NODE or PARTICLE");
 
  public:
@@ -135,8 +148,8 @@ class NgpEllipsoidData {
   using center_data_t = stk::mesh::NgpField<Scalar>;
   using orientation_data_t = stk::mesh::NgpField<Scalar>;
   using axis_lengths_data_t =
-      std::conditional_t<HasSharedAxisLengths, mundy::math::Vector3<Scalar>, stk::mesh::NgpField<Scalar>>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+      std::conditional_t<HasSharedAxisLengths::value, mundy::math::Vector3<Scalar>, stk::mesh::NgpField<Scalar>>;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   NgpEllipsoidData(stk::mesh::NgpMesh ngp_mesh, center_data_t& center_data, orientation_data_t& orientation_data,
@@ -149,14 +162,18 @@ class NgpEllipsoidData {
     MUNDY_THROW_ASSERT(center_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                        "The center_data data must be a field of NODE_RANK");
     MUNDY_THROW_ASSERT(orientation_data.get_rank() == our_topology.rank(), std::invalid_argument,
-                        "The orientation data must be a field of the same rank as the ellipsoid");
-    if constexpr (!HasSharedAxisLengths) {
+                       "The orientation data must be a field of the same rank as the ellipsoid");
+    if constexpr (!HasSharedAxisLengths::value) {
       MUNDY_THROW_ASSERT(axis_lengths_data.get_rank() == our_topology.rank(), std::invalid_argument,
                          "The axis lengths data must be a field of the same rank as the ellipsoid");
     }
   }
 
-  stk::mesh::NgpMesh ngp_mesh() const {
+  stk::mesh::NgpMesh &ngp_mesh() {
+    return ngp_mesh_;
+  }
+
+  const stk::mesh::NgpMesh &ngp_mesh() const {
     return ngp_mesh_;
   }
 
@@ -184,6 +201,16 @@ class NgpEllipsoidData {
     return axis_lengths_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<NgpEllipsoidData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::NgpMesh ngp_mesh_;
   center_data_t& center_data_;
@@ -191,7 +218,7 @@ class NgpEllipsoidData {
   axis_lengths_data_t& axis_lengths_data_;
 };  // NgpEllipsoidData
 
-/// \brief A helper function to create a EllipsoidData object
+/// \brief A helper function to create an EllipsoidData object
 ///
 /// This function creates a EllipsoidData object given its rank and data (be they shared or field data)
 /// and is used to automatically deduce the template parameters.
@@ -201,96 +228,81 @@ template <typename Scalar,                        // Must be provided
 auto create_ellipsoid_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& center_data,
                            stk::mesh::Field<Scalar>& orientation_data, AxisLengthsDataType& axis_lengths_data) {
   constexpr bool is_axis_lengths_shared = mundy::math::is_vector3_v<AxisLengthsDataType>;
-  return EllipsoidData<Scalar, OurTopology, is_axis_lengths_shared>{
-      bulk_data, center_data, orientation_data, axis_lengths_data};
+  if constexpr (is_axis_lengths_shared) {
+    return EllipsoidData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::true_type>{
+        bulk_data, center_data, orientation_data, axis_lengths_data};
+  } else {
+    return EllipsoidData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::false_type>{
+        bulk_data, center_data, orientation_data, axis_lengths_data};
+  }
 }
 
-/// \brief A helper function to create a NgpEllipsoidData object
+/// \brief A helper function to create an NgpEllipsoidData object
 /// See the discussion for create_ellipsoid_data for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
           typename AxisLengthsDataType>           // deduced
-auto create_ngp_ellipsoid_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<double>& center_data,
+auto create_ngp_ellipsoid_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& center_data,
                                stk::mesh::NgpField<Scalar>& orientation_data, AxisLengthsDataType& axis_lengths_data) {
   constexpr bool is_axis_lengths_shared = mundy::math::is_vector3_v<AxisLengthsDataType>;
-  return NgpEllipsoidData<Scalar, OurTopology, is_axis_lengths_shared>{
-      ngp_mesh, center_data, orientation_data, axis_lengths_data};
+  if constexpr (is_axis_lengths_shared) {
+    return NgpEllipsoidData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::true_type>{
+        ngp_mesh, center_data, orientation_data, axis_lengths_data};
+  } else {
+    return NgpEllipsoidData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::false_type>{
+        ngp_mesh, center_data, orientation_data, axis_lengths_data};
+  }
 }
 
 /// \brief Check if the type provides the same data as EllipsoidData
 template <typename Agg>
-concept ValidEllipsoidDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::center_data_t;
-  typename Agg::orientation_data_t;
-  typename Agg::axis_lengths_data_t;
-  std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  mundy::math::is_quaternion_v<std::decay_t<typename Agg::orientation_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::orientation_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  mundy::math::is_vector3_v<std::decay_t<typename Agg::axis_lengths_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::axis_lengths_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.bulk_data() } -> std::convertible_to<stk::mesh::BulkData&>;
-  { agg.center_data() } -> std::convertible_to<typename Agg::center_data_t&>;
-  { agg.orientation_data() } -> std::convertible_to<typename Agg::orientation_data_t&>;
-  { agg.axis_lengths_data() } -> std::convertible_to<typename Agg::axis_lengths_data_t&>;
-};  // ValidEllipsoidDataType
+concept ValidEllipsoidDataType =
+    requires(Agg agg) { 
+      typename Agg::scalar_t; 
+    { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    } &&
+    std::convertible_to<decltype(std::declval<Agg>().bulk_data()), stk::mesh::BulkData&> &&
+    std::convertible_to<decltype(std::declval<Agg>().center_data()), stk::mesh::Field<typename Agg::scalar_t>&> &&
+    std::convertible_to<decltype(std::declval<Agg>().orientation_data()), stk::mesh::Field<typename Agg::scalar_t>&> &&
+    (std::convertible_to<decltype(std::declval<Agg>().axis_lengths_data()),
+                         stk::mesh::Field<typename Agg::scalar_t>&> ||
+     std::convertible_to<decltype(std::declval<Agg>().axis_lengths_data()),
+                         mundy::math::Vector3<typename Agg::scalar_t>&>);
 
 /// \brief Check if the type provides the same data as NgpEllipsoidData
 template <typename Agg>
-concept ValidNgpEllipsoidDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::center_data_t;
-  typename Agg::orientation_data_t;
-  typename Agg::axis_lengths_data_t;
-  std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  mundy::math::is_quaternion_v<std::decay_t<typename Agg::orientation_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::orientation_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  mundy::math::is_vector3_v<std::decay_t<typename Agg::axis_lengths_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::axis_lengths_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.ngp_mesh() } -> std::convertible_to<stk::mesh::NgpMesh>;
-  { agg.center_data() } -> std::convertible_to<typename Agg::center_data_t&>;
-  { agg.orientation_data() } -> std::convertible_to<typename Agg::orientation_data_t&>;
-  { agg.axis_lengths_data() } -> std::convertible_to<typename Agg::axis_lengths_data_t&>;
-};  // ValidNgpEllipsoidDataType
-
-static_assert(ValidEllipsoidDataType<EllipsoidData<float,                //
-                                                   stk::topology::NODE,  //
-                                                   true>> &&
-                  ValidEllipsoidDataType<EllipsoidData<float,
-                                                       stk::topology::PARTICLE,  //
-                                                       false>>,
-              "EllipsoidData must satisfy the ValidEllipsoidDataType concept");
-
-static_assert(ValidNgpEllipsoidDataType<NgpEllipsoidData<float,                //
-                                                         stk::topology::NODE,  //
-                                                         true>> &&
-                  ValidNgpEllipsoidDataType<NgpEllipsoidData<float,
-                                                             stk::topology::PARTICLE,  //
-                                                             false>>,
-              "NgpEllipsoidData must satisfy the ValidNgpEllipsoidDataType concept");
+concept ValidNgpEllipsoidDataType =
+    requires(Agg agg) { 
+      typename Agg::scalar_t; 
+    { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    } &&
+    std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh&> &&
+    std::convertible_to<decltype(std::declval<Agg>().center_data()), stk::mesh::NgpField<typename Agg::scalar_t>&> &&
+    std::convertible_to<decltype(std::declval<Agg>().orientation_data()),
+                        stk::mesh::NgpField<typename Agg::scalar_t>&> &&
+    (std::convertible_to<decltype(std::declval<Agg>().axis_lengths_data()),
+                         stk::mesh::NgpField<typename Agg::scalar_t>&> ||
+     std::convertible_to<decltype(std::declval<Agg>().axis_lengths_data()),
+                         mundy::math::Vector3<typename Agg::scalar_t>&>);
 
 /// \brief A helper function to get an updated NgpEllipsoidData object from a EllipsoidData object
 /// \param data The EllipsoidData object to convert
 template <ValidEllipsoidDataType EllipsoidDataType>
 auto get_updated_ngp_data(EllipsoidDataType data) {
   using scalar_t = typename EllipsoidDataType::scalar_t;
-  using orientation_data_t = typename EllipsoidDataType::orientation_data_t;
-  using axis_lengths_data_t = typename EllipsoidDataType::axis_lengths_data_t;
-  constexpr stk::topology::topology_t topology_t = EllipsoidDataType::topology;
+  constexpr stk::topology::topology_t topology_t = EllipsoidDataType::topology_t;
+  using axis_lengths_data_t = decltype(data.axis_lengths_data());
 
-  constexpr bool is_axis_lengths_a_field =
-      std::is_same_v<std::decay_t<axis_lengths_data_t>, stk::mesh::Field<scalar_t>>;
+  constexpr bool is_axis_lengths_a_field = std::is_same_v<std::decay_t<axis_lengths_data_t>, stk::mesh::Field<scalar_t>>;
   if constexpr (is_axis_lengths_a_field) {
     return create_ngp_ellipsoid_data<scalar_t, topology_t>(
-        stk::mesh::get_updated_ngp_mesh(data.bulk_data()),                    //
+        stk::mesh::get_updated_ngp_mesh(data.bulk_data()),                  //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),       //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.orientation_data()),  //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.axis_lengths_data()));
   } else {
     return create_ngp_ellipsoid_data<scalar_t, topology_t>(
-        stk::mesh::get_updated_ngp_mesh(data.bulk_data()),                    //
+        stk::mesh::get_updated_ngp_mesh(data.bulk_data()),                  //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),       //
         stk::mesh::get_updated_ngp_field<scalar_t>(data.orientation_data()),  //
         data.axis_lengths_data());
@@ -310,14 +322,9 @@ struct EllipsoidDataTraits {
                 "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using center_data_t = typename Agg::center_data_t;
-  using orientation_data_t = typename Agg::orientation_data_t;
-  using axis_lengths_data_t = typename Agg::axis_lengths_data_t;
-  static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
-
 
   static constexpr bool has_shared_axis_lengths() {
-    return mundy::math::is_vector3_v<axis_lengths_data_t>;
+    return mundy::math::is_vector3_v<std::decay_t<decltype(std::declval<Agg>().axis_lengths_data())>>;
   }
 
   static decltype(auto) center(Agg agg, stk::mesh::Entity ellipsoid_node) {
@@ -348,14 +355,10 @@ struct NgpEllipsoidDataTraits {
                 "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using center_data_t = typename Agg::center_data_t;
-  using orientation_data_t = typename Agg::orientation_data_t;
-  using axis_lengths_data_t = typename Agg::axis_lengths_data_t;
-  static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
 
   KOKKOS_INLINE_FUNCTION
   static constexpr bool has_shared_axis_lengths() {
-    return mundy::math::is_vector3_v<axis_lengths_data_t>;
+    return mundy::math::is_vector3_v<std::decay_t<decltype(std::declval<Agg>().axis_lengths_data())>>;
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -684,24 +687,6 @@ class NgpEllipsoidEntityView<stk::topology::PARTICLE, NgpEllipsoidDataType> {
   stk::mesh::FastMeshIndex ellipsoid_index_;
   stk::mesh::FastMeshIndex node_index_;
 };  // NgpEllipsoidEntityView<PARTICLE, NgpEllipsoidDataType>
-
-static_assert(ValidEllipsoidType<EllipsoidEntityView<stk::topology::NODE,
-                                                     EllipsoidData<float,                           //
-                                                                   stk::topology::NODE,             //
-                                                                   true>>> &&
-                  ValidEllipsoidType<EllipsoidEntityView<stk::topology::PARTICLE,
-                                                         EllipsoidData<float,                    //
-                                                                       stk::topology::PARTICLE,  //
-                                                                       false>>> &&
-                  ValidEllipsoidType<NgpEllipsoidEntityView<stk::topology::NODE,
-                                                            NgpEllipsoidData<float,                           //
-                                                                             stk::topology::NODE,             //
-                                                                             true>>> &&
-                  ValidEllipsoidType<NgpEllipsoidEntityView<stk::topology::PARTICLE,
-                                                            NgpEllipsoidData<float,                       //
-                                                                             stk::topology::PARTICLE,     //
-                                                                             false>>>,
-              "EllipsoidEntityView and NgpEllipsoidEntityView must be valid Ellipsoid types.");
 
 /// \brief A helper function to create a EllipsoidEntityView object with type deduction
 template <typename EllipsoidDataType>  // deduced

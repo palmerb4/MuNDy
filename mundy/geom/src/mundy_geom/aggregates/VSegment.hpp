@@ -20,6 +20,9 @@
 #ifndef MUNDY_GEOM_AGGREGATES_VSEGMENT_HPP_
 #define MUNDY_GEOM_AGGREGATES_VSEGMENT_HPP_
 
+// C++ core
+#include <type_traits>  // for std::conditional_t, std::false_type, std::true_type
+
 // Kokkos
 #include <Kokkos_Core.hpp>  // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
 
@@ -51,17 +54,16 @@ namespace geom {
 ///   - SPRING_3: Left, right, middle
 ///   - TRI_3: Left, middle, right
 ///   - SHELL_TRI_3: Left, middle, right
-template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology>
+template <typename Scalar, typename OurTopology>
 class VSegmentData {
-  static_assert(OurTopology == stk::topology::SPRING_3 || OurTopology == stk::topology::TRI_3 ||
-                    OurTopology == stk::topology::SHELL_TRI_3,
+  static_assert(OurTopology::value == stk::topology::SPRING_3 || OurTopology::value == stk::topology::TRI_3 ||
+                    OurTopology::value == stk::topology::SHELL_TRI_3,
                 "The topology of a v segment must be SPRING_3, TRI_3, or SHELL_TRI_3");
 
  public:
   using scalar_t = Scalar;
   using node_coords_data_t = stk::mesh::Field<Scalar>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   VSegmentData(stk::mesh::BulkData& bulk_data, node_coords_data_t& node_coords_data)
@@ -86,6 +88,16 @@ class VSegmentData {
     return node_coords_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<VSegmentData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::BulkData& bulk_data_;
   node_coords_data_t& node_coords_data_;
@@ -93,17 +105,16 @@ class VSegmentData {
 
 /// \brief Aggregate to hold the data for a collection of NGP-compatible line segments
 /// See the discussion for VSegmentData for more information. Only difference is NgpFields over Fields.
-template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology>
+template <typename Scalar, typename OurTopology>
 class NgpVSegmentData {
-  static_assert(OurTopology == stk::topology::SPRING_3 || OurTopology == stk::topology::TRI_3 ||
-                    OurTopology == stk::topology::SHELL_TRI_3,
+  static_assert(OurTopology::value == stk::topology::SPRING_3 || OurTopology::value == stk::topology::TRI_3 ||
+                    OurTopology::value == stk::topology::SHELL_TRI_3,
                 "The topology of a v segment must be SPRING_3, TRI_3, or SHELL_TRI_3");
 
  public:
   using scalar_t = Scalar;
   using node_coords_data_t = stk::mesh::NgpField<Scalar>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   NgpVSegmentData(stk::mesh::NgpMesh ngp_mesh, node_coords_data_t& node_coords_data)
@@ -128,6 +139,16 @@ class NgpVSegmentData {
     return node_coords_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<NgpVSegmentData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::NgpMesh ngp_mesh_;
   node_coords_data_t& node_coords_data_;
@@ -140,7 +161,7 @@ class NgpVSegmentData {
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology>  // Must be provided
 auto create_v_segment_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& node_coords_data) {
-  return VSegmentData<Scalar, OurTopology>{bulk_data, node_coords_data};
+  return VSegmentData<Scalar, stk::topology_detail::topology_data<OurTopology>>{bulk_data, node_coords_data};
 }
 
 /// \brief A helper function to create a NgpVSegmentData object
@@ -148,42 +169,28 @@ auto create_v_segment_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scal
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology>  // Must be provided
 auto create_ngp_v_segment_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& node_coords_data) {
-  return NgpVSegmentData<Scalar, OurTopology>{ngp_mesh, node_coords_data};
+  return NgpVSegmentData<Scalar, stk::topology_detail::topology_data<OurTopology>>{ngp_mesh, node_coords_data};
 }
 
 /// \brief Check if the type provides the same data as VSegmentData
 template <typename Agg>
-concept ValidVSegmentDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::node_coords_data_t;
-  std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.bulk_data() } -> std::convertible_to<stk::mesh::BulkData&>;
-  { agg.node_coords_data() } -> std::convertible_to<typename Agg::node_coords_data_t&>;
-};  // ValidVSegmentDataType
+concept ValidVSegmentDataType =
+    requires(Agg agg) { 
+      typename Agg::scalar_t; 
+    { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    } &&
+    std::convertible_to<decltype(std::declval<Agg>().bulk_data()), stk::mesh::BulkData&> &&
+    std::convertible_to<decltype(std::declval<Agg>().node_coords_data()), stk::mesh::Field<typename Agg::scalar_t>&>;
 
 /// \brief Check if the type provides the same data as NgpVSegmentData
 template <typename Agg>
-concept ValidNgpVSegmentDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::node_coords_data_t;
-  std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.ngp_mesh() } -> std::convertible_to<stk::mesh::NgpMesh>;
-  { agg.node_coords_data() } -> std::convertible_to<typename Agg::node_coords_data_t&>;
-};  // ValidNgpVSegmentDataType
-
-static_assert(ValidVSegmentDataType<VSegmentData<float,                    //
-                                                 stk::topology::SPRING_3>> &&
-                  ValidVSegmentDataType<VSegmentData<float,                 //
-                                                     stk::topology::TRI_3>>,
-              "VSegmentData must satisfy the ValidVSegmentDataType concept");
-
-static_assert(ValidNgpVSegmentDataType<NgpVSegmentData<float,                    //
-                                                       stk::topology::SPRING_3>> &&
-                  ValidNgpVSegmentDataType<NgpVSegmentData<float,                 //
-                                                           stk::topology::TRI_3>>,
-              "NgpVSegmentData must satisfy the ValidNgpVSegmentDataType concept");
+concept ValidNgpVSegmentDataType =
+    requires(Agg agg) { 
+      typename Agg::scalar_t; 
+    { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    } &&
+    std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh&> &&
+    std::convertible_to<decltype(std::declval<Agg>().node_coords_data()), stk::mesh::NgpField<typename Agg::scalar_t>&>;
 
 /// \brief A helper function to get an updated NgpVSegmentData object from a VSegmentData object
 /// \param data The VSegmentData object to convert
@@ -496,20 +503,6 @@ class NgpVSegmentEntityView {
   stk::mesh::FastMeshIndex middle_node_index_;
   stk::mesh::FastMeshIndex end_node_index_;
 };  // NgpVSegmentEntityView<OurTopology, NgpVSegmentDataType>
-
-static_assert(ValidVSegmentType<VSegmentEntityView<stk::topology::SPRING_3,
-                                                   VSegmentData<float,                    //
-                                                                stk::topology::SPRING_3>>> &&
-                  ValidVSegmentType<VSegmentEntityView<stk::topology::TRI_3,
-                                                       VSegmentData<float,                 //
-                                                                    stk::topology::TRI_3>>> &&
-                  ValidVSegmentType<NgpVSegmentEntityView<stk::topology::SPRING_3,
-                                                          NgpVSegmentData<float,                    //
-                                                                          stk::topology::SPRING_3>>> &&
-                  ValidVSegmentType<NgpVSegmentEntityView<stk::topology::TRI_3,
-                                                          NgpVSegmentData<float,                 //
-                                                                          stk::topology::TRI_3>>>,
-              "VSegmentEntityView and NgpVSegmentEntityView must be valid VSegment types");
 
 /// \brief A helper function to create a VSegmentEntityView object with type deduction
 template <typename VSegmentDataType>  // deduced

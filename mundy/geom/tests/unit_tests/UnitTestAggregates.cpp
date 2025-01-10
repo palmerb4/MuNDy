@@ -775,13 +775,13 @@ void test_point_data(stk::mesh::BulkData& bulk_data,  //
     ngp_point_view[0] += add_value;
     ngp_point_view[1] -= add_value;
     ngp_point_view[2] *= add_value;
-    ASSERT_NEAR(ngp_center_field(point_index, 0), old_non_shared_center[0] + add_value, 1e-12);
-    ASSERT_NEAR(ngp_center_field(point_index, 1), old_non_shared_center[1] - add_value, 1e-12);
-    ASSERT_NEAR(ngp_center_field(point_index, 2), old_non_shared_center[2] * add_value, 1e-12);
+    ASSERT_NEAR(ngp_center_field(node_index, 0), old_non_shared_center[0] + add_value, 1e-12);
+    ASSERT_NEAR(ngp_center_field(node_index, 1), old_non_shared_center[1] - add_value, 1e-12);
+    ASSERT_NEAR(ngp_center_field(node_index, 2), old_non_shared_center[2] * add_value, 1e-12);
   }
 }
 
-template <stk::topology::topology_t OurTopology, bool is_direction_shared>
+template <stk::topology::topology_t OurTopology>
 void test_line_data(stk::mesh::BulkData& bulk_data,          //
                     stk::mesh::Entity line,                  //
                     stk::mesh::Field<double>& center_field,  //
@@ -798,27 +798,19 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
 
   // Test the regular line data to ensure that the stored shared data/fields are as expected
   auto line_data = create_line_data<double, OurTopology>(
-      bulk_data, center_field, get_first_or_second<is_direction_shared>(direction, direction_field));
+      bulk_data, center_field, direction_field);
   ASSERT_EQ(&line_data.center_data(), &center_field);
-  if constexpr (is_direction_shared) {
-    ASSERT_EQ(&line_data.direction_data(), &direction);
-  } else {
-    ASSERT_EQ(&line_data.direction_data(), &direction_field);
-  }
+  ASSERT_EQ(&line_data.direction_data(), &direction_field);
 
   // Same test for the NGP line data
   stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
   stk::mesh::NgpField<double>& ngp_center_field = stk::mesh::get_updated_ngp_field<double>(center_field);
   stk::mesh::NgpField<double>& ngp_direction_field = stk::mesh::get_updated_ngp_field<double>(direction_field);
   auto ngp_line_data = create_ngp_line_data<double, OurTopology>(
-      ngp_mesh, ngp_center_field, get_first_or_second<is_direction_shared>(direction, ngp_direction_field));
+      ngp_mesh, ngp_center_field, ngp_direction_field);
 
   ASSERT_EQ(&ngp_line_data.center_data(), &ngp_center_field);
-  if constexpr (is_direction_shared) {
-    ASSERT_EQ(&ngp_line_data.direction_data(), &direction);
-  } else {
-    ASSERT_EQ(&ngp_line_data.direction_data(), &ngp_direction_field);
-  }
+  ASSERT_EQ(&ngp_line_data.direction_data(), &ngp_direction_field);
 
   // Set the center and direction data for the line directly via their fields
   const Point<double> non_shared_direction{1.2, 3.4, 5.6};
@@ -832,11 +824,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     stk::mesh::field_data(center_field, line)[0] = non_shared_center[0];
     stk::mesh::field_data(center_field, line)[1] = non_shared_center[1];
     stk::mesh::field_data(center_field, line)[2] = non_shared_center[2];
-    if constexpr (!is_direction_shared) {
-      stk::mesh::field_data(direction_field, line)[0] = non_shared_direction[0];
-      stk::mesh::field_data(direction_field, line)[1] = non_shared_direction[1];
-      stk::mesh::field_data(direction_field, line)[2] = non_shared_direction[2];
-    }
+    stk::mesh::field_data(direction_field, line)[0] = non_shared_direction[0];
+    stk::mesh::field_data(direction_field, line)[1] = non_shared_direction[1];
+    stk::mesh::field_data(direction_field, line)[2] = non_shared_direction[2];
   } else {
     ASSERT_EQ(bulk_data.num_nodes(line), 1);
     stk::mesh::Entity node = bulk_data.begin_nodes(line)[0];
@@ -844,11 +834,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     stk::mesh::field_data(center_field, node)[0] = non_shared_center[0];
     stk::mesh::field_data(center_field, node)[1] = non_shared_center[1];
     stk::mesh::field_data(center_field, node)[2] = non_shared_center[2];
-    if constexpr (!is_direction_shared) {
-      stk::mesh::field_data(direction_field, line)[0] = non_shared_direction[0];
-      stk::mesh::field_data(direction_field, line)[1] = non_shared_direction[1];
-      stk::mesh::field_data(direction_field, line)[2] = non_shared_direction[2];
-    }
+    stk::mesh::field_data(direction_field, line)[0] = non_shared_direction[0];
+    stk::mesh::field_data(direction_field, line)[1] = non_shared_direction[1];
+    stk::mesh::field_data(direction_field, line)[2] = non_shared_direction[2];
   }
 
   // Test that the line data properly views the updated fields
@@ -861,15 +849,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     ASSERT_NEAR(line_view.center()[0], non_shared_center[0], 1e-12);
     ASSERT_NEAR(line_view.center()[1], non_shared_center[1], 1e-12);
     ASSERT_NEAR(line_view.center()[2], non_shared_center[2], 1e-12);
-    if constexpr (is_direction_shared) {
-      ASSERT_NEAR(line_view.direction()[0], direction[0], 1e-12);
-      ASSERT_NEAR(line_view.direction()[1], direction[1], 1e-12);
-      ASSERT_NEAR(line_view.direction()[2], direction[2], 1e-12);
-    } else {
-      ASSERT_NEAR(line_view.direction()[0], non_shared_direction[0], 1e-12);
-      ASSERT_NEAR(line_view.direction()[1], non_shared_direction[1], 1e-12);
-      ASSERT_NEAR(line_view.direction()[2], non_shared_direction[2], 1e-12);
-    }
+    ASSERT_NEAR(line_view.direction()[0], non_shared_direction[0], 1e-12);
+    ASSERT_NEAR(line_view.direction()[1], non_shared_direction[1], 1e-12);
+    ASSERT_NEAR(line_view.direction()[2], non_shared_direction[2], 1e-12);
     line_view.center()[0] += add_value;
     line_view.center()[1] -= add_value;
     line_view.center()[2] *= add_value;
@@ -880,15 +862,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     ASSERT_NEAR(stk::mesh::field_data(center_field, line)[0], old_non_shared_center[0] + add_value, 1e-12);
     ASSERT_NEAR(stk::mesh::field_data(center_field, line)[1], old_non_shared_center[1] - add_value, 1e-12);
     ASSERT_NEAR(stk::mesh::field_data(center_field, line)[2], old_non_shared_center[2] * add_value, 1e-12);
-    if constexpr (is_direction_shared) {
-      ASSERT_NEAR(direction[0], old_direction[0] + 2 * add_value, 1e-12);
-      ASSERT_NEAR(direction[1], old_direction[1] - 2 * add_value, 1e-12);
-      ASSERT_NEAR(direction[2], old_direction[2] * 2 * add_value, 1e-12);
-    } else {
-      ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[0], old_non_shared_direction[0] + 2 * add_value, 1e-12);
-      ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[1], old_non_shared_direction[1] - 2 * add_value, 1e-12);
-      ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[2], old_non_shared_direction[2] * 2 * add_value, 1e-12);
-    }
+    ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[0], old_non_shared_direction[0] + 2 * add_value, 1e-12);
+    ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[1], old_non_shared_direction[1] - 2 * add_value, 1e-12);
+    ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[2], old_non_shared_direction[2] * 2 * add_value, 1e-12);
 
     // Remove the added value
     line_view.center()[0] -= add_value;
@@ -902,15 +878,10 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     ASSERT_NEAR(line_view.center()[0], non_shared_center[0], 1e-12);
     ASSERT_NEAR(line_view.center()[1], non_shared_center[1], 1e-12);
     ASSERT_NEAR(line_view.center()[2], non_shared_center[2], 1e-12);
-    if constexpr (is_direction_shared) {
-      ASSERT_NEAR(line_view.direction()[0], direction[0], 1e-12);
-      ASSERT_NEAR(line_view.direction()[1], direction[1], 1e-12);
-      ASSERT_NEAR(line_view.direction()[2], direction[2], 1e-12);
-    } else {
-      ASSERT_NEAR(line_view.direction()[0], non_shared_direction[0], 1e-12);
-      ASSERT_NEAR(line_view.direction()[1], non_shared_direction[1], 1e-12);
-      ASSERT_NEAR(line_view.direction()[2], non_shared_direction[2], 1e-12);
-    }
+    ASSERT_NEAR(line_view.direction()[0], non_shared_direction[0], 1e-12);
+    ASSERT_NEAR(line_view.direction()[1], non_shared_direction[1], 1e-12);
+    ASSERT_NEAR(line_view.direction()[2], non_shared_direction[2], 1e-12);
+
     line_view.center()[0] += add_value;
     line_view.center()[1] -= add_value;
     line_view.center()[2] *= add_value;
@@ -924,15 +895,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     ASSERT_NEAR(stk::mesh::field_data(center_field, node)[0], old_non_shared_center[0] + add_value, 1e-12);
     ASSERT_NEAR(stk::mesh::field_data(center_field, node)[1], old_non_shared_center[1] - add_value, 1e-12);
     ASSERT_NEAR(stk::mesh::field_data(center_field, node)[2], old_non_shared_center[2] * add_value, 1e-12);
-    if constexpr (is_direction_shared) {
-      ASSERT_NEAR(direction[0], old_direction[0] + 2 * add_value, 1e-12);
-      ASSERT_NEAR(direction[1], old_direction[1] - 2 * add_value, 1e-12);
-      ASSERT_NEAR(direction[2], old_direction[2] * 2 * add_value, 1e-12);
-    } else {
-      ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[0], old_non_shared_direction[0] + 2 * add_value, 1e-12);
-      ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[1], old_non_shared_direction[1] - 2 * add_value, 1e-12);
-      ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[2], old_non_shared_direction[2] * 2 * add_value, 1e-12);
-    }
+    ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[0], old_non_shared_direction[0] + 2 * add_value, 1e-12);
+    ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[1], old_non_shared_direction[1] - 2 * add_value, 1e-12);
+    ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[2], old_non_shared_direction[2] * 2 * add_value, 1e-12);
 
     // Remove the added value
     line_view.center()[0] -= add_value;
@@ -950,15 +915,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     ASSERT_NEAR(ngp_line_view.center()[0], non_shared_center[0], 1e-12);
     ASSERT_NEAR(ngp_line_view.center()[1], non_shared_center[1], 1e-12);
     ASSERT_NEAR(ngp_line_view.center()[2], non_shared_center[2], 1e-12);
-    if constexpr (is_direction_shared) {
-      ASSERT_NEAR(ngp_line_view.direction()[0], direction[0], 1e-12);
-      ASSERT_NEAR(ngp_line_view.direction()[1], direction[1], 1e-12);
-      ASSERT_NEAR(ngp_line_view.direction()[2], direction[2], 1e-12);
-    } else {
-      ASSERT_NEAR(ngp_line_view.direction()[0], non_shared_direction[0], 1e-12);
-      ASSERT_NEAR(ngp_line_view.direction()[1], non_shared_direction[1], 1e-12);
-      ASSERT_NEAR(ngp_line_view.direction()[2], non_shared_direction[2], 1e-12);
-    }
+    ASSERT_NEAR(ngp_line_view.direction()[0], non_shared_direction[0], 1e-12);
+    ASSERT_NEAR(ngp_line_view.direction()[1], non_shared_direction[1], 1e-12);
+    ASSERT_NEAR(ngp_line_view.direction()[2], non_shared_direction[2], 1e-12);
 
     // Test that the data is modifiable
     ngp_line_view.center()[0] += add_value;
@@ -970,29 +929,17 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     ASSERT_NEAR(ngp_center_field(line_index, 0), old_non_shared_center[0] + add_value, 1e-12);
     ASSERT_NEAR(ngp_center_field(line_index, 1), old_non_shared_center[1] - add_value, 1e-12);
     ASSERT_NEAR(ngp_center_field(line_index, 2), old_non_shared_center[2] * add_value, 1e-12);
-    if constexpr (is_direction_shared) {
-      ASSERT_NEAR(direction[0], old_direction[0] + 2 * add_value, 1e-12);
-      ASSERT_NEAR(direction[1], old_direction[1] - 2 * add_value, 1e-12);
-      ASSERT_NEAR(direction[2], old_direction[2] * 2 * add_value, 1e-12);
-    } else {
-      ASSERT_NEAR(ngp_direction_field(line_index, 0), old_non_shared_direction[0] + 2 * add_value, 1e-12);
-      ASSERT_NEAR(ngp_direction_field(line_index, 1), old_non_shared_direction[1] - 2 * add_value, 1e-12);
-      ASSERT_NEAR(ngp_direction_field(line_index, 2), old_non_shared_direction[2] * 2 * add_value, 1e-12);
-    }
+    ASSERT_NEAR(ngp_direction_field(line_index, 0), old_non_shared_direction[0] + 2 * add_value, 1e-12);
+    ASSERT_NEAR(ngp_direction_field(line_index, 1), old_non_shared_direction[1] - 2 * add_value, 1e-12);
+    ASSERT_NEAR(ngp_direction_field(line_index, 2), old_non_shared_direction[2] * 2 * add_value, 1e-12);
   } else {
     auto ngp_line_view = create_ngp_line_entity_view(ngp_line_data, line_index);
     ASSERT_NEAR(ngp_line_view.center()[0], non_shared_center[0], 1e-12);
     ASSERT_NEAR(ngp_line_view.center()[1], non_shared_center[1], 1e-12);
     ASSERT_NEAR(ngp_line_view.center()[2], non_shared_center[2], 1e-12);
-    if constexpr (is_direction_shared) {
-      ASSERT_NEAR(ngp_line_view.direction()[0], direction[0], 1e-12);
-      ASSERT_NEAR(ngp_line_view.direction()[1], direction[1], 1e-12);
-      ASSERT_NEAR(ngp_line_view.direction()[2], direction[2], 1e-12);
-    } else {
-      ASSERT_NEAR(ngp_line_view.direction()[0], non_shared_direction[0], 1e-12);
-      ASSERT_NEAR(ngp_line_view.direction()[1], non_shared_direction[1], 1e-12);
-      ASSERT_NEAR(ngp_line_view.direction()[2], non_shared_direction[2], 1e-12);
-    }
+    ASSERT_NEAR(ngp_line_view.direction()[0], non_shared_direction[0], 1e-12);
+    ASSERT_NEAR(ngp_line_view.direction()[1], non_shared_direction[1], 1e-12);
+    ASSERT_NEAR(ngp_line_view.direction()[2], non_shared_direction[2], 1e-12);
 
     // Test that the data is modifiable
     ngp_line_view.center()[0] += add_value;
@@ -1006,15 +953,9 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
     ASSERT_NEAR(ngp_center_field(node_index, 0), old_non_shared_center[0] + add_value, 1e-12);
     ASSERT_NEAR(ngp_center_field(node_index, 1), old_non_shared_center[1] - add_value, 1e-12);
     ASSERT_NEAR(ngp_center_field(node_index, 2), old_non_shared_center[2] * add_value, 1e-12);
-    if constexpr (is_direction_shared) {
-      ASSERT_NEAR(direction[0], old_direction[0] + 2 * add_value, 1e-12);
-      ASSERT_NEAR(direction[1], old_direction[1] - 2 * add_value, 1e-12);
-      ASSERT_NEAR(direction[2], old_direction[2] * 2 * add_value, 1e-12);
-    } else {
-      ASSERT_NEAR(ngp_direction_field(line_index, 0), old_non_shared_direction[0] + 2 * add_value, 1e-12);
-      ASSERT_NEAR(ngp_direction_field(line_index, 1), old_non_shared_direction[1] - 2 * add_value, 1e-12);
-      ASSERT_NEAR(ngp_direction_field(line_index, 2), old_non_shared_direction[2] * 2 * add_value, 1e-12);
-    }
+    ASSERT_NEAR(ngp_direction_field(line_index, 0), old_non_shared_direction[0] + 2 * add_value, 1e-12);
+    ASSERT_NEAR(ngp_direction_field(line_index, 1), old_non_shared_direction[1] - 2 * add_value, 1e-12);
+    ASSERT_NEAR(ngp_direction_field(line_index, 2), old_non_shared_direction[2] * 2 * add_value, 1e-12);
   }
 }
 
@@ -1945,11 +1886,8 @@ TEST(Aggregates, LineData) {
   bulk_data.declare_relation(line_elem, node, 0);
   bulk_data.modification_end();
 
-  test_line_data<stk::topology::NODE, true>(bulk_data, line_node, node_center_field, node_direction_field);
-  test_line_data<stk::topology::NODE, false>(bulk_data, line_node, node_center_field, node_direction_field);
-
-  test_line_data<stk::topology::PARTICLE, true>(bulk_data, line_elem, node_center_field, elem_direction_field);
-  test_line_data<stk::topology::PARTICLE, false>(bulk_data, line_elem, node_center_field, elem_direction_field);
+  test_line_data<stk::topology::NODE>(bulk_data, line_node, node_center_field, node_direction_field);
+  test_line_data<stk::topology::PARTICLE>(bulk_data, line_elem, node_center_field, elem_direction_field);
 }
 
 TEST(Aggregates, LineSegmentData) {

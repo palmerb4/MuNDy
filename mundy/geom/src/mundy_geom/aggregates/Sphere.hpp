@@ -20,6 +20,9 @@
 #ifndef MUNDY_GEOM_AGGREGATES_SPHERE_HPP_
 #define MUNDY_GEOM_AGGREGATES_SPHERE_HPP_
 
+// C++ core
+#include <type_traits>  // for std::conditional_t, std::false_type, std::true_type
+
 // Kokkos
 #include <Kokkos_Core.hpp>  // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
 
@@ -47,26 +50,26 @@ namespace geom {
 ///   - PARTICLE: The center is stored on a node, whereas the radius is stored on the element-rank particle
 ///
 /// Use \ref create_sphere_data to build an SphereData object with automatic template deduction.
-template <typename Scalar,                                     //
-          stk::topology::topology_t OurTopology,               //
-          bool HasSharedRadius = false>                       
+template <typename Scalar,       //
+          typename OurTopology,  //
+          typename HasSharedRadius = std::false_type>
 class SphereData {
-  static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
+  static_assert(OurTopology::value == stk::topology::NODE || OurTopology::value == stk::topology::PARTICLE,
                 "The topology of a sphere must be either NODE or PARTICLE");
 
  public:
   using scalar_t = Scalar;
   using center_data_t = stk::mesh::Field<Scalar>;
-  using radius_data_t = std::conditional_t<HasSharedRadius, Scalar, stk::mesh::Field<Scalar>>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+  using radius_data_t = std::conditional_t<HasSharedRadius::value, Scalar, stk::mesh::Field<Scalar>>;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   SphereData(stk::mesh::BulkData& bulk_data, center_data_t& center_data, radius_data_t& radius_data)
       : bulk_data_(bulk_data), center_data_(center_data), radius_data_(radius_data) {
-    stk::topology our_topology = OurTopology;
+    stk::topology our_topology = topology_t;
     MUNDY_THROW_ASSERT(center_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                        "The center data must be a field of NODE_RANK");
-    if constexpr (!HasSharedRadius) {
+    if constexpr (!HasSharedRadius::value) {
       MUNDY_THROW_ASSERT(radius_data.entity_rank() == our_topology.rank(), std::invalid_argument,
                          "The radius data must be a field of the same rank as the sphere");
     }
@@ -96,6 +99,16 @@ class SphereData {
     return radius_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<SphereData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::BulkData& bulk_data_;
   center_data_t& center_data_;
@@ -104,32 +117,36 @@ class SphereData {
 
 /// \brief Aggregate to hold the data for a collection of NGP-compatible spheres
 /// See the discussion for SphereData for more information. Only difference is NgpFields over Fields.
-template <typename Scalar,                                        //
-          stk::topology::topology_t OurTopology,                  //
-          bool HasSharedRadius = false>
+template <typename Scalar,       //
+          typename OurTopology,  //
+          typename HasSharedRadius = std::false_type>
 class NgpSphereData {
-  static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
+  static_assert(OurTopology::value == stk::topology::NODE || OurTopology::value == stk::topology::PARTICLE,
                 "The topology of a sphere must be either NODE or PARTICLE");
 
  public:
   using scalar_t = Scalar;
   using center_data_t = stk::mesh::NgpField<Scalar>;
-  using radius_data_t = std::conditional_t<HasSharedRadius, Scalar, stk::mesh::NgpField<Scalar>>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+  using radius_data_t = std::conditional_t<HasSharedRadius::value, Scalar, stk::mesh::NgpField<Scalar>>;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   NgpSphereData(stk::mesh::NgpMesh ngp_mesh, center_data_t& center_data, radius_data_t& radius_data)
       : ngp_mesh_(ngp_mesh), center_data_(center_data), radius_data_(radius_data) {
     MUNDY_THROW_ASSERT(center_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                        "The center data must be a field of NODE_RANK");
-    stk::topology our_topology = OurTopology;
-    if constexpr (!HasSharedRadius) {
+    stk::topology our_topology = topology_t;
+    if constexpr (!HasSharedRadius::value) {
       MUNDY_THROW_ASSERT(radius_data.get_rank() == our_topology.rank(), std::invalid_argument,
                          "The radius data must be a field of the same rank as the sphere");
     }
   }
 
-  stk::mesh::NgpMesh ngp_mesh() const {
+  stk::mesh::NgpMesh &ngp_mesh() {
+    return ngp_mesh_;
+  }
+
+  const stk::mesh::NgpMesh &ngp_mesh() const {
     return ngp_mesh_;
   }
 
@@ -149,6 +166,16 @@ class NgpSphereData {
     return radius_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<NgpSphereData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::NgpMesh ngp_mesh_;
   center_data_t& center_data_;
@@ -162,8 +189,16 @@ class NgpSphereData {
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
           typename RadiusDataType>                // deduced
-auto create_sphere_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& center_data, RadiusDataType& radius_data) {
-  return SphereData<Scalar, OurTopology, std::is_same_v<std::decay_t<RadiusDataType>, Scalar>>{bulk_data, center_data, radius_data};
+auto create_sphere_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& center_data,
+                        RadiusDataType& radius_data) {
+  constexpr bool is_radius_shared = std::is_same_v<std::decay_t<RadiusDataType>, Scalar>;
+  if constexpr (is_radius_shared) {
+    return SphereData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::true_type>{bulk_data, center_data,
+                                                                                                radius_data};
+  } else {
+    return SphereData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::false_type>{bulk_data, center_data,
+                                                                                                 radius_data};
+  }
 }
 
 /// \brief A helper function to create a NgpSphereData object
@@ -171,62 +206,48 @@ auto create_sphere_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
           typename RadiusDataType>                // deduced
-auto create_ngp_sphere_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& center_data, RadiusDataType& radius_data) {
-  return NgpSphereData<Scalar, OurTopology, std::is_same_v<std::decay_t<RadiusDataType>, Scalar>>{ngp_mesh, center_data, radius_data};
+auto create_ngp_sphere_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& center_data,
+                            RadiusDataType& radius_data) {
+  constexpr bool is_radius_shared = std::is_same_v<std::decay_t<RadiusDataType>, Scalar>;
+  if constexpr (is_radius_shared) {
+    return NgpSphereData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::true_type>{
+        ngp_mesh, center_data, radius_data};
+  } else {
+    return NgpSphereData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::false_type>{
+        ngp_mesh, center_data, radius_data};
+  }
 }
 
 /// \brief Check if the type provides the same data as SphereData
 template <typename Agg>
-concept ValidSphereDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::center_data_t;
-  typename Agg::radius_data_t;
-  std::is_same_v<std::decay_t<typename Agg::radius_data_t>, typename Agg::scalar_t> ||
-      std::is_same_v<std::decay_t<typename Agg::radius_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.bulk_data() } -> std::convertible_to<stk::mesh::BulkData&>;
-  { agg.center_data() } -> std::convertible_to<typename Agg::center_data_t&>;
-  { agg.radius_data() } -> std::convertible_to<typename Agg::radius_data_t&>;
-};  // ValidSphereDataType
+concept ValidSphereDataType =
+    requires(Agg agg) { 
+      typename Agg::scalar_t; 
+    { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    } &&
+    std::convertible_to<decltype(std::declval<Agg>().bulk_data()), stk::mesh::BulkData&> &&
+    std::convertible_to<decltype(std::declval<Agg>().center_data()), stk::mesh::Field<typename Agg::scalar_t>&> &&
+    (std::convertible_to<decltype(std::declval<Agg>().radius_data()), stk::mesh::Field<typename Agg::scalar_t>&> ||
+     std::convertible_to<decltype(std::declval<Agg>().radius_data()), typename Agg::scalar_t&>);
 
 /// \brief Check if the type provides the same data as NgpSphereData
 template <typename Agg>
-concept ValidNgpSphereDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::center_data_t;
-  typename Agg::radius_data_t;
-  std::is_same_v<std::decay_t<typename Agg::radius_data_t>, typename Agg::scalar_t> ||
-      std::is_same_v<std::decay_t<typename Agg::radius_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.ngp_mesh() } -> std::convertible_to<stk::mesh::NgpMesh>;
-  { agg.center_data() } -> std::convertible_to<typename Agg::center_data_t&>;
-  { agg.radius_data() } -> std::convertible_to<typename Agg::radius_data_t&>;
-};  // ValidNgpSphereDataType
-
-static_assert(ValidSphereDataType<SphereData<float,                    //
-                                             stk::topology::NODE,      //
-                                             false>> &&
-                  ValidSphereDataType<SphereData<float,                    //
-                                                 stk::topology::PARTICLE,  //
-                                                 true>>,
-              "SphereData must satisfy the ValidSphereDataType concept");
-
-static_assert(ValidNgpSphereDataType<NgpSphereData<float,                       //
-                                                   stk::topology::NODE,         //
-                                                   false>> &&
-                  ValidNgpSphereDataType<NgpSphereData<float,                       //
-                                                       stk::topology::PARTICLE,     //
-                                                       true>>,
-              "NgpSphereData must satisfy the ValidNgpSphereDataType concept");
+concept ValidNgpSphereDataType =
+    requires(Agg agg) { 
+      typename Agg::scalar_t; 
+    { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    } &&
+    std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh&> &&
+    std::convertible_to<decltype(std::declval<Agg>().center_data()), stk::mesh::NgpField<typename Agg::scalar_t>&> &&
+    (std::convertible_to<decltype(std::declval<Agg>().radius_data()), stk::mesh::NgpField<typename Agg::scalar_t>&> ||
+     std::convertible_to<decltype(std::declval<Agg>().radius_data()), typename Agg::scalar_t&>);
 
 /// \brief A helper function to get an updated NgpSphereData object from a SphereData object
 /// \param data The SphereData object to convert
 template <ValidSphereDataType SphereDataType>
 auto get_updated_ngp_data(SphereDataType data) {
   using scalar_t = typename SphereDataType::scalar_t;
-  using radius_data_t = typename SphereDataType::radius_data_t;
+  using radius_data_t = decltype(data.radius_data());
 
   constexpr bool is_radius_a_field = std::is_same_v<std::decay_t<radius_data_t>, stk::mesh::Field<scalar_t>>;
   constexpr stk::topology::topology_t topology_t = SphereDataType::topology_t;
@@ -254,8 +275,8 @@ struct SphereDataTraits {
                 "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using center_data_t = typename Agg::center_data_t;
-  using radius_data_t = typename Agg::radius_data_t;
+  using center_data_t = decltype(std::declval<Agg>().center_data());
+  using radius_data_t = decltype(std::declval<Agg>().radius_data());
   static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
 
   static constexpr bool has_shared_radius() {
@@ -286,14 +307,11 @@ struct NgpSphereDataTraits {
                 "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using center_data_t = typename Agg::center_data_t;
-  using radius_data_t = typename Agg::radius_data_t;
-
   static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
 
   KOKKOS_INLINE_FUNCTION
   static constexpr bool has_shared_radius() {
-    return std::is_same_v<std::decay_t<radius_data_t>, scalar_t>;
+    return std::is_same_v<std::decay_t<decltype(std::declval<Agg>().radius_data())>, scalar_t>;
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -598,24 +616,6 @@ class NgpSphereEntityView<stk::topology::PARTICLE, NgpSphereDataType> {
   stk::mesh::FastMeshIndex sphere_index_;
   stk::mesh::FastMeshIndex node_index_;
 };  // NgpSphereEntityView<stk::topology::PARTICLE, NgpSphereDataType>
-
-static_assert(ValidSphereType<SphereEntityView<stk::topology::NODE,
-                                               SphereData<float,                    //
-                                                          stk::topology::NODE,      //
-                                                          false>>> &&
-                  ValidSphereType<SphereEntityView<stk::topology::PARTICLE,
-                                                   SphereData<float,                    //
-                                                              stk::topology::PARTICLE,  //
-                                                              true>>> &&
-                  ValidSphereType<NgpSphereEntityView<stk::topology::NODE,
-                                                      NgpSphereData<float,                       //
-                                                                    stk::topology::NODE,         //
-                                                                    false>>> &&
-                  ValidSphereType<NgpSphereEntityView<stk::topology::PARTICLE,
-                                                      NgpSphereData<float,                       //
-                                                                    stk::topology::PARTICLE,     //
-                                                                    true>>>,
-              "SphereEntityView and NgpSphereEntityView must be valid Sphere types");
 
 /// \brief A helper function to create a SphereEntityView object with type deduction
 template <typename SphereDataType>  // deduced

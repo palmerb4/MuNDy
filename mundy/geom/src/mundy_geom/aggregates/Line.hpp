@@ -20,6 +20,9 @@
 #ifndef MUNDY_GEOM_AGGREGATES_LINE_HPP_
 #define MUNDY_GEOM_AGGREGATES_LINE_HPP_
 
+// C++ core
+#include <type_traits>  // for std::conditional_t, std::false_type, std::true_type
+
 // Kokkos
 #include <Kokkos_Core.hpp>  // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
 
@@ -48,19 +51,16 @@ namespace geom {
 ///   - PARTICLE: The center is stored on a node, whereas the direction is stored on the element-rank particle
 ///
 /// Use \ref create_line_data to build a LineData object with automatic template deduction.
-template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology,  //
-          bool HasSharedDirection = false>
+template <typename Scalar, typename OurTopology>
 class LineData {
-  static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
+  static_assert(OurTopology::value == stk::topology::NODE || OurTopology::value == stk::topology::PARTICLE,
                 "The topology of a line must be either NODE or PARTICLE");
 
  public:
   using scalar_t = Scalar;
   using center_data_t = stk::mesh::Field<Scalar>;
-  using direction_data_t =
-      std::conditional_t<HasSharedDirection, mundy::math::Vector3<Scalar>, stk::mesh::Field<Scalar>>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+  using direction_data_t = stk::mesh::Field<Scalar>;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   LineData(stk::mesh::BulkData& bulk_data, center_data_t& center_data, direction_data_t& direction_data)
@@ -68,10 +68,8 @@ class LineData {
     stk::topology our_topology = topology_t;
     MUNDY_THROW_ASSERT(center_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                        "The center data must be a field of NODE_RANK");
-    if constexpr (!HasSharedDirection) {
-      MUNDY_THROW_ASSERT(direction_data.entity_rank() == our_topology.rank(), std::invalid_argument,
-                         "The direction data must have the same rank as the line rank.");
-    }
+    MUNDY_THROW_ASSERT(direction_data.entity_rank() == our_topology.rank(), std::invalid_argument,
+                       "The direction data must have the same rank as the line rank.");
   }
 
   const stk::mesh::BulkData& bulk_data() const {
@@ -98,6 +96,16 @@ class LineData {
     return direction_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<LineData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::BulkData& bulk_data_;
   center_data_t& center_data_;
@@ -106,19 +114,16 @@ class LineData {
 
 /// \brief Aggregate to hold the data for a collection of NGP-compatible lines
 /// See the discussion for LineData for more information. Only difference is NgpFields over Fields.
-template <typename Scalar,                        //
-          stk::topology::topology_t OurTopology,  //
-          bool HasSharedDirection = false>
+template <typename Scalar, typename OurTopology>
 class NgpLineData {
-  static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
+  static_assert(OurTopology::value == stk::topology::NODE || OurTopology::value == stk::topology::PARTICLE,
                 "The topology of a line must be either NODE or PARTICLE");
 
  public:
   using scalar_t = Scalar;
   using center_data_t = stk::mesh::NgpField<Scalar>;
-  using direction_data_t =
-      std::conditional_t<HasSharedDirection, mundy::math::Vector3<Scalar>, stk::mesh::NgpField<Scalar>>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+  using direction_data_t = stk::mesh::NgpField<Scalar>;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   NgpLineData(stk::mesh::NgpMesh ngp_mesh, center_data_t& center_data, direction_data_t& direction_data)
@@ -126,13 +131,15 @@ class NgpLineData {
     stk::topology our_topology = topology_t;
     MUNDY_THROW_ASSERT(center_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                        "The center data must be a field of NODE_RANK");
-    if constexpr (!HasSharedDirection) {
-      MUNDY_THROW_ASSERT(direction_data.get_rank() == our_topology.rank(), std::invalid_argument,
-                         "The direction data must have the same rank as the line rank.");
-    }
+    MUNDY_THROW_ASSERT(direction_data.get_rank() == our_topology.rank(), std::invalid_argument,
+                       "The direction data must have the same rank as the line rank.");
   }
 
-  stk::mesh::NgpMesh ngp_mesh() const {
+  stk::mesh::NgpMesh& ngp_mesh() {
+    return ngp_mesh_;
+  }
+
+  const stk::mesh::NgpMesh& ngp_mesh() const {
     return ngp_mesh_;
   }
 
@@ -152,6 +159,16 @@ class NgpLineData {
     return direction_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<NgpLineData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::NgpMesh ngp_mesh_;
   center_data_t& center_data_;
@@ -163,125 +180,52 @@ class NgpLineData {
 /// This function creates a LineData object given its rank and data (be they shared or field data)
 /// and is used to automatically deduce the template parameters.
 template <typename Scalar,                        // Must be provided
-          stk::topology::topology_t OurTopology,  // Must be provided
-          typename DirectionDataType>             // deduced
+          stk::topology::topology_t OurTopology>  // Must be provided
 auto create_line_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& center_data,
-                      DirectionDataType& direction_data) {
-  constexpr bool is_direction_shared = mundy::math::is_vector3_v<DirectionDataType>;
-  return LineData<Scalar, OurTopology, is_direction_shared>{bulk_data, center_data, direction_data};
+                      stk::mesh::Field<Scalar>& direction_data) {
+  return LineData<Scalar, stk::topology_detail::topology_data<OurTopology>>{bulk_data, center_data, direction_data};
 }
 
 /// \brief A helper function to create a NgpLineData object
 /// See the discussion for create_line_data for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,                        // Must be provided
-          stk::topology::topology_t OurTopology,  // Must be provided
-          typename DirectionDataType>             // deduced
+          stk::topology::topology_t OurTopology>  // Must be provided
 auto create_ngp_line_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& center_data,
-                          DirectionDataType& direction_data) {
-  constexpr bool is_direction_shared = mundy::math::is_vector3_v<DirectionDataType>;
-  return NgpLineData<Scalar, OurTopology, is_direction_shared>{ngp_mesh, center_data, direction_data};
+                          stk::mesh::NgpField<Scalar>& direction_data) {
+  return NgpLineData<Scalar, stk::topology_detail::topology_data<OurTopology>>{ngp_mesh, center_data, direction_data};
 }
 
 /// \brief Check if the type provides the same data as LineData
 template <typename Agg>
-concept ValidLineDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::center_data_t;
-  typename Agg::direction_data_t;
-  std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  mundy::math::is_vector3_v<std::decay_t<typename Agg::direction_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::direction_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.bulk_data() } -> std::convertible_to<stk::mesh::BulkData&>;
-  { agg.center_data() } -> std::convertible_to<typename Agg::center_data_t&>;
-  { agg.direction_data() } -> std::convertible_to<typename Agg::direction_data_t&>;
-};  // ValidLineDataType
+concept ValidLineDataType =
+    requires(Agg agg) {
+      typename Agg::scalar_t;
+      { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    } && std::convertible_to<decltype(std::declval<Agg>().bulk_data()), stk::mesh::BulkData&> &&
+    std::convertible_to<decltype(std::declval<Agg>().center_data()), stk::mesh::Field<typename Agg::scalar_t>&> &&
+    std::convertible_to<decltype(std::declval<Agg>().direction_data()), stk::mesh::Field<typename Agg::scalar_t>&>;
 
 /// \brief Check if the type provides the same data as NgpLineData
 template <typename Agg>
-concept ValidNgpLineDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::center_data_t;
-  typename Agg::direction_data_t;
-  std::is_same_v<std::decay_t<typename Agg::center_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  mundy::math::is_vector3_v<std::decay_t<typename Agg::direction_data_t>> ||
-      std::is_same_v<std::decay_t<typename Agg::direction_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.ngp_mesh() } -> std::convertible_to<stk::mesh::NgpMesh>;
-  { agg.center_data() } -> std::convertible_to<typename Agg::center_data_t&>;
-  { agg.direction_data() } -> std::convertible_to<typename Agg::direction_data_t&>;
-};  // ValidNgpLineDataType
-
-static_assert(ValidLineDataType<LineData<float,                //
-                                         stk::topology::NODE,  //
-                                         false>> &&
-                  ValidLineDataType<LineData<float,                    //
-                                             stk::topology::PARTICLE,  //
-                                             true>>,
-              "LineData must satisfy the ValidLineDataType concept");
-
-static_assert(ValidNgpLineDataType<NgpLineData<float,                //
-                                               stk::topology::NODE,  //
-                                               false>> &&
-                  ValidNgpLineDataType<NgpLineData<float,                    //
-                                                   stk::topology::PARTICLE,  //
-                                                   true>>,
-              "NgpLineData must satisfy the ValidNgpLineDataType concept");
+concept ValidNgpLineDataType =
+    requires(Agg agg) {
+      typename Agg::scalar_t;
+      { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    } && std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh&> &&
+    std::convertible_to<decltype(std::declval<Agg>().center_data()), stk::mesh::NgpField<typename Agg::scalar_t>&> &&
+    std::convertible_to<decltype(std::declval<Agg>().direction_data()), stk::mesh::NgpField<typename Agg::scalar_t>&>;
 
 /// \brief A helper function to get an updated NgpLineData object from a LineData object
 /// \param data The LineData object to convert
 template <ValidLineDataType LineDataType>
 auto get_updated_ngp_data(LineDataType data) {
   using scalar_t = typename LineDataType::scalar_t;
-  using direction_data_t = typename LineDataType::direction_data_t;
-
-  constexpr bool is_direction_a_field = std::is_same_v<std::decay_t<direction_data_t>, stk::mesh::Field<scalar_t>>;
   constexpr stk::topology::topology_t topology_t = LineDataType::topology_t;
-  if constexpr (is_direction_a_field) {
-    return create_ngp_line_data<scalar_t, topology_t>(                   //
-        stk::mesh::get_updated_ngp_mesh(data.bulk_data()),               //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),  //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.direction_data()));
-  } else {
-    return create_ngp_line_data<scalar_t, topology_t>(                   //
-        stk::mesh::get_updated_ngp_mesh(data.bulk_data()),               //
-        stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),  //
-        data.direction_data());
-  }
+  return create_ngp_line_data<scalar_t, topology_t>(                   //
+      stk::mesh::get_updated_ngp_mesh(data.bulk_data()),               //
+      stk::mesh::get_updated_ngp_field<scalar_t>(data.center_data()),  //
+      stk::mesh::get_updated_ngp_field<scalar_t>(data.direction_data()));
 }
-
-/// \brief A traits class to provide abstracted access to a NODE_RANK line's data via an aggregate
-///
-/// By default, this class is compatible with LineData or any class the meets the ValidLineDataType concept.
-/// Users can specialize this class to support other aggregate types.
-template <typename Agg>
-struct NodeLineDataTraits {
-  static_assert(ValidLineDataType<Agg>,
-                "Agg must satisfy the ValidLineDataType concept.\n"
-                "Basically, Agg must have the same getters and types aliases as NgpLineData but is free to extend it "
-                "as needed without "
-                "having to rely on inheritance.");
-
-  using scalar_t = typename Agg::scalar_t;
-  using center_data_t = typename Agg::center_data_t;
-  using direction_data_t = typename Agg::direction_data_t;
-
-  static constexpr bool has_shared_direction() {
-    return mundy::math::is_vector3_v<direction_data_t>;
-  }
-
-  static decltype(auto) center(Agg agg, stk::mesh::Entity line_node) {
-    return mundy::mesh::vector3_field_data(agg.center_data(), line_node);
-  }
-
-  static decltype(auto) direction(Agg agg, stk::mesh::Entity line_node) {
-    if constexpr (has_shared_direction()) {
-      return agg.direction_data();
-    } else {
-      return mundy::mesh::vector3_field_data(agg.direction_data(), line_node);
-    }
-  }
-};  // NodeLineDataTraits
 
 /// \brief A traits class to provide abstracted access to a line's data via an aggregate
 template <typename Agg>
@@ -293,24 +237,14 @@ struct LineDataTraits {
                 "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using center_data_t = typename Agg::center_data_t;
-  using direction_data_t = typename Agg::direction_data_t;
   static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
-
-  static constexpr bool has_shared_direction() {
-    return mundy::math::is_vector3_v<direction_data_t>;
-  }
 
   static decltype(auto) center(Agg agg, stk::mesh::Entity line_node) {
     return mundy::mesh::vector3_field_data(agg.center_data(), line_node);
   }
 
   static decltype(auto) direction(Agg agg, stk::mesh::Entity line_entity) {
-    if constexpr (has_shared_direction()) {
-      return agg.direction_data();
-    } else {
-      return mundy::mesh::vector3_field_data(agg.direction_data(), line_entity);
-    }
+    return mundy::mesh::vector3_field_data(agg.direction_data(), line_entity);
   }
 };  // LineDataTraits
 
@@ -325,14 +259,7 @@ struct NgpLineDataTraits {
                 "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using center_data_t = typename Agg::center_data_t;
-  using direction_data_t = typename Agg::direction_data_t;
   static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
-
-  KOKKOS_INLINE_FUNCTION
-  static constexpr bool has_shared_direction() {
-    return mundy::math::is_vector3_v<direction_data_t>;
-  }
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) center(Agg agg, stk::mesh::FastMeshIndex line_index) {
@@ -341,11 +268,7 @@ struct NgpLineDataTraits {
 
   KOKKOS_INLINE_FUNCTION
   static decltype(auto) direction(Agg agg, stk::mesh::FastMeshIndex line_index) {
-    if constexpr (has_shared_direction()) {
-      return agg.direction_data();
-    } else {
-      return mundy::mesh::vector3_field_data(agg.direction_data(), line_index);
-    }
+    return mundy::mesh::vector3_field_data(agg.direction_data(), line_index);
   }
 };  // NgpLineDataTraits
 
@@ -637,24 +560,6 @@ class NgpLineEntityView<stk::topology::PARTICLE, NgpLineDataType> {
   stk::mesh::FastMeshIndex line_index_;
   stk::mesh::FastMeshIndex node_index_;
 };  // NgpLineEntityView<stk::topology::PARTICLE, NgpLineDataType>
-
-static_assert(ValidLineType<LineEntityView<stk::topology::NODE,
-                                           LineData<float,                //
-                                                    stk::topology::NODE,  //
-                                                    false>>> &&
-                  ValidLineType<LineEntityView<stk::topology::PARTICLE,
-                                               LineData<float,                    //
-                                                        stk::topology::PARTICLE,  //
-                                                        true>>> &&
-                  ValidLineType<NgpLineEntityView<stk::topology::NODE,
-                                                  NgpLineData<float,                //
-                                                              stk::topology::NODE,  //
-                                                              false>>> &&
-                  ValidLineType<NgpLineEntityView<stk::topology::PARTICLE,
-                                                  NgpLineData<float,                    //
-                                                              stk::topology::PARTICLE,  //
-                                                              true>>>,
-              "LineEntityView and NgpLineEntityView must be valid Line types");
 
 /// \brief A helper function to create a LineEntityView object with type deduction
 template <typename LineDataType>  // deduced

@@ -20,6 +20,9 @@
 #ifndef MUNDY_GEOM_AGGREGATES_POINT_HPP_
 #define MUNDY_GEOM_AGGREGATES_POINT_HPP_
 
+// C++ core
+#include <type_traits>  // for std::conditional_t, std::false_type, std::true_type
+
 // Kokkos
 #include <Kokkos_Core.hpp>  // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
 
@@ -48,15 +51,15 @@ namespace geom {
 /// However, how we access this node changes based on the rank of the point. Allowable topologies are:
 ///   - NODE, PARTICLE
 template <typename Scalar,  //
-          stk::topology::topology_t OurTopology>
+          typename OurTopology>
 class PointData {
-  static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
+  static_assert(OurTopology::value == stk::topology::NODE || OurTopology::value == stk::topology::PARTICLE,
                 "The topology of a point must be NODE or PARTICLE");
 
  public:
   using scalar_t = Scalar;
   using node_coords_data_t = stk::mesh::Field<Scalar>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   PointData(stk::mesh::BulkData& bulk_data, node_coords_data_t& node_coords_data)
@@ -81,6 +84,16 @@ class PointData {
     return node_coords_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<PointData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::BulkData& bulk_data_;
   node_coords_data_t& node_coords_data_;
@@ -89,15 +102,15 @@ class PointData {
 /// \brief Aggregate to hold the data for a collection of NGP-compatible points
 /// See the discussion for PointData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar,  //
-          stk::topology::topology_t OurTopology>
+          typename OurTopology>
 class NgpPointData {
-  static_assert(OurTopology == stk::topology::NODE || OurTopology == stk::topology::PARTICLE,
+  static_assert(OurTopology::value == stk::topology::NODE || OurTopology::value == stk::topology::PARTICLE,
                 "The topology of a point must be NODE or PARTICLE");
 
  public:
   using scalar_t = Scalar;
   using node_coords_data_t = stk::mesh::NgpField<Scalar>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   NgpPointData(stk::mesh::NgpMesh ngp_mesh, node_coords_data_t& node_coords_data)
@@ -106,7 +119,11 @@ class NgpPointData {
                        "The center data must be a field of NODE_RANK");
   }
 
-  stk::mesh::NgpMesh ngp_mesh() const {
+  stk::mesh::NgpMesh& ngp_mesh() {
+    return ngp_mesh_;
+  }
+
+  const stk::mesh::NgpMesh& ngp_mesh() const {
     return ngp_mesh_;
   }
 
@@ -118,6 +135,16 @@ class NgpPointData {
     return node_coords_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<NgpPointData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::NgpMesh ngp_mesh_;
   node_coords_data_t& node_coords_data_;
@@ -127,7 +154,7 @@ class NgpPointData {
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology>  // Must be provided
 auto create_point_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& node_coords_data) {
-  return PointData<Scalar, OurTopology>{bulk_data, node_coords_data};
+  return PointData<Scalar, stk::topology_detail::topology_data<OurTopology>>{bulk_data, node_coords_data};
 }
 
 /// \brief A helper function to create a NgpPointData object
@@ -135,42 +162,26 @@ auto create_point_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>&
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology>  // Must be provided
 auto create_ngp_point_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& node_coords_data) {
-  return NgpPointData<Scalar, OurTopology>{ngp_mesh, node_coords_data};
+  return NgpPointData<Scalar, stk::topology_detail::topology_data<OurTopology>>{ngp_mesh, node_coords_data};
 }
 
 /// \brief Check if the type provides the same data as PointData
 template <typename Agg>
-concept ValidPointDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::node_coords_data_t;
-  std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.bulk_data() } -> std::convertible_to<stk::mesh::BulkData&>;
-  { agg.node_coords_data() } -> std::convertible_to<typename Agg::node_coords_data_t&>;
-};  // ValidPointDataType
+concept ValidPointDataType =
+    requires(Agg agg) {
+      typename Agg::scalar_t;
+      { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    } && std::convertible_to<decltype(std::declval<Agg>().bulk_data()), stk::mesh::BulkData&> &&
+    std::convertible_to<decltype(std::declval<Agg>().node_coords_data()), stk::mesh::Field<typename Agg::scalar_t>&>;
 
 /// \brief Check if the type provides the same data as NgpPointData
 template <typename Agg>
-concept ValidNgpPointDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::node_coords_data_t;
-  std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.ngp_mesh() } -> std::convertible_to<stk::mesh::NgpMesh>;
-  { agg.node_coords_data() } -> std::convertible_to<typename Agg::node_coords_data_t&>;
-};  // ValidNgpPointDataType
-
-static_assert(ValidPointDataType<PointData<float,  //
-                                           stk::topology::NODE>> &&
-                  ValidPointDataType<PointData<float,  //
-                                               stk::topology::PARTICLE>>,
-              "PointData must satisfy the ValidPointDataType concept");
-
-static_assert(ValidNgpPointDataType<NgpPointData<float,  //
-                                                 stk::topology::NODE>> &&
-                  ValidNgpPointDataType<NgpPointData<float,  //
-                                                     stk::topology::PARTICLE>>,
-              "NgpPointData must satisfy the ValidNgpPointDataType concept");
+concept ValidNgpPointDataType =
+    requires(Agg agg) {
+      typename Agg::scalar_t;
+      { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    } && std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh&> &&
+    std::convertible_to<decltype(std::declval<Agg>().node_coords_data()), stk::mesh::NgpField<typename Agg::scalar_t>&>;
 
 /// \brief A helper function to get an updated NgpPointData object from a PointData object
 /// \param data The PointData object to convert
@@ -196,7 +207,6 @@ struct PointDataTraits {
                 "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using node_coords_data_t = typename Agg::node_coords_data_t;
   static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
 
   static decltype(auto) center(Agg agg, stk::mesh::Entity point_node) {
@@ -215,7 +225,6 @@ struct NgpPointDataTraits {
                 "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using node_coords_data_t = typename Agg::node_coords_data_t;
   static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
 
   KOKKOS_INLINE_FUNCTION
@@ -503,20 +512,6 @@ class NgpPointEntityView<stk::topology::PARTICLE, NgpPointDataType> {
   stk::mesh::FastMeshIndex point_index_;
   stk::mesh::FastMeshIndex node_index_;
 };  // NgpElemPointView
-
-static_assert(ValidPointType<PointEntityView<stk::topology::NODE,
-                                             PointData<float,  //
-                                                       stk::topology::NODE>>> &&
-                  ValidPointType<PointEntityView<stk::topology::PARTICLE,
-                                                 PointData<float,  //
-                                                           stk::topology::PARTICLE>>> &&
-                  ValidPointType<NgpPointEntityView<stk::topology::NODE,
-                                                    NgpPointData<float,  //
-                                                                 stk::topology::NODE>>> &&
-                  ValidPointType<NgpPointEntityView<stk::topology::PARTICLE,
-                                                    NgpPointData<float,  //
-                                                                 stk::topology::PARTICLE>>>,
-              "PointEntityView and NgpPointEntityView must be valid Point types");
 
 /// \brief A helper function to create a PointEntityView object with type deduction
 template <typename PointDataType>  // deduced

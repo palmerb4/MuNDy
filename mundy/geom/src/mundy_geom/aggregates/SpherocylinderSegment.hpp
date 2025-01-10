@@ -20,6 +20,9 @@
 #ifndef MUNDY_GEOM_AGGREGATES_SPHEROCYLINDERSEGMENT_HPP_
 #define MUNDY_GEOM_AGGREGATES_SPHEROCYLINDERSEGMENT_HPP_
 
+// C++ core
+#include <type_traits>  // for std::conditional_t, std::false_type, std::true_type
+
 // Kokkos
 #include <Kokkos_Core.hpp>  // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
 
@@ -47,20 +50,20 @@ namespace geom {
 /// Regardless of the topology, the node coordinates are stored on all nodes of the line segment, whereas
 /// the radius is stored on the rank of the line segment. Allowable topologies are:
 ///   - LINE_2, LINE_3, BEAM_2, BEAM_3, SPRING_2, SPRING_3
-template <typename Scalar,                                         //
-          stk::topology::topology_t OurTopology,                   //
-          bool HasSharedRadius = false>
+template <typename Scalar,       //
+          typename OurTopology,  //
+          typename HasSharedRadius = std::false_type>
 class SpherocylinderSegmentData {
-  static_assert(OurTopology == stk::topology::LINE_2 || OurTopology == stk::topology::LINE_3 ||
-                    OurTopology == stk::topology::BEAM_2 || OurTopology == stk::topology::BEAM_3 ||
-                    OurTopology == stk::topology::SPRING_2 || OurTopology == stk::topology::SPRING_3,
+  static_assert(OurTopology::value == stk::topology::LINE_2 || OurTopology::value == stk::topology::LINE_3 ||
+                    OurTopology::value == stk::topology::BEAM_2 || OurTopology::value == stk::topology::BEAM_3 ||
+                    OurTopology::value == stk::topology::SPRING_2 || OurTopology::value == stk::topology::SPRING_3,
                 "The topology of a line segment must be LINE_2, LINE_3, BEAM_2, BEAM_3, SPRING_2, or SPRING_3");
 
  public:
   using scalar_t = Scalar;
   using node_coords_data_t = stk::mesh::Field<Scalar>;
-  using radius_data_t = std::conditional_t<HasSharedRadius, Scalar, stk::mesh::Field<Scalar>>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+  using radius_data_t = std::conditional_t<HasSharedRadius::value, Scalar, stk::mesh::Field<Scalar>>;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   SpherocylinderSegmentData(stk::mesh::BulkData& bulk_data, node_coords_data_t& node_coords_data,
@@ -68,8 +71,8 @@ class SpherocylinderSegmentData {
       : bulk_data_(bulk_data), node_coords_data_(node_coords_data), radius_data_(radius_data) {
     MUNDY_THROW_ASSERT(node_coords_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                        "The node_coords data must be a field of NODE_RANK");
-    stk::topology our_topology = OurTopology;
-    if constexpr (!HasSharedRadius) {
+    stk::topology our_topology = topology_t;
+    if constexpr (!HasSharedRadius::value) {
       MUNDY_THROW_ASSERT(radius_data.entity_rank() == our_topology.rank(), std::invalid_argument,
                          "The radius data must be a field of the same rank as the segment");
     }
@@ -99,6 +102,16 @@ class SpherocylinderSegmentData {
     return radius_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<SpherocylinderSegmentData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::BulkData& bulk_data_;
   node_coords_data_t& node_coords_data_;
@@ -107,20 +120,20 @@ class SpherocylinderSegmentData {
 
 /// \brief Aggregate to hold the data for a collection of NGP-compatible sphero-cylinder segments
 /// See the discussion for SpherocylinderSegmentData for more information. Only difference is NgpFields over Fields.
-template <typename Scalar,                                            //
-          stk::topology::topology_t OurTopology,                      //
-          bool HasSharedRadius = false>
+template <typename Scalar,       //
+          typename OurTopology,  //
+          typename HasSharedRadius = std::false_type>
 class NgpSpherocylinderSegmentData {
-  static_assert(OurTopology == stk::topology::LINE_2 || OurTopology == stk::topology::LINE_3 ||
-                    OurTopology == stk::topology::BEAM_2 || OurTopology == stk::topology::BEAM_3 ||
-                    OurTopology == stk::topology::SPRING_2 || OurTopology == stk::topology::SPRING_3,
+  static_assert(OurTopology::value == stk::topology::LINE_2 || OurTopology::value == stk::topology::LINE_3 ||
+                    OurTopology::value == stk::topology::BEAM_2 || OurTopology::value == stk::topology::BEAM_3 ||
+                    OurTopology::value == stk::topology::SPRING_2 || OurTopology::value == stk::topology::SPRING_3,
                 "The topology of a line segment must be LINE_2, LINE_3, BEAM_2, BEAM_3, SPRING_2, or SPRING_3");
 
  public:
   using scalar_t = Scalar;
   using node_coords_data_t = stk::mesh::NgpField<Scalar>;
-  using radius_data_t = std::conditional_t<HasSharedRadius, Scalar, stk::mesh::NgpField<Scalar>>;
-  static constexpr stk::topology::topology_t topology_t = OurTopology;
+  using radius_data_t = std::conditional_t<HasSharedRadius::value, Scalar, stk::mesh::NgpField<Scalar>>;
+  static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
   NgpSpherocylinderSegmentData(stk::mesh::NgpMesh ngp_mesh, node_coords_data_t& node_coords_data,
@@ -128,8 +141,8 @@ class NgpSpherocylinderSegmentData {
       : ngp_mesh_(ngp_mesh), node_coords_data_(node_coords_data), radius_data_(radius_data) {
     MUNDY_THROW_ASSERT(node_coords_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                        "The node_coords data must be a field of NODE_RANK");
-    stk::topology our_topology = OurTopology;
-    if constexpr (!HasSharedRadius) {
+    stk::topology our_topology = topology_t;
+    if constexpr (!HasSharedRadius::value) {
       MUNDY_THROW_ASSERT(radius_data.get_rank() == our_topology.rank(), std::invalid_argument,
                          "The radius data must be a field of the same rank as the segment");
     }
@@ -159,6 +172,16 @@ class NgpSpherocylinderSegmentData {
     return radius_data_;
   }
 
+  /// \brief Chainable function to add augments to this aggregate
+  ///
+  /// \note Aggregates may ~not~ be templated by non-type template parameters. This is not overly limiting, as you
+  ///  simply need to introduce a wrapper class to hold the non-type template parameters. For example, use
+  ///  std::true_type and std::false_type to represent the boolean template parameters.
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto add_augment(Args&&... args) const {
+    return NextAugment<NgpSpherocylinderSegmentData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
  private:
   stk::mesh::NgpMesh ngp_mesh_;
   node_coords_data_t& node_coords_data_;
@@ -175,8 +198,13 @@ template <typename Scalar,                        // Must be provided
 auto create_spherocylinder_segment_data(stk::mesh::BulkData& bulk_data, stk::mesh::Field<Scalar>& node_coords_data,
                                         RadiusDataType& radius_data) {
   constexpr bool is_radius_shared = std::is_same_v<std::decay_t<RadiusDataType>, Scalar>;
-  return SpherocylinderSegmentData<Scalar, OurTopology, is_radius_shared>{bulk_data, node_coords_data,
-                                                                                            radius_data};
+  if constexpr (is_radius_shared) {
+    return SpherocylinderSegmentData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::true_type>{
+        bulk_data, node_coords_data, radius_data};
+  } else {
+    return SpherocylinderSegmentData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::false_type>{
+        bulk_data, node_coords_data, radius_data};
+  }
 }
 
 /// \brief A helper function to create a NgpSpherocylinderSegmentData object
@@ -187,62 +215,44 @@ template <typename Scalar,                        // Must be provided
           typename RadiusDataType>                // deduced
 auto create_ngp_spherocylinder_segment_data(stk::mesh::NgpMesh ngp_mesh, stk::mesh::NgpField<Scalar>& node_coords_data,
                                             RadiusDataType& radius_data) {
-                                              constexpr bool is_radius_shared = std::is_same_v<std::decay_t<RadiusDataType>, Scalar>;
-  return NgpSpherocylinderSegmentData<Scalar, OurTopology, is_radius_shared>{
-      ngp_mesh, node_coords_data, radius_data};
+  constexpr bool is_radius_shared = std::is_same_v<std::decay_t<RadiusDataType>, Scalar>;
+  if constexpr (is_radius_shared) {
+    return NgpSpherocylinderSegmentData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::true_type>{
+        ngp_mesh, node_coords_data, radius_data};
+  } else {
+    return NgpSpherocylinderSegmentData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::false_type>{
+        ngp_mesh, node_coords_data, radius_data};
+  }
 }
 
 /// \brief Check if the type provides the same data as SpherocylinderSegmentData
 template <typename Agg>
-concept ValidSpherocylinderSegmentDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::node_coords_data_t;
-  typename Agg::radius_data_t;
-  std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  std::is_same_v<std::decay_t<typename Agg::radius_data_t>, typename Agg::scalar_t> ||
-      std::is_same_v<std::decay_t<typename Agg::radius_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.bulk_data() } -> std::convertible_to<stk::mesh::BulkData&>;
-  { agg.node_coords_data() } -> std::convertible_to<typename Agg::node_coords_data_t&>;
-  { agg.radius_data() } -> std::convertible_to<typename Agg::radius_data_t&>;
-};  // ValidSpherocylinderSegmentDataType
+concept ValidSpherocylinderSegmentDataType = requires(Agg agg) { 
+      typename Agg::scalar_t; 
+    { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    }
+  && std::convertible_to<decltype(std::declval<Agg>().bulk_data()), stk::mesh::BulkData&>
+  && std::convertible_to<decltype(std::declval<Agg>().node_coords_data()), stk::mesh::Field<typename Agg::scalar_t>&>
+  && (std::convertible_to<decltype(std::declval<Agg>().radius_data()), stk::mesh::Field<typename Agg::scalar_t>&> ||
+      std::convertible_to<decltype(std::declval<Agg>().radius_data()), typename Agg::scalar_t&>);
 
 /// \brief Check if the type provides the same data as NgpSpherocylinderSegmentData
 template <typename Agg>
-concept ValidNgpSpherocylinderSegmentDataType = requires(Agg agg) {
-  typename Agg::scalar_t;
-  typename Agg::node_coords_data_t;
-  std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  std::is_same_v<std::decay_t<typename Agg::radius_data_t>, typename Agg::scalar_t> ||
-      std::is_same_v<std::decay_t<typename Agg::radius_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
-  { agg.ngp_mesh() } -> std::convertible_to<stk::mesh::NgpMesh>;
-  { agg.node_coords_data() } -> std::convertible_to<typename Agg::node_coords_data_t&>;
-  { agg.radius_data() } -> std::convertible_to<typename Agg::radius_data_t&>;
-};  // ValidNgpSpherocylinderSegmentDataType
-
-static_assert(ValidSpherocylinderSegmentDataType<SpherocylinderSegmentData<float,                    //
-                                                                           stk::topology::LINE_2,    //
-                                                                           false>> &&
-                  ValidSpherocylinderSegmentDataType<SpherocylinderSegmentData<float,                    //
-                                                                               stk::topology::BEAM_2,    //
-                                                                               true>>,
-              "SpherocylinderSegmentData must satisfy the ValidSpherocylinderSegmentDataType concept");
-
-static_assert(ValidNgpSpherocylinderSegmentDataType<NgpSpherocylinderSegmentData<float,                       //
-                                                                                 stk::topology::LINE_2,       //
-                                                                                 false>> &&
-                  ValidNgpSpherocylinderSegmentDataType<NgpSpherocylinderSegmentData<float,                       //
-                                                                                     stk::topology::BEAM_2,       //
-                                                                                     true>>,
-              "NgpSpherocylinderSegmentData must satisfy the ValidNgpSpherocylinderSegmentDataType concept");
+concept ValidNgpSpherocylinderSegmentDataType = requires(Agg agg) { 
+      typename Agg::scalar_t; 
+    { Agg::topology_t } -> std::convertible_to<stk::topology::topology_t>;
+    }
+  && std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh&>
+  && std::convertible_to<decltype(std::declval<Agg>().node_coords_data()), stk::mesh::NgpField<typename Agg::scalar_t>&>
+  && (std::convertible_to<decltype(std::declval<Agg>().radius_data()), stk::mesh::NgpField<typename Agg::scalar_t>&> ||
+      std::convertible_to<decltype(std::declval<Agg>().radius_data()), typename Agg::scalar_t&>);
 
 /// \brief A helper function to get an updated NgpSpherocylinderSegmentData object from a SpherocylinderSegmentData
 /// object \param data The SpherocylinderSegmentData object to convert
 template <ValidSpherocylinderSegmentDataType SpherocylinderSegmentDataType>
 auto get_updated_ngp_data(SpherocylinderSegmentDataType data) {
   using scalar_t = typename SpherocylinderSegmentDataType::scalar_t;
-  using radius_data_t = typename SpherocylinderSegmentDataType::radius_data_t;
+  using radius_data_t = decltype(data.radius_data());
 
   constexpr bool is_radius_a_field = std::is_same_v<std::decay_t<radius_data_t>, stk::mesh::Field<scalar_t>>;
   constexpr stk::topology::topology_t topology_t = SpherocylinderSegmentDataType::topology_t;
@@ -270,8 +280,8 @@ struct SpherocylinderSegmentDataTraits {
                 "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using node_coords_data_t = typename Agg::node_coords_data_t;
-  using radius_data_t = typename Agg::radius_data_t;
+  using node_coords_data_t = decltype(std::declval<Agg>().node_coords_data());
+  using radius_data_t = decltype(std::declval<Agg>().radius_data());
   static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
 
   static constexpr bool has_shared_radius() {
@@ -304,8 +314,8 @@ struct NgpSpherocylinderSegmentDataTraits {
                 "having to rely on inheritance.");
 
   using scalar_t = typename Agg::scalar_t;
-  using node_coords_data_t = typename Agg::node_coords_data_t;
-  using radius_data_t = typename Agg::radius_data_t;
+  using node_coords_data_t = decltype(std::declval<Agg>().node_coords_data());
+  using radius_data_t = decltype(std::declval<Agg>().radius_data());
 
   static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
 
@@ -543,29 +553,6 @@ class NgpSpherocylinderSegmentEntityView {
   stk::mesh::FastMeshIndex start_node_index_;
   stk::mesh::FastMeshIndex end_node_index_;
 };  // NgpSpherocylinderSegmentEntityView
-
-static_assert(
-    ValidSpherocylinderSegmentType<
-        SpherocylinderSegmentEntityView<stk::topology::LINE_2,
-                                        SpherocylinderSegmentData<float,                    //
-                                                                  stk::topology::LINE_2,    //
-                                                                  false>>> &&
-        ValidSpherocylinderSegmentType<
-            SpherocylinderSegmentEntityView<stk::topology::BEAM_2,
-                                            SpherocylinderSegmentData<float,                    //
-                                                                      stk::topology::BEAM_2,    //
-                                                                      true>>> &&
-        ValidSpherocylinderSegmentType<
-            NgpSpherocylinderSegmentEntityView<stk::topology::LINE_2,
-                                               NgpSpherocylinderSegmentData<float,                       //
-                                                                            stk::topology::LINE_2,       //
-                                                                            false>>> &&
-        ValidSpherocylinderSegmentType<
-            NgpSpherocylinderSegmentEntityView<stk::topology::BEAM_2,
-                                               NgpSpherocylinderSegmentData<float,                       //
-                                                                            stk::topology::BEAM_2,       //
-                                                                            true>>>,
-    "SpherocylinderSegmentEntityView and NgpSpherocylinderSegmentEntityView must be valid SpherocylinderSegment types");
 
 /// \brief A helper function to create a SpherocylinderSegmentEntityView object with type deduction
 template <typename SpherocylinderSegmentDataType>  // deduced
