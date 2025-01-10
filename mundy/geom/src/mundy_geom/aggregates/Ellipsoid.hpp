@@ -423,27 +423,27 @@ class EllipsoidEntityView<stk::topology::NODE, EllipsoidDataType> {
   }
 
   decltype(auto) center() {
-    return data_access_t::center(data(), ellipsoid_entity());
+    return data_access_t::center(data_, ellipsoid_);
   }
 
   decltype(auto) center() const {
-    return data_access_t::center(data(), ellipsoid_entity());
+    return data_access_t::center(data_, ellipsoid_);
   }
 
   decltype(auto) orientation() {
-    return data_access_t::orientation(data(), ellipsoid_entity());
+    return data_access_t::orientation(data_, ellipsoid_);
   }
 
   decltype(auto) orientation() const {
-    return data_access_t::orientation(data(), ellipsoid_entity());
+    return data_access_t::orientation(data_, ellipsoid_);
   }
 
   decltype(auto) axis_lengths() {
-    return data_access_t::axis_lengths(data(), ellipsoid_entity());
+    return data_access_t::axis_lengths(data_, ellipsoid_);
   }
 
   decltype(auto) axis_lengths() const {
-    return data_access_t::axis_lengths(data(), ellipsoid_entity());
+    return data_access_t::axis_lengths(data_, ellipsoid_);
   }
 
  private:
@@ -493,27 +493,27 @@ class EllipsoidEntityView<stk::topology::PARTICLE, EllipsoidDataType> {
   }
 
   decltype(auto) center() {
-    return data_access_t::center(data(), node_entity());
+    return data_access_t::center(data_, node_entity());
   }
 
   decltype(auto) center() const {
-    return data_access_t::center(data(), node_entity());
+    return data_access_t::center(data_, node_entity());
   }
 
   decltype(auto) orientation() {
-    return data_access_t::orientation(data(), ellipsoid_entity());
+    return data_access_t::orientation(data_, ellipsoid_);
   }
 
   decltype(auto) orientation() const {
-    return data_access_t::orientation(data(), ellipsoid_entity());
+    return data_access_t::orientation(data_, ellipsoid_);
   }
 
   decltype(auto) axis_lengths() {
-    return data_access_t::axis_lengths(data(), ellipsoid_entity());
+    return data_access_t::axis_lengths(data_, ellipsoid_);
   }
 
   decltype(auto) axis_lengths() const {
-    return data_access_t::axis_lengths(data(), ellipsoid_entity());
+    return data_access_t::axis_lengths(data_, ellipsoid_);
   }
 
  private:
