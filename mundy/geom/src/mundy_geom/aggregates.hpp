@@ -51,14 +51,41 @@
 ///
 /// The above is general to all of our primitive types. All you need to do is replace Sphere with the primitive type you
 /// are interested in. They all implement the same pattern.
-#include <mundy_geom/aggregates/Point.hpp>
-#include <mundy_geom/aggregates/Line.hpp>
-#include <mundy_geom/aggregates/LineSegment.hpp>
-#include <mundy_geom/aggregates/VSegment.hpp>
-#include <mundy_geom/aggregates/Sphere.hpp>
-#include <mundy_geom/aggregates/Ellipsoid.hpp>
-#include <mundy_geom/aggregates/AABB.hpp>
-#include <mundy_geom/aggregates/Spherocylinder.hpp>
-#include <mundy_geom/aggregates/SpherocylinderSegment.hpp>
+#include <mundy_geom/aggregates/PointData.hpp>
+#include <mundy_geom/aggregates/PointDataConcepts.hpp>
+#include <mundy_geom/aggregates/PointEntityView.hpp>
+
+#include <mundy_geom/aggregates/LineData.hpp>
+#include <mundy_geom/aggregates/LineDataConcepts.hpp>
+#include <mundy_geom/aggregates/LineEntityView.hpp>
+
+#include <mundy_geom/aggregates/LineSegmentData.hpp>
+#include <mundy_geom/aggregates/LineSegmentDataConcepts.hpp>
+#include <mundy_geom/aggregates/LineSegmentEntityView.hpp>
+
+#include <mundy_geom/aggregates/VSegmentData.hpp>
+#include <mundy_geom/aggregates/VSegmentDataConcepts.hpp>
+#include <mundy_geom/aggregates/VSegmentEntityView.hpp>
+
+#include <mundy_geom/aggregates/SphereData.hpp>
+#include <mundy_geom/aggregates/SphereDataConcepts.hpp>
+#include <mundy_geom/aggregates/SphereEntityView.hpp>
+
+#include <mundy_geom/aggregates/EllipsoidData.hpp>
+#include <mundy_geom/aggregates/EllipsoidDataConcepts.hpp>
+#include <mundy_geom/aggregates/EllipsoidEntityView.hpp>
+
+#include <mundy_geom/aggregates/AABBDataData.hpp>
+#include <mundy_geom/aggregates/AABBDataConcepts.hpp>
+#include <mundy_geom/aggregates/AABBEntityView.hpp>
+
+
+#include <mundy_geom/aggregates/SpherocylinderData.hpp>
+#include <mundy_geom/aggregates/SpherocylinderDataConcepts.hpp>
+#include <mundy_geom/aggregates/SpherocylinderEntityView.hpp>
+
+#include <mundy_geom/aggregates/SpherocylinderSegmentData.hpp>
+#include <mundy_geom/aggregates/SpherocylinderSegmentDataConcepts.hpp>
+#include <mundy_geom/aggregates/SpherocylinderSegmentEntityView.hpp>
 
 #endif  // MUNDY_GEOM_AGGREGATES_HPP_

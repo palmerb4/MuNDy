@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_GEOM_ENTITY_VIEWS_PARTICLETOPOLOGY_HPP_
-#define MUNDY_GEOM_ENTITY_VIEWS_PARTICLETOPOLOGY_HPP_
+#ifndef MUNDY_GEOM_AGGREGATES_ENTITYVIEW_HPP_
+#define MUNDY_GEOM_AGGREGATES_ENTITYVIEW_HPP_
 
 // C++ core
 #include <type_traits>  // for std::conditional_t, std::false_type, std::true_type
@@ -59,7 +59,10 @@ class EntityView {
   EntityView(stk::mesh::BulkData& bulk_data, stk::mesh::Entity entity)
     requires(rank == stk::topology::NODE_RANK)
       : bulk_data_(bulk_data), entity_(entity) {
-  }
+      MUNDY_THROW_ASSERT(bulk_data.is_valid(entity), std::invalid_argument, "The given entity is not valid");
+      MUNDY_THROW_ASSERT(bulk_data.entity_rank(entity) == rank, std::invalid_argument,
+                       "The entity rank must have the same rank as the entity view");
+    }
 
   EntityView(stk::mesh::BulkData& bulk_data, stk::mesh::Entity entity)
     requires(rank == stk::topology::EDGE_RANK)
@@ -106,6 +109,14 @@ class EntityView {
         connected_faces_(bulk_data_.begin_faces(entity)) {
   }
 
+  static constexpr stk::topology::topology_t get_topology() {
+    return topology_t;
+  }
+
+  static constexpr stk::topology::rank_t get_rank() {
+    return rank;
+  }
+
   stk::mesh::BulkData& bulk_data() {
     return bulk_data_;
   }
@@ -122,36 +133,82 @@ class EntityView {
     return entity_;
   }
 
-  stk::mesh::Entity* get_nodes() {
+  //! \name Connected entities
+  //@{
+
+  stk::mesh::Entity* connected_nodes() {
     return connected_nodes_;
   }
 
-  const stk::mesh::Entity* get_nodes() const {
+  const stk::mesh::Entity* connected_nodes() const {
     return connected_nodes_;
   }
 
-  stk::mesh::Entity* get_edges()
+  stk::mesh::Entity* connected_edges()
     requires(topology_data_t::num_edges != 0)
   {
     return connected_edges_;
   }
 
-  const stk::mesh::Entity* get_edges() const
+  const stk::mesh::Entity* connected_edges() const
     requires(topology_data_t::num_edges != 0)
   {
     return connected_edges_;
   }
 
-  stk::mesh::Entity* get_faces()
+  stk::mesh::Entity* connected_faces()
     requires(topology_data_t::num_faces != 0)
   {
     return connected_faces_;
   }
 
-  const stk::mesh::Entity* get_faces() const
+  const stk::mesh::Entity* connected_faces() const
     requires(topology_data_t::num_faces != 0)
   {
     return connected_faces_;
+  }
+  //@}
+
+  //! \name Connected entity access
+  //@{
+
+  stk::mesh::Entity &connected_node(int i) {
+    return connected_nodes_[i];
+  }
+
+  const stk::mesh::Entity &connected_node(int i) const {
+    return connected_nodes_[i];
+  }
+
+  stk::mesh::Entity &connected_edge(int i)
+    requires(topology_data_t::num_edges != 0)
+  {
+    return connected_edges_[i];
+  }
+
+  const stk::mesh::Entity &connected_edge(int i) const
+    requires(topology_data_t::num_edges != 0)
+  {
+    return connected_edges_[i];
+  }
+
+  stk::mesh::Entity &connected_face(int i)
+    requires(topology_data_t::num_faces != 0)
+  {
+    return connected_faces_[i];
+  }
+
+  const stk::mesh::Entity &connected_face(int i) const
+    requires(topology_data_t::num_faces != 0)
+  {
+    return connected_faces_[i];
+  }
+  //@}
+
+  /// \brief Chainable function to add augments to this entity view
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  auto augment_view(Args&&... args) const {
+    return NextAugment<EntityView, AugmentTemplates...>(*this, std::forward<Args>(args)...);
   }
 
  private:
@@ -210,6 +267,16 @@ class NgpEntityView {
   }
 
   KOKKOS_INLINE_FUNCTION
+  static constexpr stk::topology::topology_t get_topology() {
+    return topology_t;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  static constexpr stk::topology::rank_t get_rank() {
+    return rank;
+  }
+
+  KOKKOS_INLINE_FUNCTION
   stk::mesh::NgpMesh& ngp_mesh() {
     return ngp_mesh_;
   }
@@ -228,6 +295,9 @@ class NgpEntityView {
   const stk::mesh::FastMeshIndex& entity_index() const {
     return entity_index_;
   }
+
+  //! \name Connected entities
+  //@{
 
   KOKKOS_INLINE_FUNCTION
   stk::mesh::ConnectedNodes& connected_nodes() {
@@ -266,6 +336,74 @@ class NgpEntityView {
   {
     return connected_faces_;
   }
+  //@}
+
+  //! \name Connected entity access
+  //@{
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::Entity& connected_node(unsigned i) {
+    return connected_nodes_[i];
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::Entity& connected_node(unsigned i) const {
+    return connected_nodes_[i];
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::Entity& connected_edge(unsigned i)
+    requires(topology_data_t::num_edges != 0)
+  {
+    return connected_edges_[i];
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::Entity& connected_edge(unsigned i) const
+    requires(topology_data_t::num_edges != 0)
+  {
+    return connected_edges_[i];
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::Entity& connected_face(unsigned i)
+    requires(topology_data_t::num_faces != 0)
+  {
+    return connected_faces_[i];
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::Entity& connected_face(unsigned i) const
+    requires(topology_data_t::num_faces != 0)
+  {
+    return connected_faces_[i];
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex connected_node_index(unsigned i) const {
+    return ngp_mesh_.fast_mesh_index(connected_node(i));
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex connected_edge_index(unsigned i) const
+    requires(topology_data_t::num_edges != 0)
+  {
+    return ngp_mesh_.fast_mesh_index(connected_edge(i));
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex connected_face_index(unsigned i) const
+    requires(topology_data_t::num_faces != 0)
+  {
+    return ngp_mesh_.fast_mesh_index(connected_face(i));
+  }
+  //@}
+
+  /// \brief Chainable function to add augments to this entity view
+  template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
+  KOKKOS_INLINE_FUNCTION auto augment_view(Args&&... args) const {
+    return NextAugment<NgpEntityView, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
 
  private:
   stk::mesh::NgpMesh& ngp_mesh_;
@@ -275,7 +413,7 @@ class NgpEntityView {
   stk::mesh::ConnectedEntities connected_faces_;
 };  // NgpEntityView
 
-/// \brief A helper function to create a ranked entity view (no topology) object with type deduction
+/// \brief A helper function to create a ranked entity view (no topology)
 template <stk::topology::rank_t OurRank>
 auto create_ranked_entity_view(stk::mesh::BulkData& bulk_data, stk::mesh::Entity entity) {
   return EntityView<std::integral_constant<stk::topology::topology_t, stk::topology::INVALID_TOPOLOGY>,
@@ -288,8 +426,21 @@ auto create_topological_entity_view(stk::mesh::BulkData& bulk_data, stk::mesh::E
   return EntityView<std::integral_constant<stk::topology::topology_t, OurTopology>>(bulk_data, entity);
 }
 
+/// \brief A helper function to create an NGP_compatible ranked entity view (no topology) object
+template <stk::topology::rank_t OurRank>
+auto create_ngp_ranked_entity_view(stk::mesh::NgpMesh& ngp_mesh, stk::mesh::FastMeshIndex entity_index) {
+  return NgpEntityView<std::integral_constant<stk::topology::topology_t, stk::topology::INVALID_TOPOLOGY>,
+                       std::integral_constant<stk::topology::rank_t, OurRank>>(ngp_mesh, entity_index);
+}
+
+/// \brief A helper function to create an NGP_compatible entity view for an object with a specific topology
+template <stk::topology::topology_t OurTopology>
+auto create_ngp_topological_entity_view(stk::mesh::NgpMesh& ngp_mesh, stk::mesh::FastMeshIndex entity_index) {
+  return NgpEntityView<std::integral_constant<stk::topology::topology_t, OurTopology>>(ngp_mesh, entity_index);
+}
+
 }  // namespace geom
 
 }  // namespace mundy
 
-#endif  // MUNDY_GEOM_ENTITY_VIEWS_PARTICLETOPOLOGY_HPP_
+#endif  // MUNDY_GEOM_AGGREGATES_ENTITYVIEW_HPP_
