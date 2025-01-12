@@ -97,7 +97,7 @@ class EllipsoidData {
   }
 
   static constexpr stk::topology::topology_t get_rank() {
-    return stk::topology_detail::topology_data<OurTopology>::rank();
+    return stk::topology_detail::topology_data<OurTopology::value>::rank();
   }
 
   const stk::mesh::BulkData& bulk_data() const {
@@ -133,14 +133,14 @@ class EllipsoidData {
     // Recursively calls get_entity_view on the next aggregate up in the chain, traversing to the very top of the chain
     // before then adding each augment in the chain to the entity view from the top down.
     using our_t = EllipsoidData<Scalar, OurTopology, HasSharedAxisLengths>;
-    return mundy::geom::create_topological_entity_view<OurTopology>(bulk_data(), entity)
-        .augment_view<EllipsoidEntityView, OurTopology, our_t>(*this);
+    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
+        .template augment_view<EllipsoidEntityView, our_t>(*this);
   }
 
   const auto get_entity_view(stk::mesh::Entity entity) const {
     using our_t = EllipsoidData<Scalar, OurTopology, HasSharedAxisLengths>;
-    return mundy::geom::create_topological_entity_view<OurTopology>(bulk_data(), entity)
-        .augment_view<EllipsoidEntityView, OurTopology, our_t>(*this);
+    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
+        .template augment_view<EllipsoidEntityView, our_t>(*this);
   }
 
   auto get_updated_ngp_data() const {
@@ -152,7 +152,7 @@ class EllipsoidData {
           stk::mesh::get_updated_ngp_field<scalar_t>(axis_lengths_data_));
     } else {
       return create_ngp_ellipsoid_data<scalar_t, topology_t>(
-          stk:mesh::get_updated_ngp_mesh(bulk_data_),                            //
+          stk::mesh::get_updated_ngp_mesh(bulk_data_),                            //
           stk::mesh::get_updated_ngp_field<scalar_t>(center_data_),       //
           stk::mesh::get_updated_ngp_field<scalar_t>(orientation_data_),  //
           axis_lengths_data_);
@@ -210,7 +210,7 @@ class NgpEllipsoidData {
 
   KOKKOS_INLINE_FUNCTION
   static constexpr stk::topology::topology_t get_rank() {
-    return stk::topology_detail::topology_data<OurTopology>::rank();
+    return stk::topology_detail::topology_data<OurTopology::value>::rank();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -267,15 +267,15 @@ class NgpEllipsoidData {
   KOKKOS_INLINE_FUNCTION
   auto get_entity_view(stk::mesh::FastMeshIndex entity_index) {
     using our_t = NgpEllipsoidData<Scalar, OurTopology, HasSharedAxisLengths>;
-    return mundy::geom::create_ngp_topological_entity_view<OurTopology>(ngp_mesh(), entity_index)
-        .augment_view<NgpEllipsoidEntityView, OurTopology, our_t>(*this);
+    return mundy::geom::create_ngp_topological_entity_view<OurTopology::value>(ngp_mesh(), entity_index)
+        .template augment_view<NgpEllipsoidEntityView, our_t>(*this);
   }
 
   KOKKOS_INLINE_FUNCTION
   const auto get_entity_view(stk::mesh::FastMeshIndex entity_index) const {
     using our_t = NgpEllipsoidData<Scalar, OurTopology, HasSharedAxisLengths>;
-    return mundy::geom::create_ngp_topological_entity_view<OurTopology>(ngp_mesh(), entity_index)
-        .augment_view<NgpEllipsoidEntityView, OurTopology, our_t>(*this);
+    return mundy::geom::create_ngp_topological_entity_view<OurTopology::value>(ngp_mesh(), entity_index)
+        .template augment_view<NgpEllipsoidEntityView, our_t>(*this);
   }
 
  private:
@@ -323,8 +323,8 @@ auto create_ngp_ellipsoid_data(const stk::mesh::NgpMesh &ngp_mesh, const stk::me
 
 /// \brief A helper function to get an updated NgpEllipsoidData object from a EllipsoidData object
 /// \param data The EllipsoidData object to convert
-template <typename Scalar, stk::topology::topology_t OurTopology, typename HasSharedAxisLengths>
-auto get_updated_ngp_data(const EllipsoidDataType<Scalar, OurTopology, HasSharedAxisLengths>& data) {
+template <typename Scalar, typename OurTopology, typename HasSharedAxisLengths>
+auto get_updated_ngp_data(const EllipsoidData<Scalar, OurTopology, HasSharedAxisLengths>& data) {
   return data.get_updated_ngp_data();
 }
 //@}

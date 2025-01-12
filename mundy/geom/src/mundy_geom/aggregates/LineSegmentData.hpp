@@ -78,7 +78,7 @@ class LineSegmentData {
   }
 
   static constexpr stk::topology::topology_t get_rank() {
-    return stk::topology_detail::topology_data<OurTopology>::rank();
+    return stk::topology_detail::topology_data<OurTopology::value>::rank();
   }
 
   const stk::mesh::BulkData& bulk_data() const {
@@ -97,6 +97,19 @@ class LineSegmentData {
   template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
   auto add_augment(Args&&... args) const {
     return NextAugment<LineSegmentData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
+  /// \brief Get the entity view for an entity within this aggregate
+  auto get_entity_view(stk::mesh::Entity entity) {
+    using our_t = LineSegmentData<Scalar, OurTopology>;
+    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
+        .template augment_view<LineSegmentEntityView, our_t>(*this);
+  }
+
+  const auto get_entity_view(stk::mesh::Entity entity) const {
+    using our_t = LineSegmentData<Scalar, OurTopology>;
+    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
+        .template augment_view<LineSegmentEntityView, our_t>(*this);
   }
 
   auto get_updated_ngp_data() const {
@@ -139,7 +152,7 @@ class NgpLineSegmentData {
 
   KOKKOS_INLINE_FUNCTION
   static constexpr stk::topology::topology_t get_rank() {
-    return stk::topology_detail::topology_data<OurTopology>::rank();
+    return stk::topology_detail::topology_data<OurTopology::value>::rank();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -171,6 +184,21 @@ class NgpLineSegmentData {
   KOKKOS_INLINE_FUNCTION
   auto add_augment(Args&&... args) const {
     return NextAugment<NgpLineSegmentData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
+  /// \brief Get the entity view for an entity within this aggregate
+  KOKKOS_INLINE_FUNCTION
+  auto get_entity_view(stk::mesh::FastMeshIndex entity_index) {
+    using our_t = NgpLineSegmentData<Scalar, OurTopology>;
+    return mundy::geom::create_ngp_topological_entity_view<OurTopology::value>(ngp_mesh(), entity_index)
+        .template augment_view<NgpLineSegmentEntityView, our_t>(*this);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const auto get_entity_view(stk::mesh::FastMeshIndex entity_index) const {
+    using our_t = NgpLineSegmentData<Scalar, OurTopology>;
+    return mundy::geom::create_ngp_topological_entity_view<OurTopology::value>(ngp_mesh(), entity_index)
+        .template augment_view<NgpLineSegmentEntityView, our_t>(*this);
   }
 
  private:

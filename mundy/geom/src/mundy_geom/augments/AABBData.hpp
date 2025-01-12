@@ -33,8 +33,8 @@
 #include <stk_mesh/base/NgpMesh.hpp>      // for stk::mesh::NgpMesh
 
 // Mundy mesh
-#include <mundy_geom/aggregates/AABBDataConcepts.hpp>  // for mundy::geom::ValidAABBDataType
-#include <mundy_geom/aggregates/AABBEntityView.hpp>    // for mundy::geom::AABBEntityView
+#include <mundy_geom/augments/AABBDataConcepts.hpp>  // for mundy::geom::ValidAABBDataType
+#include <mundy_geom/augments/AABBEntityView.hpp>    // for mundy::geom::AABBEntityView
 #include <mundy_geom/aggregates/EntityView.hpp>  // for mundy::geom::EntityView and mundy::geom::create_topological_entity_view
 #include <mundy_geom/primitives/AABB.hpp>  // for mundy::geom::ValidAABBType
 #include <mundy_mesh/BulkData.hpp>         // for mundy::mesh::BulkData
@@ -78,6 +78,19 @@ class AABBData : public Base {
     return NextAugment<AABBData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
   }
 
+  /// \brief Get the entity view for an entity within this aggregate
+  auto get_entity_view(stk::mesh::Entity entity) {
+    using our_t = AABBData<Base, Scalar>;
+    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
+        .template augment_view<AABBEntityView, our_t>(*this);
+  }
+
+  const auto get_entity_view(stk::mesh::Entity entity) const {
+    using our_t = AABBData<Base, Scalar>;
+    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
+        .template augment_view<AABBEntityView, our_t>(*this);
+  }
+
   auto get_updated_ngp_data() const {
     return create_ngp_aabb_data<scalar_t>(Base::get_updated_ngp_data(),  //
                                           stk::mesh::get_updated_ngp_field<scalar_t>(aabb_data_));
@@ -116,6 +129,21 @@ class NgpAABBData : public Base {
   template <template <typename, typename...> class NextAugment, typename... AugmentTemplates, typename... Args>
   auto add_augment(Args&&... args) const {
     return NextAugment<NgpAABBData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
+  /// \brief Get the entity view for an entity within this aggregate
+  KOKKOS_INLINE_FUNCTION
+  auto get_entity_view(stk::mesh::FastMeshIndex entity_index) {
+    using our_t = NgpAABBData<Base, Scalar>;
+    return mundy::geom::create_ngp_topological_entity_view<OurTopology::value>(ngp_mesh(), entity_index)
+        .template augment_view<NgpAABBEntityView, our_t>(*this);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const auto get_entity_view(stk::mesh::FastMeshIndex entity_index) const {
+    using our_t = NgpAABBData<Base, Scalar>;
+    return mundy::geom::create_ngp_topological_entity_view<OurTopology::value>(ngp_mesh(), entity_index)
+        .template augment_view<NgpAABBEntityView, our_t>(*this);
   }
 
  private:

@@ -41,126 +41,24 @@ namespace mundy {
 
 namespace geom {
 
-/// \brief A traits class to provide abstracted access to a spherocylinder's data via an aggregate
-///
-/// By default, this class is compatible with SpherocylinderData or any class the meets the
-/// ValidSpherocylinderDataType concept. Users can specialize this class to support other aggregate types.
-template <typename Agg>
-struct SpherocylinderDataTraits {
-  static_assert(ValidSpherocylinderDataType<Agg>,
-                "Agg must satisfy the ValidSpherocylinderDataType concept.\n"
-                "Basically, Agg must have the same getters and types aliases as NgpSpherocylinderData but is free to "
-                "extend it as "
-                "needed without "
-                "having to rely on inheritance.");
-
-  using scalar_t = typename Agg::scalar_t;
-  static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
-
-  static constexpr bool has_shared_radius() {
-    return std::is_same_v<std::decay_t<decltype(std::declval<Agg>().radius_data())>, scalar_t>;
-  }
-
-  static constexpr bool has_shared_length() {
-    return std::is_same_v<std::decay_t<decltype(std::declval<Agg>().length_data())>, scalar_t>;
-  }
-
-  static decltype(auto) center(Agg agg, stk::mesh::Entity spherocylinder_node) {
-    return mundy::mesh::vector3_field_data(agg.center_data(), spherocylinder_node);
-  }
-
-  static decltype(auto) orientation(Agg agg, stk::mesh::Entity spherocylinder) {
-    return mundy::mesh::quaternion_field_data(agg.orientation_data(), spherocylinder);
-  }
-
-  static decltype(auto) radius(Agg agg, stk::mesh::Entity spherocylinder) {
-    if constexpr (has_shared_radius()) {
-      return agg.radius_data();
-    } else {
-      return stk::mesh::field_data(agg.radius_data(), spherocylinder)[0];
-    }
-  }
-
-  static decltype(auto) length(Agg agg, stk::mesh::Entity spherocylinder) {
-    if constexpr (has_shared_length()) {
-      return agg.length_data();
-    } else {
-      return stk::mesh::field_data(agg.length_data(), spherocylinder)[0];
-    }
-  }
-};  // SpherocylinderDataTraits
-
-/// \brief A traits class to provide abstracted access to a spherocylinder's data via an NGP-compatible aggregate
-/// See the discussion for SpherocylinderDataTraits for more information. Only difference is Ngp-compatible data.
-template <typename Agg>
-struct NgpSpherocylinderDataTraits {
-  static_assert(ValidNgpSpherocylinderDataType<Agg>,
-                "Agg must satisfy the ValidNgpSpherocylinderDataType concept.\n"
-                "Basically, Agg must have the same getters and types aliases as NgpSpherocylinderData but is free to "
-                "extend it as "
-                "needed without "
-                "having to rely on inheritance.");
-
-  using scalar_t = typename Agg::scalar_t;
-  static constexpr stk::topology::topology_t topology_t = Agg::topology_t;
-
-  KOKKOS_INLINE_FUNCTION
-  static constexpr bool has_shared_radius() {
-    return std::is_same_v<std::decay_t<decltype(std::declval<Agg>().radius_data())>, scalar_t>;
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  static constexpr bool has_shared_length() {
-    return std::is_same_v<std::decay_t<decltype(std::declval<Agg>().length_data())>, scalar_t>;
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  static decltype(auto) center(Agg agg, stk::mesh::FastMeshIndex spherocylinder_node_index) {
-    return mundy::mesh::vector3_field_data(agg.center_data(), spherocylinder_node_index);
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  static decltype(auto) orientation(Agg agg, stk::mesh::FastMeshIndex spherocylinder_index) {
-    return mundy::mesh::quaternion_field_data(agg.orientation_data(), spherocylinder_index);
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  static decltype(auto) radius(Agg agg, stk::mesh::FastMeshIndex spherocylinder_index) {
-    if constexpr (has_shared_radius()) {
-      return agg.radius_data();
-    } else {
-      return agg.radius_data()(spherocylinder_index, 0);
-    }
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  static decltype(auto) length(Agg agg, stk::mesh::FastMeshIndex spherocylinder_index) {
-    if constexpr (has_shared_length()) {
-      return agg.length_data();
-    } else {
-      return agg.length_data()(spherocylinder_index, 0);
-    }
-  }
-};  // NgpSpherocylinderDataTraits
-
 /// @brief A view of an STK entity meant to represent a spherocylinder
 ///
 /// We type specialize this class based on the valid set of topologies for a spherocylinder entity.
 ///
 /// Use \ref create_spherocylinder_entity_view to build an SpherocylinderEntityView object with automatic template
 /// deduction.
-template <typename Base,  typename SpherocylinderDataType>
+template <typename Base, ValidSpherocylinderDataType SpherocylinderDataType>
 class SpherocylinderEntityView;
 
 /// @brief A view of a NODE STK entity meant to represent a spherocylinder
-template <typename Base, typename SpherocylinderDataType>
+template <typename Base, ValidSpherocylinderDataType SpherocylinderDataType>
   requires(Base::get_topology() == stk::topology::NODE)
 class SpherocylinderEntityView<Base, SpherocylinderDataType> : public Base {
   static_assert(SpherocylinderDataType::topology_t == stk::topology::NODE,
                 "The topology of the spherocylinder data must match the view");
 
  public:
-  using scalar_t = typename data_access_t::scalar_t;
+  using scalar_t = typename SpherocylinderDataType::scalar_t;
   static constexpr stk::topology::topology_t topology_t = stk::topology::NODE;
   static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
 
@@ -168,45 +66,64 @@ class SpherocylinderEntityView<Base, SpherocylinderDataType> : public Base {
       : Base(base), data_(data) {
   }
 
-  stk::mesh::Entity& spherocylinder_entity() {
-    return spherocylinder_;
-  }
-
   const stk::mesh::Entity& spherocylinder_entity() const {
-    return spherocylinder_;
+    return Base::entity();
   }
 
   decltype(auto) center() {
-    return data_access_t::center(data(), spherocylinder_entity());
+    return mundy::mesh::vector3_field_data(data_.center_data(), spherocylinder_entity());
   }
 
   decltype(auto) center() const {
-    return data_access_t::center(data(), spherocylinder_entity());
+    return mundy::mesh::vector3_field_data(data_.center_data(), spherocylinder_entity());
   }
 
   decltype(auto) orientation() {
-    return data_access_t::orientation(data(), spherocylinder_entity());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), spherocylinder_entity());
   }
 
   decltype(auto) orientation() const {
-    return data_access_t::orientation(data(), spherocylinder_entity());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), spherocylinder_entity());
   }
 
   decltype(auto) radius() {
-    // For those not familiar with decltype(auto), it allows us to return either an auto or an auto&.
-    return data_access_t::radius(data(), spherocylinder_entity());
+    constexpr bool has_shared_radius =
+        std::is_same_v<std::decay_t<decltype(std::declval<SpherocylinderDataType>().radius_data())>, scalar_t>;
+    if constexpr (has_shared_radius) {
+      return data_.radius_data();
+    } else {
+      return stk::mesh::field_data(data_.radius_data(), spherocylinder_entity())[0];
+    }
   }
 
   decltype(auto) radius() const {
-    return data_access_t::radius(data(), spherocylinder_entity());
+    constexpr bool has_shared_radius =
+        std::is_same_v<std::decay_t<decltype(std::declval<SpherocylinderDataType>().radius_data())>, scalar_t>;
+    if constexpr (has_shared_radius) {
+      return data_.radius_data();
+    } else {
+      return stk::mesh::field_data(data_.radius_data(), spherocylinder_entity())[0];
+    }
   }
 
   decltype(auto) length() {
-    return data_access_t::length(data(), spherocylinder_entity());
+    constexpr bool has_shared_length =
+        std::is_same_v<std::decay_t<decltype(std::declval<SpherocylinderDataType>().length_data())>, scalar_t>;
+    if constexpr (has_shared_length) {
+      return data_.length_data();
+    } else {
+      return stk::mesh::field_data(data_.length_data(), spherocylinder_entity())[0];
+    }
   }
 
   decltype(auto) length() const {
-    return data_access_t::length(data(), spherocylinder_entity());
+    constexpr bool has_shared_length =
+        std::is_same_v<std::decay_t<decltype(std::declval<SpherocylinderDataType>().length_data())>, scalar_t>;
+    if constexpr (has_shared_length) {
+      return data_.length_data();
+    } else {
+      return stk::mesh::field_data(data_.length_data(), spherocylinder_entity())[0];
+    }
   }
 
  private:
@@ -214,14 +131,14 @@ class SpherocylinderEntityView<Base, SpherocylinderDataType> : public Base {
 };  // SpherocylinderEntityView<stk::topology::NODE, SpherocylinderDataType>
 
 /// @brief A view of a PARTICLE STK entity meant to represent a spherocylinder
-template <typename Base,typename SpherocylinderDataType>
+template <typename Base, ValidSpherocylinderDataType SpherocylinderDataType>
   requires(Base::get_topology() == stk::topology::PARTICLE)
-class SpherocylinderEntityView<Base, SpherocylinderDataType> {
+class SpherocylinderEntityView<Base, SpherocylinderDataType> : public Base {
   static_assert(SpherocylinderDataType::topology_t == stk::topology::PARTICLE,
                 "The topology of the spherocylinder data must match the view");
 
  public:
-  using scalar_t = typename data_access_t::scalar_t;
+  using scalar_t = typename SpherocylinderDataType::scalar_t;
   static constexpr stk::topology::topology_t topology_t = stk::topology::PARTICLE;
   static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
 
@@ -229,52 +146,68 @@ class SpherocylinderEntityView<Base, SpherocylinderDataType> {
       : Base(base), data_(data) {
   }
 
-  stk::mesh::Entity& spherocylinder_entity() {
-    return spherocylinder_;
-  }
-
   const stk::mesh::Entity& spherocylinder_entity() const {
-    return spherocylinder_;
+    return Base::entity();
   }
 
-  stk::mesh::Entity& node_entity() {
-    return node_;
-  }
-
-  const stk::mesh::Entity& node_entity() const {
-    return node_;
+  const stk::mesh::Entity& center_node_entity() const {
+    return Base::connected_node(0);
   }
 
   decltype(auto) center() {
-    return data_access_t::center(data(), node_entity());
+    return mundy::mesh::vector3_field_data(data_.center_data(), spherocylinder_entity());
   }
 
   decltype(auto) center() const {
-    return data_access_t::center(data(), node_entity());
+    return mundy::mesh::vector3_field_data(data_.center_data(), spherocylinder_entity());
   }
 
   decltype(auto) orientation() {
-    return data_access_t::orientation(data(), spherocylinder_entity());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), spherocylinder_entity());
   }
 
   decltype(auto) orientation() const {
-    return data_access_t::orientation(data(), spherocylinder_entity());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), spherocylinder_entity());
   }
 
   decltype(auto) radius() {
-    return data_access_t::radius(data(), spherocylinder_entity());
+    constexpr bool has_shared_radius =
+        std::is_same_v<std::decay_t<decltype(std::declval<SpherocylinderDataType>().radius_data())>, scalar_t>;
+    if constexpr (has_shared_radius) {
+      return data_.radius_data();
+    } else {
+      return stk::mesh::field_data(data_.radius_data(), spherocylinder_entity())[0];
+    }
   }
 
   decltype(auto) radius() const {
-    return data_access_t::radius(data(), spherocylinder_entity());
+    constexpr bool has_shared_radius =
+        std::is_same_v<std::decay_t<decltype(std::declval<SpherocylinderDataType>().radius_data())>, scalar_t>;
+    if constexpr (has_shared_radius) {
+      return data_.radius_data();
+    } else {
+      return stk::mesh::field_data(data_.radius_data(), spherocylinder_entity())[0];
+    }
   }
 
   decltype(auto) length() {
-    return data_access_t::length(data(), spherocylinder_entity());
+    constexpr bool has_shared_length =
+        std::is_same_v<std::decay_t<decltype(std::declval<SpherocylinderDataType>().length_data())>, scalar_t>;
+    if constexpr (has_shared_length) {
+      return data_.length_data();
+    } else {
+      return stk::mesh::field_data(data_.length_data(), spherocylinder_entity())[0];
+    }
   }
 
   decltype(auto) length() const {
-    return data_access_t::length(data(), spherocylinder_entity());
+    constexpr bool has_shared_length =
+        std::is_same_v<std::decay_t<decltype(std::declval<SpherocylinderDataType>().length_data())>, scalar_t>;
+    if constexpr (has_shared_length) {
+      return data_.length_data();
+    } else {
+      return stk::mesh::field_data(data_.length_data(), spherocylinder_entity())[0];
+    }
   }
 
  private:
@@ -284,18 +217,18 @@ class SpherocylinderEntityView<Base, SpherocylinderDataType> {
 /// @brief An ngp-compatible view of an STK entity meant to represent a spherocylinder
 /// See the discussion for SpherocylinderEntityView for more information. The only difference is ngp-compatible data
 /// access.
-template <typename Base, typename NgpSpherocylinderDataType>
+template <typename Base, ValidNgpSpherocylinderDataType NgpSpherocylinderDataType>
 class NgpSpherocylinderEntityView;
 
 /// @brief An ngp-compatible view of a NODE STK entity meant to represent a spherocylinder
-template <typename Base, typename NgpSpherocylinderDataType>
+template <typename Base, ValidNgpSpherocylinderDataType NgpSpherocylinderDataType>
   requires(Base::get_topology() == stk::topology::NODE)
 class NgpSpherocylinderEntityView<Base, NgpSpherocylinderDataType> : public Base {
   static_assert(NgpSpherocylinderDataType::topology_t == stk::topology::NODE,
                 "The topology of the spherocylinder data must match the view");
 
  public:
-  using scalar_t = typename data_access_t::scalar_t;
+  using scalar_t = typename NgpSpherocylinderDataType::scalar_t;
   static constexpr stk::topology::topology_t topology_t = stk::topology::NODE;
   static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
 
@@ -305,53 +238,72 @@ class NgpSpherocylinderEntityView<Base, NgpSpherocylinderDataType> : public Base
   }
 
   KOKKOS_INLINE_FUNCTION
-  stk::mesh::FastMeshIndex& spherocylinder_index() {
-    return spherocylinder_index_;
-  }
-
-  KOKKOS_INLINE_FUNCTION
   const stk::mesh::FastMeshIndex& spherocylinder_index() const {
-    return spherocylinder_index_;
+    return Base::entity_index();
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return data_access_t::center(data(), spherocylinder_index());
+    return mundy::mesh::vector3_field_data(data_.center_data(), spherocylinder_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return data_access_t::center(data(), spherocylinder_index());
+    return mundy::mesh::vector3_field_data(data_.center_data(), spherocylinder_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) orientation() {
-    return data_access_t::orientation(data(), spherocylinder_index());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), spherocylinder_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) orientation() const {
-    return data_access_t::orientation(data(), spherocylinder_index());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), spherocylinder_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) radius() {
-    return data_access_t::radius(data(), spherocylinder_index());
+    constexpr bool has_shared_radius =
+        std::is_same_v<std::decay_t<decltype(std::declval<NgpSpherocylinderDataType>().radius_data())>, scalar_t>;
+    if constexpr (has_shared_radius) {
+      return data_.radius_data();
+    } else {
+      return data_.radius_data()(spherocylinder_index(), 0);
+    }
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) radius() const {
-    return data_access_t::radius(data(), spherocylinder_index());
+    constexpr bool has_shared_radius =
+        std::is_same_v<std::decay_t<decltype(std::declval<NgpSpherocylinderDataType>().radius_data())>, scalar_t>;
+    if constexpr (has_shared_radius) {
+      return data_.radius_data();
+    } else {
+      return data_.radius_data()(spherocylinder_index(), 0);
+    }
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) length() {
-    return data_access_t::length(data(), spherocylinder_index());
+    constexpr bool has_shared_length =
+        std::is_same_v<std::decay_t<decltype(std::declval<NgpSpherocylinderDataType>().length_data())>, scalar_t>;
+    if constexpr (has_shared_length) {
+      return data_.length_data();
+    } else {
+      return data_.length_data()(spherocylinder_index(), 0);
+    }
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) length() const {
-    return data_access_t::length(data(), spherocylinder_index());
+    constexpr bool has_shared_length =
+        std::is_same_v<std::decay_t<decltype(std::declval<NgpSpherocylinderDataType>().length_data())>, scalar_t>;
+    if constexpr (has_shared_length) {
+      return data_.length_data();
+    } else {
+      return data_.length_data()(spherocylinder_index(), 0);
+    }
   }
 
  private:
@@ -359,14 +311,14 @@ class NgpSpherocylinderEntityView<Base, NgpSpherocylinderDataType> : public Base
 };  // NgpSpherocylinderEntityView<stk::topology::NODE, NgpSpherocylinderDataType>
 
 /// @brief An ngp-compatible view of a PARTICLE STK entity meant to represent a spherocylinder
-template <typename Base,typename NgpSpherocylinderDataType>
+template <typename Base, ValidNgpSpherocylinderDataType NgpSpherocylinderDataType>
   requires(Base::get_topology() == stk::topology::PARTICLE)
 class NgpSpherocylinderEntityView<Base, NgpSpherocylinderDataType> : public Base {
   static_assert(NgpSpherocylinderDataType::topology_t == stk::topology::PARTICLE,
                 "The topology of the spherocylinder data must match the view");
 
  public:
-  using scalar_t = typename data_access_t::scalar_t;
+  using scalar_t = typename NgpSpherocylinderDataType::scalar_t;
   static constexpr stk::topology::topology_t topology_t = stk::topology::PARTICLE;
   static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
 
@@ -376,63 +328,77 @@ class NgpSpherocylinderEntityView<Base, NgpSpherocylinderDataType> : public Base
   }
 
   KOKKOS_INLINE_FUNCTION
-  stk::mesh::FastMeshIndex& spherocylinder_index() {
-    return spherocylinder_index_;
-  }
-
-  KOKKOS_INLINE_FUNCTION
   const stk::mesh::FastMeshIndex& spherocylinder_index() const {
-    return spherocylinder_index_;
+    return Base::entity_index();
   }
 
   KOKKOS_INLINE_FUNCTION
-  stk::mesh::FastMeshIndex& node_index() {
-    return node_index_;
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& node_index() const {
-    return node_index_;
+  const stk::mesh::FastMeshIndex& center_node_index() const {
+    return Base::connected_node_index(0);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return data_access_t::center(data(), node_index());
+    return mundy::mesh::vector3_field_data(data_.center_data(), center_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return data_access_t::center(data(), node_index());
+    return mundy::mesh::vector3_field_data(data_.center_data(), center_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) orientation() {
-    return data_access_t::orientation(data(), spherocylinder_index());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), spherocylinder_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) orientation() const {
-    return data_access_t::orientation(data(), spherocylinder_index());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), spherocylinder_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) radius() {
-    return data_access_t::radius(data(), spherocylinder_index());
+    constexpr bool has_shared_radius =
+        std::is_same_v<std::decay_t<decltype(std::declval<NgpSpherocylinderDataType>().radius_data())>, scalar_t>;
+    if constexpr (has_shared_radius) {
+      return data_.radius_data();
+    } else {
+      return data_.radius_data()(spherocylinder_index(), 0);
+    }
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) radius() const {
-    return data_access_t::radius(data(), spherocylinder_index());
+    constexpr bool has_shared_radius =
+        std::is_same_v<std::decay_t<decltype(std::declval<NgpSpherocylinderDataType>().radius_data())>, scalar_t>;
+    if constexpr (has_shared_radius) {
+      return data_.radius_data();
+    } else {
+      return data_.radius_data()(spherocylinder_index(), 0);
+    }
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) length() {
-    return data_access_t::length(data(), spherocylinder_index());
+    constexpr bool has_shared_length =
+        std::is_same_v<std::decay_t<decltype(std::declval<NgpSpherocylinderDataType>().length_data())>, scalar_t>;
+    if constexpr (has_shared_length) {
+      return data_.length_data();
+    } else {
+      return data_.length_data()(spherocylinder_index(), 0);
+    }
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) length() const {
-    return data_access_t::length(data(), spherocylinder_index());
+    constexpr bool has_shared_length =
+        std::is_same_v<std::decay_t<decltype(std::declval<NgpSpherocylinderDataType>().length_data())>, scalar_t>;
+    if constexpr (has_shared_length) {
+      return data_.length_data();
+    } else {
+      return data_.length_data()(spherocylinder_index(), 0);
+    }
   }
 
  private:

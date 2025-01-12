@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_GEOM_AGGREGATES_AABBDATACONCEPTS_HPP_
-#define MUNDY_GEOM_AGGREGATES_AABBDATACONCEPTS_HPP_
+#ifndef MUNDY_GEOM_AUGMENTS_AABBDATACONCEPTS_HPP_
+#define MUNDY_GEOM_AUGMENTS_AABBDATACONCEPTS_HPP_
 
 // C++ core
 #include <type_traits>  // for std::conditional_t, std::false_type, std::true_type
@@ -59,4 +59,4 @@ concept ValidNgpAABBDataType =
 
 }  // namespace mundy
 
-#endif  // MUNDY_GEOM_AGGREGATES_AABBDATACONCEPTS_HPP_
+#endif  // MUNDY_GEOM_AUGMENTS_AABBDATACONCEPTS_HPP_

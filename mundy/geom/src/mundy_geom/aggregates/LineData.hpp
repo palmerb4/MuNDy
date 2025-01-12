@@ -80,7 +80,7 @@ class LineData {
   }
 
   static constexpr stk::topology::topology_t get_rank() {
-    return stk::topology_detail::topology_data<OurTopology>::rank();
+    return stk::topology_detail::topology_data<OurTopology::value>::rank();
   }
 
   const stk::mesh::BulkData& bulk_data() const {
@@ -106,6 +106,26 @@ class LineData {
     return NextAugment<LineData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
   }
 
+  /// \brief Get the entity view for an entity within this aggregate
+  auto get_entity_view(stk::mesh::Entity entity) {
+    using our_t = LineData<Scalar, OurTopology>;
+    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
+        .template augment_view<LineEntityView, our_t>(*this);
+  }
+
+  const auto get_entity_view(stk::mesh::Entity entity) const {
+    using our_t = LineData<Scalar, OurTopology>;
+    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
+        .template augment_view<LineEntityView, our_t>(*this);
+  }
+
+  auto get_updated_ngp_data() const {
+    return create_ngp_line_data<scalar_t, topology_t>(                   //
+      stk::mesh::get_updated_ngp_mesh(bulk_data_),               //
+        stk::mesh::get_updated_ngp_field<scalar_t>(center_data_),  //
+        stk::mesh::get_updated_ngp_field<scalar_t>(direction_data_));
+  } 
+
  private:
   const stk::mesh::BulkData& bulk_data_;
   const center_data_t& center_data_;
@@ -126,7 +146,7 @@ class NgpLineData {
   static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
-  NgpLineData(conststk::mesh::NgpMesh &ngp_mesh, constcenter_data_t& center_data,const direction_data_t& direction_data)
+  NgpLineData(const stk::mesh::NgpMesh &ngp_mesh, const center_data_t& center_data, const direction_data_t& direction_data)
       : ngp_mesh_(ngp_mesh), center_data_(center_data), direction_data_(direction_data) {
     stk::topology our_topology = topology_t;
     MUNDY_THROW_ASSERT(center_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
@@ -142,7 +162,7 @@ class NgpLineData {
 
   KOKKOS_INLINE_FUNCTION
   static constexpr stk::topology::topology_t get_rank() {
-    return stk::topology_detail::topology_data<OurTopology>::rank();
+    return stk::topology_detail::topology_data<OurTopology::value>::rank();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -186,12 +206,20 @@ class NgpLineData {
     return NextAugment<NgpLineData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
   }
 
-  auto get_updated_ngp_data() const {
-    return create_ngp_line_data<scalar_t, topology_t>(                   //
-      stk::mesh::get_updated_ngp_mesh(bulk_data_),               //
-        stk::mesh::get_updated_ngp_field<scalar_t>(center_data_),  //
-        stk::mesh::get_updated_ngp_field<scalar_t>(direction_data_));
-  } 
+  /// \brief Get the entity view for an entity within this aggregate
+  KOKKOS_INLINE_FUNCTION
+  auto get_entity_view(stk::mesh::FastMeshIndex entity_index) {
+    using our_t = NgpLineData<Scalar, OurTopology>;
+    return mundy::geom::create_ngp_topological_entity_view<OurTopology::value>(ngp_mesh(), entity_index)
+        .template augment_view<NgpLineEntityView, our_t>(*this);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const auto get_entity_view(stk::mesh::FastMeshIndex entity_index) const {
+    using our_t = NgpLineData<Scalar, OurTopology>;
+    return mundy::geom::create_ngp_topological_entity_view<OurTopology::value>(ngp_mesh(), entity_index)
+        .template augment_view<NgpLineEntityView, our_t>(*this);
+  }
 
  private:
   stk::mesh::NgpMesh ngp_mesh_;
@@ -221,7 +249,7 @@ auto create_ngp_line_data(const stk::mesh::NgpMesh &ngp_mesh, const stk::mesh::N
 
 /// \brief A helper function to get an updated NgpLineData object from a LineData object
 /// \param data The LineData object to convert
-template <typename Scalar, stk::topology::topology_t OurTopology>
+template <typename Scalar, typename OurTopology>
 auto get_updated_ngp_data(const LineData<Scalar, OurTopology>& data) {
   return data.get_updated_ngp_data();
 }

@@ -51,59 +51,57 @@ template <typename Base, ValidEllipsoidDataType EllipsoidDataType>
 class EllipsoidEntityView;
 
 /// @brief A view of an STK entity meant to represent a ellipsoid
-template <typename Base,  ValidEllipsoidDataType EllipsoidDataType>
+template <typename Base, ValidEllipsoidDataType EllipsoidDataType>
   requires(Base::get_topology() == stk::topology::NODE)
-class EllipsoidEntityView<Base, OurTopology, EllipsoidDataType> : public Base {
+class EllipsoidEntityView<Base, EllipsoidDataType> : public Base {
   static_assert(EllipsoidDataType::topology_t == stk::topology::NODE,
                 "The topology of the ellipsoid data must match the view");
 
  public:
-  using scalar_t = typename data_access_t::scalar_t;
+  using scalar_t = typename EllipsoidDataType::scalar_t;
   static constexpr stk::topology::topology_t topology_t = stk::topology::NODE;
   static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
-  static constexpr bool has_shared_axis_lengths =
-      mundy::math::is_vector3_v<std::decay_t<decltype(std::declval<EllipsoidDataType>().axis_lengths_data())>>;
 
   EllipsoidEntityView(const Base& base, const EllipsoidDataType& data) : Base(base), data_(data) {
   }
 
-  stk::mesh::Entity& ellipsoid_entity() {
-    return entity();
-  }
-
   const stk::mesh::Entity& ellipsoid_entity() const {
-    return entity();
+    return Base::entity();
   }
 
   decltype(auto) center() {
-    return mundy::mesh::vector3_field_data(data_.center_data(), entity());
+    return mundy::mesh::vector3_field_data(data_.center_data(), ellipsoid_entity());
   }
 
   decltype(auto) center() const {
-    return mundy::mesh::vector3_field_data(data_.center_data(), entity());
+    return mundy::mesh::vector3_field_data(data_.center_data(), ellipsoid_entity());
   }
 
   decltype(auto) orientation() {
-    return mundy::mesh::quaternion_field_data(data_.orientation_data(), entity());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), ellipsoid_entity());
   }
 
   decltype(auto) orientation() const {
-    return mundy::mesh::quaternion_field_data(data_.orientation_data(), entity());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), ellipsoid_entity());
   }
 
   decltype(auto) axis_lengths() {
+    constexpr bool has_shared_axis_lengths =
+        mundy::math::is_vector3_v<std::decay_t<decltype(std::declval<EllipsoidDataType>().axis_lengths_data())>>;
     if constexpr (has_shared_axis_lengths) {
       return data_.axis_lengths_data();
     } else {
-      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), entity());
+      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), ellipsoid_entity());
     }
   }
 
   decltype(auto) axis_lengths() const {
+    constexpr bool has_shared_axis_lengths =
+        mundy::math::is_vector3_v<std::decay_t<decltype(std::declval<EllipsoidDataType>().axis_lengths_data())>>;
     if constexpr (has_shared_axis_lengths) {
       return data_.axis_lengths_data();
     } else {
-      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), entity());
+      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), ellipsoid_entity());
     }
   }
 
@@ -119,12 +117,12 @@ class EllipsoidEntityView<Base, OurTopology, EllipsoidDataType> : public Base {
 
 template <typename Base, ValidEllipsoidDataType EllipsoidDataType>
   requires(Base::get_topology() == stk::topology::PARTICLE)
-class EllipsoidEntityView<Base, OurTopology, EllipsoidDataType> : public Base {
+class EllipsoidEntityView<Base, EllipsoidDataType> : public Base {
   static_assert(EllipsoidDataType::topology_t == stk::topology::PARTICLE,
                 "The topology of the ellipsoid data must match the view");
 
  public:
-  using scalar_t = typename data_access_t::scalar_t;
+  using scalar_t = typename EllipsoidDataType::scalar_t;
   static constexpr stk::topology::topology_t topology_t = stk::topology::PARTICLE;
   static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
   static constexpr bool has_shared_axis_lengths =
@@ -133,43 +131,35 @@ class EllipsoidEntityView<Base, OurTopology, EllipsoidDataType> : public Base {
   EllipsoidEntityView(const Base& base, const EllipsoidDataType& data) : Base(base), data_(data) {
   }
 
-  stk::mesh::Entity& ellipsoid_entity() {
-    return entity();
-  }
-
   const stk::mesh::Entity& ellipsoid_entity() const {
-    return entity();
-  }
-
-  stk::mesh::Entity& center_node_entity() {
-    return connected_node(0);
+    return Base::entity();
   }
 
   const stk::mesh::Entity& center_node_entity() const {
-    return connected_node(0);
+    return Base::connected_node(0);
   }
 
   decltype(auto) center() {
-    return mundy::mesh::vector3_field_data(data_.center_data(), connected_node(0));
+    return mundy::mesh::vector3_field_data(data_.center_data(), center_node_entity());
   }
 
   decltype(auto) center() const {
-    return mundy::mesh::vector3_field_data(data_.center_data(), connected_node(0));
+    return mundy::mesh::vector3_field_data(data_.center_data(), center_node_entity());
   }
 
   decltype(auto) orientation() {
-    return mundy::mesh::quaternion_field_data(data_.orientation_data(), entity());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), ellipsoid_entity());
   }
 
   decltype(auto) orientation() const {
-    return mundy::mesh::quaternion_field_data(data_.orientation_data(), entity());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), ellipsoid_entity());
   }
 
   decltype(auto) axis_lengths() {
     if constexpr (has_shared_axis_lengths) {
       return data_.axis_lengths_data();
     } else {
-      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), entity());
+      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), ellipsoid_entity());
     }
   }
 
@@ -177,7 +167,7 @@ class EllipsoidEntityView<Base, OurTopology, EllipsoidDataType> : public Base {
     if constexpr (has_shared_axis_lengths) {
       return data_.axis_lengths_data();
     } else {
-      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), entity());
+      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), ellipsoid_entity());
     }
   }
 
@@ -192,10 +182,10 @@ class EllipsoidEntityView<Base, OurTopology, EllipsoidDataType> : public Base {
 };  // EllipsoidEntityView for PARTICLEs
 
 /// @brief An ngp-compatible view of an ellipsoid entity
-template <typename Base, typename NgpEllipsoidDataType>
+template <typename Base, ValidNgpEllipsoidDataType NgpEllipsoidDataType>
 class NgpEllipsoidEntityView;
 
-template <typename Base,  typename NgpEllipsoidDataType>
+template <typename Base, ValidNgpEllipsoidDataType NgpEllipsoidDataType>
   requires(Base::get_topology() == stk::topology::NODE)
 class NgpEllipsoidEntityView<Base, NgpEllipsoidDataType> : public Base {
   static_assert(NgpEllipsoidDataType::topology_t == stk::topology::NODE,
@@ -205,58 +195,57 @@ class NgpEllipsoidEntityView<Base, NgpEllipsoidDataType> : public Base {
   using scalar_t = typename NgpEllipsoidDataType::scalar_t;
   static constexpr stk::topology::topology_t topology_t = stk::topology::NODE;
   static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
-  static constexpr bool has_shared_axis_lengths =
-      mundy::math::is_vector3_v<std::decay_t<decltype(std::declval<EllipsoidDataType>().axis_lengths_data())>>;
 
   KOKKOS_INLINE_FUNCTION
-  NgpEllipsoidEntityView(const Base& base, const NgpEllipsoidDataType &data) : Base(base), data_(data) {
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  stk::mesh::FastMeshIndex& ellipsoid_index() {
-    return entity_index();
+  NgpEllipsoidEntityView(const Base& base, const NgpEllipsoidDataType& data) : Base(base), data_(data) {
   }
 
   KOKKOS_INLINE_FUNCTION
   const stk::mesh::FastMeshIndex& ellipsoid_index() const {
-    return entity_index();
+    return Base::entity_index();
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return mundy::mesh::vector3_field_data(data_.center_data(), entity_index());
+    return mundy::mesh::vector3_field_data(data_.center_data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return mundy::mesh::vector3_field_data(data_.center_data(), entity_index());
+    return mundy::mesh::vector3_field_data(data_.center_data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) orientation() {
-    return mundy::mesh::quaternion_field_data(data_.orientation_data(), entity_index());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) orientation() const {
-    return mundy::mesh::quaternion_field_data(data_.orientation_data(), entity_index());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) axis_lengths() {
+    constexpr bool has_shared_axis_lengths =
+        mundy::math::is_vector3_v<std::decay_t<decltype(std::declval<NgpEllipsoidDataType>().axis_lengths_data())>>;
+
     if constexpr (has_shared_axis_lengths) {
       return data_.axis_lengths_data();
     } else {
-      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), entity_index());
+      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), ellipsoid_index());
     }
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) axis_lengths() const {
+    constexpr bool has_shared_axis_lengths =
+        mundy::math::is_vector3_v<std::decay_t<decltype(std::declval<NgpEllipsoidDataType>().axis_lengths_data())>>;
+
     if constexpr (has_shared_axis_lengths) {
       return data_.axis_lengths_data();
     } else {
-      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), entity_index());
+      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), ellipsoid_index());
     }
   }
 
@@ -267,11 +256,11 @@ class NgpEllipsoidEntityView<Base, NgpEllipsoidDataType> : public Base {
   }
 
  private:
-  const NgpEllipsoidDataType &data_;
+  const NgpEllipsoidDataType& data_;
 };  // NgpEllipsoidEntityView for NODEs
 
 /// @brief An ngp-compatible view of an STK entity meant to represent a ellipsoid
-template <typename Base, typename NgpEllipsoidDataType>
+template <typename Base, ValidNgpEllipsoidDataType NgpEllipsoidDataType>
   requires(Base::get_topology() == stk::topology::PARTICLE)
 class NgpEllipsoidEntityView<Base, NgpEllipsoidDataType> : public Base {
   static_assert(NgpEllipsoidDataType::topology_t == stk::topology::PARTICLE,
@@ -281,69 +270,72 @@ class NgpEllipsoidEntityView<Base, NgpEllipsoidDataType> : public Base {
   using scalar_t = typename NgpEllipsoidDataType::scalar_t;
   static constexpr stk::topology::topology_t topology_t = stk::topology::PARTICLE;
   static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
-  static bool has_shared_axis_lengths =
-      mundy::math::is_vector3_v<std::decay_t<decltype(std::declval<EllipsoidDataType>().axis_lengths_data())>>;
 
   KOKKOS_INLINE_FUNCTION
-  NgpEllipsoidEntityView(const Base& base, const NgpEllipsoidDataType &data)
-      : Base(base), data_(data) {
+  NgpEllipsoidEntityView(const Base& base, const NgpEllipsoidDataType& data) : Base(base), data_(data) {
   }
 
   KOKKOS_INLINE_FUNCTION
   stk::mesh::FastMeshIndex& ellipsoid_index() {
-    return entity_index();
+    return Base::entity_index();
   }
 
   KOKKOS_INLINE_FUNCTION
   const stk::mesh::FastMeshIndex& ellipsoid_index() const {
-    return entity_index();
+    return Base::entity_index();
   }
 
   KOKKOS_INLINE_FUNCTION
   stk::mesh::FastMeshIndex& center_node_index() {
-    return connected_node_index(0);
+    return Base::connected_node_index(0);
   }
 
   KOKKOS_INLINE_FUNCTION
   const stk::mesh::FastMeshIndex& center_node_index() const {
-    return connected_node_index(0);
+    return Base::connected_node_index(0);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return mundy::mesh::vector3_field_data(data_.center_data(), connected_node_index(0));
+    return mundy::mesh::vector3_field_data(data_.center_data(), center_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return mundy::mesh::vector3_field_data(data_.center_data(), connected_node_index(0));
+    return mundy::mesh::vector3_field_data(data_.center_data(), center_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) orientation() {
-    return mundy::mesh::quaternion_field_data(data_.orientation_data(), entity_index());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) orientation() const {
-    return mundy::mesh::quaternion_field_data(data_.orientation_data(), entity_index());
+    return mundy::mesh::quaternion_field_data(data_.orientation_data(), ellipsoid_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) axis_lengths() {
+    constexpr bool has_shared_axis_lengths =
+        mundy::math::is_vector3_v<std::decay_t<decltype(std::declval<NgpEllipsoidDataType>().axis_lengths_data())>>;
+
     if constexpr (has_shared_axis_lengths) {
       return data_.axis_lengths_data();
     } else {
-      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), entity_index());
+      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), ellipsoid_index());
     }
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) axis_lengths() const {
+    constexpr bool has_shared_axis_lengths =
+        mundy::math::is_vector3_v<std::decay_t<decltype(std::declval<NgpEllipsoidDataType>().axis_lengths_data())>>;
+
     if constexpr (has_shared_axis_lengths) {
       return data_.axis_lengths_data();
     } else {
-      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), entity_index());
+      return mundy::mesh::vector3_field_data(data_.axis_lengths_data(), ellipsoid_index());
     }
   }
 
@@ -354,7 +346,7 @@ class NgpEllipsoidEntityView<Base, NgpEllipsoidDataType> : public Base {
   }
 
  private:
-  const NgpEllipsoidDataType &data_;
+  const NgpEllipsoidDataType& data_;
 };  // NgpEllipsoidEntityView for PARTICLEs
 
 }  // namespace geom

@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_GEOM_AGGREGATES_AABBDATA_HPP_
-#define MUNDY_GEOM_AGGREGATES_AABBDATA_HPP_
+#ifndef MUNDY_GEOM_AUGMENTS_AABBDATA_HPP_
+#define MUNDY_GEOM_AUGMENTS_AABBDATA_HPP_
 
 // C++ core
 #include <type_traits>  // for std::conditional_t, std::false_type, std::true_type
@@ -45,79 +45,79 @@ namespace geom {
 template <typename Base, ValidAABBDataType AABBDataType>
 class AABBEntityView : public Base {
  public:
-  using scalar_t = typename data_access_t::scalar_t;
+  using scalar_t = typename AABBDataType::scalar_t;
 
   AABBEntityView(const Base &base, const AABBDataType &data) : Base(base), data_(data) {
   }
 
   decltype(auto) min_corner() {
-    return mundy::math::get_vector3_view<scalar_t>(stk::mesh::field_data(data_.aabb_data(), entity()));
+    return mundy::math::get_vector3_view<scalar_t>(stk::mesh::field_data(data_.aabb_data(), Base::entity()));
   }
 
   decltype(auto) min_corner() const {
-    return mundy::math::get_vector3_view<scalar_t>(stk::mesh::field_data(data_.aabb_data(), entity()));
+    return mundy::math::get_vector3_view<scalar_t>(stk::mesh::field_data(data_.aabb_data(), Base::entity()));
   }
 
   decltype(auto) max_corner() {
     constexpr size_t shift = 3;
     auto shifted_data_accessor =
-        mundy::math::get_shifted_view<scalar_t, shift>(stk::mesh::field_data(data_.aabb_data(), entity()));
+        mundy::math::get_shifted_view<scalar_t, shift>(stk::mesh::field_data(data_.aabb_data(), Base::entity()));
     return mundy::math::get_owning_vector3<scalar_t>(std::move(shifted_data_accessor));
   }
 
   decltype(auto) max_corner() const {
     constexpr size_t shift = 3;
     auto shifted_data_accessor =
-        mundy::math::get_shifted_view<scalar_t, shift>(stk::mesh::field_data(data_.aabb_data(), entity()));
+        mundy::math::get_shifted_view<scalar_t, shift>(stk::mesh::field_data(data_.aabb_data(), Base::entity()));
     return mundy::math::get_owning_vector3<scalar_t>(std::move(shifted_data_accessor));
   }
 
   decltype(auto) x_min() {
-    return stk::mesh::field_data(data_.aabb_data(), entity())[0];
+    return stk::mesh::field_data(data_.aabb_data(), Base::entity())[0];
   }
 
   decltype(auto) x_min() const {
-    return stk::mesh::field_data(data_.aabb_data(), entity())[0];
+    return stk::mesh::field_data(data_.aabb_data(), Base::entity())[0];
   }
 
   decltype(auto) y_min() {
-    return stk::mesh::field_data(data_.aabb_data(), entity())[1];
+    return stk::mesh::field_data(data_.aabb_data(), Base::entity())[1];
   }
 
   decltype(auto) y_min() const {
-    return stk::mesh::field_data(data_.aabb_data(), entity())[1];
+    return stk::mesh::field_data(data_.aabb_data(), Base::entity())[1];
   }
 
   decltype(auto) z_min() {
-    return stk::mesh::field_data(data_.aabb_data(), entity())[2];
+    return stk::mesh::field_data(data_.aabb_data(), Base::entity())[2];
   }
 
   decltype(auto) z_min() const {
-    return stk::mesh::field_data(data_.aabb_data(), entity())[2];
+    return stk::mesh::field_data(data_.aabb_data(), Base::entity())[2];
   }
 
   decltype(auto) x_max() {
-    return stk::mesh::field_data(data_.aabb_data(), entity())[3];
+    return stk::mesh::field_data(data_.aabb_data(), Base::entity())[3];
   }
 
   decltype(auto) x_max() const {
-    return stk::mesh::field_data(data_.aabb_data(), entity())[3];
+    return stk::mesh::field_data(data_.aabb_data(), Base::entity())[3];
   }
 
   decltype(auto) y_max() {
-    return stk::mesh::field_data(data_.aabb_data(), entity())[4];
+    return stk::mesh::field_data(data_.aabb_data(), Base::entity())[4];
   }
 
   decltype(auto) y_max() const {
-    return stk::mesh::field_data(data_.aabb_data(), entity())[4];
+    return stk::mesh::field_data(data_.aabb_data(), Base::entity())[4];
   }
 
   decltype(auto) z_max() {
-    return stk::mesh::field_data(data_.aabb_data(), entity())[5];
+    return stk::mesh::field_data(data_.aabb_data(), Base::entity())[5];
   }
 
   decltype(auto) z_max() const {
-    return stk::mesh::field_data(data_.aabb_data(), entity())[5];
+    return stk::mesh::field_data(data_.aabb_data(), Base::entity())[5];
   }
 
  private:
@@ -129,9 +129,7 @@ class AABBEntityView : public Base {
 template <typename Base, ValidNgpAABBDataType NgpAABBDataType>
 class NgpAABBEntityView : public Base {
  public:
-  using scalar_t = typename data_access_t::scalar_t;
-  using point_t =
-      decltype(data_access_t::min_corner(std::declval<NgpAABBDataType>(), std::declval<stk::mesh::FastMeshIndex>()));
+  using scalar_t = typename AABBDataType::scalar_t;
 
   KOKKOS_INLINE_FUNCTION
   NgpAABBEntityView(const Base& base, const NgpAABBDataType &data) : Base(base), data_(data) {
@@ -139,86 +137,86 @@ class NgpAABBEntityView : public Base {
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) min_corner() {
-    return mundy::math::get_owning_vector3<scalar_t>(data_.aabb_data()(entity_index()));
+    return mundy::math::get_owning_vector3<scalar_t>(data_.aabb_data()(Base::entity_index()));
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) min_corner() const {
-    return mundy::math::get_owning_vector3<scalar_t>(data_.aabb_data()(entity_index()));
+    return mundy::math::get_owning_vector3<scalar_t>(data_.aabb_data()(Base::entity_index()));
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) max_corner() {
     constexpr size_t shift = 3;
-    auto shifted_data_accessor = mundy::math::get_owning_shifted_accessor<scalar_t, shift>(data_.aabb_data()(entity_index()));
+    auto shifted_data_accessor = mundy::math::get_owning_shifted_accessor<scalar_t, shift>(data_.aabb_data()(Base::entity_index()));
     return mundy::math::get_owning_vector3<scalar_t>(std::move(shifted_data_accessor));
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) max_corner() const {
     constexpr size_t shift = 3;
-    auto shifted_data_accessor = mundy::math::get_owning_shifted_accessor<scalar_t, shift>(data_.aabb_data()(entity_index()));
+    auto shifted_data_accessor = mundy::math::get_owning_shifted_accessor<scalar_t, shift>(data_.aabb_data()(Base::entity_index()));
     return mundy::math::get_owning_vector3<scalar_t>(std::move(shifted_data_accessor));
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) x_min() {
-    return data_.aabb_data()(entity_index())[0];
+    return data_.aabb_data()(Base::entity_index(), 0);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) x_min() const {
-    return data_.aabb_data()(entity_index())[0];
+    return data_.aabb_data()(Base::entity_index(), 0);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) y_min() {
-    return data_.aabb_data()(entity_index())[1];
+    return data_.aabb_data()(Base::entity_index(), 1);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) y_min() const {
-    return data_.aabb_data()(entity_index())[1];
+    return data_.aabb_data()(Base::entity_index(), 1);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) z_min() {
-    return data_.aabb_data()(entity_index())[2];
+    return data_.aabb_data()(Base::entity_index(), 2);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) z_min() const {
-    return data_.aabb_data()(entity_index())[2];
+    return data_.aabb_data()(Base::entity_index(), 2);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) x_max() {
-    return data_.aabb_data()(entity_index())[3];
+    return data_.aabb_data()(Base::entity_index(), 3);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) x_max() const {
-    return data_.aabb_data()(entity_index())[3];
+    return data_.aabb_data()(Base::entity_index(), 3);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) y_max() {
-    return data_.aabb_data()(entity_index())[4];
+    return data_.aabb_data()(Base::entity_index(), 4);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) y_max() const {
-    return data_.aabb_data()(entity_index())[4];
+    return data_.aabb_data()(Base::entity_index(), 4);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) z_max() {
-    return data_.aabb_data()(entity_index())[5];
+    return data_.aabb_data()(Base::entity_index(), 5);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) z_max() const {
-    return data_.aabb_data()(entity_index())[5];
+    return data_.aabb_data()(Base::entity_index(), 5);
   }
 
  private:
@@ -229,4 +227,4 @@ class NgpAABBEntityView : public Base {
 
 }  // namespace mundy
 
-#endif  // MUNDY_GEOM_AGGREGATES_AABB_HPP_
+#endif  // MUNDY_GEOM_AUGMENTS_AABBDATA_HPP_

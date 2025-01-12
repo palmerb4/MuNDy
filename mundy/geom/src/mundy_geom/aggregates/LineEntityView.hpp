@@ -51,39 +51,35 @@ class LineEntityView;
 /// @brief A view of a NODE STK entity meant to represent a line
 template <typename Base,  ValidLineDataType LineDataType>
   requires(Base::get_topology() == stk::topology::NODE)
-class LineEntityView<Base, OurTopology, LineDataType> : public Base {
+class LineEntityView<Base, LineDataType> : public Base {
   static_assert(LineDataType::topology_t == stk::topology::NODE, "The topology of the line data must match the view");
 
  public:
-  using scalar_t = typename data_access_t::scalar_t;
+  using scalar_t = typename LineDataType::scalar_t;
   static constexpr stk::topology::topology_t topology_t = stk::topology::NODE;
   static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
 
   LineEntityView(const Base& base, const LineDataType &data) : Base(base), data_(data) {
   }
 
-  stk::mesh::Entity& ellipsoid_entity() {
-    return entity();
-  }
-
-  const stk::mesh::Entity& ellipsoid_entity() const {
-    return entity();
+  const stk::mesh::Entity& line_entity() const {
+    return Base::entity();
   }
 
   decltype(auto) center() {
-    return mundy::mesh::vector3_field_data(data_.center_data(), entity());
+    return mundy::mesh::vector3_field_data(data_.center_data(), line_entity());
   }
 
   decltype(auto) center() const {
-    return mundy::mesh::vector3_field_data(data_.center_data(), entity());
+    return mundy::mesh::vector3_field_data(data_.center_data(), line_entity());
   }
 
   decltype(auto) direction() {
-    return mundy::mesh::vector3_field_data(data_.direction_data(), entity());
+    return mundy::mesh::vector3_field_data(data_.direction_data(), line_entity());
   }
 
   decltype(auto) direction() const {
-    return mundy::mesh::vector3_field_data(data_.direction_data(), entity());
+    return mundy::mesh::vector3_field_data(data_.direction_data(), line_entity());
   }
 
  private:
@@ -93,12 +89,12 @@ class LineEntityView<Base, OurTopology, LineDataType> : public Base {
 /// @brief A view of a PARTICLE STK entity meant to represent a line
 template <typename Base, ValidLineDataType LineDataType>
   requires(Base::get_topology() == stk::topology::PARTICLE)
-class LineEntityView<Base, OurTopology, LineDataType> : public Base {
+class LineEntityView<Base, LineDataType> : public Base {
   static_assert(LineDataType::topology_t == stk::topology::PARTICLE,
                 "The topology of the line data must match the view");
 
  public:
-  using scalar_t = typename data_access_t::scalar_t;
+  using scalar_t = typename LineDataType::scalar_t;
   static constexpr stk::topology::topology_t topology_t = stk::topology::PARTICLE;
   static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
 
@@ -106,36 +102,28 @@ class LineEntityView<Base, OurTopology, LineDataType> : public Base {
       : Base(base), data_(data) {
   }
 
-  stk::mesh::Entity& line_entity() {
-    return entity();
-  }
-
   const stk::mesh::Entity& line_entity() const {
-    return entity();
-  }
-
-  stk::mesh::Entity& center_node_entity() {
-    return connected_node(0);
+    return Base::entity();
   }
 
   const stk::mesh::Entity& center_node_entity() const {
-    return connected_node(0);
+    return Base::connected_node(0);
   }
 
   decltype(auto) center() {
-    return mundy::mesh::vector3_field_data(data_.center_data(), connected_node(0));
+    return mundy::mesh::vector3_field_data(data_.center_data(), center_node_entity());
   }
 
   decltype(auto) center() const {
-    return mundy::mesh::vector3_field_data(data_.center_data(), connected_node(0));
+    return mundy::mesh::vector3_field_data(data_.center_data(), center_node_entity());
   }
 
   decltype(auto) direction() {
-    return mundy::mesh::vector3_field_data(data_.direction_data(), entity());
+    return mundy::mesh::vector3_field_data(data_.direction_data(), line_entity());
   }
 
   decltype(auto) direction() const {
-    return mundy::mesh::vector3_field_data(data_.direction_data(), entity());
+    return mundy::mesh::vector3_field_data(data_.direction_data(), line_entity());
   }
 
  private:
@@ -155,7 +143,7 @@ class NgpLineEntityView<Base, NgpLineDataType> : public Base {
                 "The topology of the line data must match the view");
 
  public:
-  using scalar_t = typename data_access_t::scalar_t;
+  using scalar_t = typename NgpLineDataType::scalar_t;
   static constexpr stk::topology::topology_t topology_t = stk::topology::NODE;
   static constexpr stk::topology::rank_t rank = stk::topology::NODE_RANK;
 
@@ -164,33 +152,28 @@ class NgpLineEntityView<Base, NgpLineDataType> : public Base {
   }
 
   KOKKOS_INLINE_FUNCTION
-  stk::mesh::FastMeshIndex& line_index() {
-    return entity_index();
-  }
-
-  KOKKOS_INLINE_FUNCTION
   const stk::mesh::FastMeshIndex& line_index() const {
-    return entity_index();
+    return Base::entity_index();
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return mundy::mesh::vector3_field_data(data_.center_data(), entity_index());
+    return mundy::mesh::vector3_field_data(data_.center_data(), line_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return mundy::mesh::vector3_field_data(data_.center_data(), entity_index());
+    return mundy::mesh::vector3_field_data(data_.center_data(), line_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) direction() {
-    return mundy::mesh::vector3_field_data(data_.direction_data(), entity_index());
+    return mundy::mesh::vector3_field_data(data_.direction_data(), line_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) direction() const {
-    return mundy::mesh::vector3_field_data(data_.direction_data(), entity_index());
+    return mundy::mesh::vector3_field_data(data_.direction_data(), line_index());
   }
 
  private:
@@ -200,12 +183,12 @@ class NgpLineEntityView<Base, NgpLineDataType> : public Base {
 /// @brief An ngp-compatible view of a PARTICLE STK entity meant to represent a line
 template <typename Base, ValidNgpLineDataType NgpLineDataType>
   requires(Base::get_topology() == stk::topology::PARTICLE)
-class NgpLineEntityView<Base, OurTopology, NgpLineDataType> : public Base {
+class NgpLineEntityView<Base, NgpLineDataType> : public Base {
   static_assert(NgpLineDataType::topology_t == stk::topology::PARTICLE,
                 "The topology of the line data must match the view");
 
  public:
-  using scalar_t = typename data_access_t::scalar_t;
+  using scalar_t = typename NgpLineDataType::scalar_t;
   static constexpr stk::topology::topology_t topology_t = stk::topology::PARTICLE;
   static constexpr stk::topology::rank_t rank = stk::topology::ELEM_RANK;
 
@@ -214,43 +197,33 @@ class NgpLineEntityView<Base, OurTopology, NgpLineDataType> : public Base {
   }
 
   KOKKOS_INLINE_FUNCTION
-  stk::mesh::FastMeshIndex& line_index() {
-    return entity_index();
-  }
-
-  KOKKOS_INLINE_FUNCTION
   const stk::mesh::FastMeshIndex& line_index() const {
-    return entity_index();
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  stk::mesh::FastMeshIndex& center_node_index() {
-    return connected_node_index(0);
+    return Base::entity_index();
   }
 
   KOKKOS_INLINE_FUNCTION
   const stk::mesh::FastMeshIndex& center_node_index() const {
-    return connected_node_index(0);
+    return Base::connected_node_index(0);
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() {
-    return mundy::mesh::vector3_field_data(data_.center_data(), connected_node_index(0));
+    return mundy::mesh::vector3_field_data(data_.center_data(), center_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) center() const {
-    return mundy::mesh::vector3_field_data(data_.center_data(), connected_node_index(0));
+    return mundy::mesh::vector3_field_data(data_.center_data(), center_node_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) direction() {
-    return mundy::mesh::vector3_field_data(data_.direction_data(), entity_index());
+    return mundy::mesh::vector3_field_data(data_.direction_data(), line_index());
   }
 
   KOKKOS_INLINE_FUNCTION
   decltype(auto) direction() const {
-    return mundy::mesh::vector3_field_data(data_.direction_data(), entity_index());
+    return mundy::mesh::vector3_field_data(data_.direction_data(), line_index());
   }
 
  private:

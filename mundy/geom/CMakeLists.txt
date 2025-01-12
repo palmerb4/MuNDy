@@ -34,11 +34,11 @@ SET(NOINSTALLHEADERS
   src/mundy_geom/aggregates/SphereEntityView.hpp
   src/mundy_geom/aggregates/SpherocylinderDataConcepts.hpp
   src/mundy_geom/aggregates/SpherocylinderData.hpp
-  src/mundy_geom/aggregates/SpherocylinderEntiryView.hpp
+  src/mundy_geom/aggregates/SpherocylinderEntityView.hpp
   src/mundy_geom/aggregates/SpherocylinderSegmentDataConcepts.hpp
   src/mundy_geom/aggregates/SpherocylinderSegmentData.hpp
   src/mundy_geom/aggregates/SpherocylinderSegmentEntityView.hpp
-  src/mundy_geom/aggregates/VSegmentDataConcept.hpp
+  src/mundy_geom/aggregates/VSegmentDataConcepts.hpp
   src/mundy_geom/aggregates/VSegmentData.hpp
   src/mundy_geom/aggregates/VSegmentEntityView.hpp
   src/mundy_geom/augments/AABBDataConcepts.hpp

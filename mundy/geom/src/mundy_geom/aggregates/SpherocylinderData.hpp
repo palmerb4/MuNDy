@@ -97,7 +97,7 @@ class SpherocylinderData {
   }
 
   static constexpr stk::topology::topology_t get_rank() {
-    return stk::topology_detail::topology_data<OurTopology>::rank();
+    return stk::topology_detail::topology_data<OurTopology::value>::rank();
   }
 
   const stk::mesh::BulkData& bulk_data() const {
@@ -130,22 +130,35 @@ class SpherocylinderData {
     return NextAugment<SpherocylinderData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
   }
 
+  /// \brief Get the entity view for an entity within this aggregate
+  auto get_entity_view(stk::mesh::Entity entity) {
+    using our_t = SpherocylinderData<Scalar, OurTopology, HasSharedRadius, HasSharedLength>;
+    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
+        .template augment_view<SpherocylinderEntityView, our_t>(*this);
+  }
+
+  const auto get_entity_view(stk::mesh::Entity entity) const {
+    using our_t = SpherocylinderData<Scalar, OurTopology, HasSharedRadius, HasSharedLength>;
+    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
+        .template augment_view<SpherocylinderEntityView, our_t>(*this);
+  }
+
   auto get_updated_ngp_data() const {
-    if constexpr (!HasSharedRadius : value && !HasSharedLength::value) {
+    if constexpr (!HasSharedRadius::value && !HasSharedLength::value) {
       return create_ngp_spherocylinder_data<scalar_t, topology_t>(        //
           stk::mesh::get_updated_ngp_mesh(bulk_data_),                    //
           stk::mesh::get_updated_ngp_field<scalar_t>(center_data_),       //
           stk::mesh::get_updated_ngp_field<scalar_t>(orientation_data_),  //
           stk::mesh::get_updated_ngp_field<scalar_t>(radius_data_),       //
           stk::mesh::get_updated_ngp_field<scalar_t>(length_data_));
-    } else if constexpr (!HasSharedRadius : value && HasSharedLength::value) {
+    } else if constexpr (!HasSharedRadius::value && HasSharedLength::value) {
       return create_ngp_spherocylinder_data<scalar_t, topology_t>(        //
           stk::mesh::get_updated_ngp_mesh(bulk_data_),                    //
           stk::mesh::get_updated_ngp_field<scalar_t>(center_data_),       //
           stk::mesh::get_updated_ngp_field<scalar_t>(orientation_data_),  //
           stk::mesh::get_updated_ngp_field<scalar_t>(radius_data_),       //
           length_data_);
-    } else if constexpr (HasSharedRadius : value && !HasSharedLength::value) {
+    } else if constexpr (HasSharedRadius::value && !HasSharedLength::value) {
       return create_ngp_spherocylinder_data<scalar_t, topology_t>(        //
           stk::mesh::get_updated_ngp_mesh(bulk_data_),                    //
           stk::mesh::get_updated_ngp_field<scalar_t>(center_data_),       //
@@ -189,7 +202,7 @@ class NgpSpherocylinderData {
   static constexpr stk::topology::topology_t topology_t = OurTopology::value;
 
   /// \brief Constructor
-  KOOKOS_INLINE_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   NgpSpherocylinderData(const stk::mesh::NgpMesh &ngp_mesh, const center_data_t& center_data, const orientation_data_t& orientation_data,
                         const radius_data_t& radius_data, const length_data_t& length_data)
       : ngp_mesh_(ngp_mesh),
@@ -217,7 +230,7 @@ class NgpSpherocylinderData {
 
   KOKKOS_INLINE_FUNCTION
   static constexpr stk::topology::topology_t get_rank() {
-    return stk::topology_detail::topology_data<OurTopology>::rank();
+    return stk::topology_detail::topology_data<OurTopology::value>::rank();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -279,6 +292,21 @@ class NgpSpherocylinderData {
   KOKKOS_INLINE_FUNCTION
   auto add_augment(Args&&... args) const {
     return NextAugment<NgpSpherocylinderData, AugmentTemplates...>(*this, std::forward<Args>(args)...);
+  }
+
+  /// \brief Get the entity view for an entity within this aggregate
+  KOKKOS_INLINE_FUNCTION
+  auto get_entity_view(stk::mesh::FastMeshIndex entity_index) {
+    using our_t = NgpSpherocylinderData<Scalar, OurTopology, HasSharedRadius, HasSharedLength>;
+    return mundy::geom::create_ngp_topological_entity_view<OurTopology::value>(ngp_mesh(), entity_index)
+        .template augment_view<NgpSpherocylinderEntityView, our_t>(*this);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const auto get_entity_view(stk::mesh::FastMeshIndex entity_index) const {
+    using our_t = NgpSpherocylinderData<Scalar, OurTopology, HasSharedRadius, HasSharedLength>;
+    return mundy::geom::create_ngp_topological_entity_view<OurTopology::value>(ngp_mesh(), entity_index)
+        .template augment_view<NgpSpherocylinderEntityView, our_t>(*this);
   }
 
  private:
@@ -345,10 +373,11 @@ auto create_ngp_spherocylinder_data(const stk::mesh::NgpMesh& ngp_mesh, const st
 
 /// \brief A helper function to get an updated NgpSpherocylinderData object from a SpherocylinderData object
 /// \param data The SpherocylinderData object to convert
-template <typename Scalar, stk::topology::topology_t OurTopology, typename HasSharedRadius, typename HasSharedLength>
+template <typename Scalar, typename OurTopology, typename HasSharedRadius, typename HasSharedLength>
 auto get_updated_ngp_data(const SpherocylinderData<Scalar, OurTopology, HasSharedRadius, HasSharedLength>& data) {
   return data.get_updated_ngp_data();
-  //@}
+}
+//@}
 
 }  // namespace geom
 

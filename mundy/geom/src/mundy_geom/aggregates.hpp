@@ -75,11 +75,6 @@
 #include <mundy_geom/aggregates/EllipsoidDataConcepts.hpp>
 #include <mundy_geom/aggregates/EllipsoidEntityView.hpp>
 
-#include <mundy_geom/aggregates/AABBDataData.hpp>
-#include <mundy_geom/aggregates/AABBDataConcepts.hpp>
-#include <mundy_geom/aggregates/AABBEntityView.hpp>
-
-
 #include <mundy_geom/aggregates/SpherocylinderData.hpp>
 #include <mundy_geom/aggregates/SpherocylinderDataConcepts.hpp>
 #include <mundy_geom/aggregates/SpherocylinderEntityView.hpp>
