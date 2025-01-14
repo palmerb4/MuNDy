@@ -67,15 +67,15 @@ class SpherocylinderSegmentEntityView<Base, SpherocylinderSegmentDataType> : pub
       : Base(base), data_(data) {
   }
 
-  const stk::mesh::Entity& spherocylinder_segment_entity() const {
+  stk::mesh::Entity spherocylinder_segment_entity() const {
     return Base::entity();
   }
 
-  const stk::mesh::Entity& start_node_entity() const {
+  stk::mesh::Entity start_node_entity() const {
     return Base::connected_node(0);
   }
 
-  const stk::mesh::Entity& end_node_entity() const {
+  stk::mesh::Entity end_node_entity() const {
     return Base::connected_node(1);
   }
 
@@ -144,18 +144,17 @@ class NgpSpherocylinderSegmentEntityView<Base, NgpSpherocylinderSegmentDataType>
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& spherocylinder_segment_index() const {
+  stk::mesh::FastMeshIndex spherocylinder_segment_index() const {
     return Base::entity_index();
   }
 
-
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& start_node_index() const {
+  stk::mesh::FastMeshIndex start_node_index() const {
     return Base::connected_node_index(0);
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& end_node_index() const {
+  stk::mesh::FastMeshIndex end_node_index() const {
     return Base::connected_node_index(1);
   }
 

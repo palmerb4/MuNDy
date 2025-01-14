@@ -62,15 +62,15 @@ class VSegmentEntityView<Base, VSegmentDataType> : public Base {
   VSegmentEntityView(const Base& base, const VSegmentDataType& data) : Base(base), data_(data) {
   }
 
-  const stk::mesh::Entity& v_segment_entity() const {
+  stk::mesh::Entity v_segment_entity() const {
     return Base::entity();
   }
 
-  const stk::mesh::Entity& start_node_entity() const {
+  stk::mesh::Entity start_node_entity() const {
     return Base::connected_node(0);
   }
 
-  const stk::mesh::Entity& middle_node_entity() const {
+  stk::mesh::Entity middle_node_entity() const {
     if constexpr (topology_t == stk::topology::TRI_3 || topology_t == stk::topology::SHELL_TRI_3) {
       return Base::connected_node(2);
     } else {
@@ -78,7 +78,7 @@ class VSegmentEntityView<Base, VSegmentDataType> : public Base {
     }
   }
 
-  const stk::mesh::Entity& end_node_entity() const {
+  stk::mesh::Entity end_node_entity() const {
     if constexpr (topology_t == stk::topology::TRI_3 || topology_t == stk::topology::SHELL_TRI_3) {
       return Base::connected_node(1);
     } else {
@@ -136,18 +136,18 @@ class NgpVSegmentEntityView<Base, NgpVSegmentDataType> : public Base {
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& v_segment_index() const {
+  stk::mesh::FastMeshIndex v_segment_index() const {
     return Base::entity_index();
   }
 
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& start_node_index() const {
+  stk::mesh::FastMeshIndex start_node_index() const {
     return Base::connected_node_index(0);
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& middle_node_index() const {
+  stk::mesh::FastMeshIndex middle_node_index() const {
     if constexpr (topology_t == stk::topology::TRI_3 || topology_t == stk::topology::SHELL_TRI_3) {
       return Base::connected_node_index(2);
     } else {
@@ -156,7 +156,7 @@ class NgpVSegmentEntityView<Base, NgpVSegmentDataType> : public Base {
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& end_node_index() const {
+  stk::mesh::FastMeshIndex end_node_index() const {
     if constexpr (topology_t == stk::topology::TRI_3 || topology_t == stk::topology::SHELL_TRI_3) {
       return Base::connected_node_index(1);
     } else {

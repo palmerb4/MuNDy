@@ -122,7 +122,7 @@ class EntityView {
     return bulk_data_;
   }
 
-  const stk::mesh::Entity& entity() const {
+  stk::mesh::Entity entity() const {
     return entity_;
   }
 
@@ -149,17 +149,17 @@ class EntityView {
   //! \name Connected entity access
   //@{
 
-  const stk::mesh::Entity& connected_node(int i) const {
+  stk::mesh::Entity connected_node(int i) const {
     return connected_nodes_[i];
   }
 
-  const stk::mesh::Entity& connected_edge(int i) const
+  stk::mesh::Entity connected_edge(int i) const
     requires(topology_data_t::num_edges != 0)
   {
     return connected_edges_[i];
   }
 
-  const stk::mesh::Entity& connected_face(int i) const
+  stk::mesh::Entity connected_face(int i) const
     requires(topology_data_t::num_faces != 0)
   {
     return connected_faces_[i];
@@ -243,7 +243,7 @@ class NgpEntityView {
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& entity_index() const {
+  stk::mesh::FastMeshIndex entity_index() const {
     return entity_index_;
   }
 
@@ -251,19 +251,19 @@ class NgpEntityView {
   //@{
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::ConnectedNodes& connected_nodes() const {
+  stk::mesh::ConnectedNodes connected_nodes() const {
     return connected_nodes_;
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::ConnectedEntities& connected_edges() const
+  stk::mesh::ConnectedEntities connected_edges() const
     requires(topology_data_t::num_edges != 0)
   {
     return connected_edges_;
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::ConnectedEntities& connected_faces() const
+  stk::mesh::ConnectedEntities connected_faces() const
     requires(topology_data_t::num_faces != 0)
   {
     return connected_faces_;
@@ -274,19 +274,19 @@ class NgpEntityView {
   //@{
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::Entity& connected_node(unsigned i) const {
+  stk::mesh::Entity connected_node(unsigned i) const {
     return connected_nodes_[i];
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::Entity& connected_edge(unsigned i) const
+  stk::mesh::Entity connected_edge(unsigned i) const
     requires(topology_data_t::num_edges != 0)
   {
     return connected_edges_[i];
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::Entity& connected_face(unsigned i) const
+  stk::mesh::Entity connected_face(unsigned i) const
     requires(topology_data_t::num_faces != 0)
   {
     return connected_faces_[i];

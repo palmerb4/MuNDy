@@ -48,8 +48,8 @@ concept ValidVSegmentDataType =
       typename Agg::scalar_t; 
     { Agg::get_topology() } -> std::convertible_to<stk::topology::topology_t>;
     } &&
-    std::convertible_to<decltype(std::declval<Agg>().bulk_data()), stk::mesh::BulkData&> &&
-    std::convertible_to<decltype(std::declval<Agg>().node_coords_data()), stk::mesh::Field<typename Agg::scalar_t>&>;
+    std::convertible_to<decltype(std::declval<Agg>().bulk_data()), const stk::mesh::BulkData&> &&
+    std::convertible_to<decltype(std::declval<Agg>().node_coords_data()), const stk::mesh::Field<typename Agg::scalar_t>&>;
 
 /// \brief Check if the type provides the same data as NgpVSegmentData
 template <typename Agg>
@@ -58,8 +58,8 @@ concept ValidNgpVSegmentDataType =
       typename Agg::scalar_t; 
     { Agg::get_topology() } -> std::convertible_to<stk::topology::topology_t>;
     } &&
-    std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh&> &&
-    std::convertible_to<decltype(std::declval<Agg>().node_coords_data()), stk::mesh::NgpField<typename Agg::scalar_t>&>;
+    std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh> &&
+    std::convertible_to<decltype(std::declval<Agg>().node_coords_data()), stk::mesh::NgpField<typename Agg::scalar_t>>;
 
 }  // namespace geom
 

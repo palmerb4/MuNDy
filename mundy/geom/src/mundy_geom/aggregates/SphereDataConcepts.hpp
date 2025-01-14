@@ -48,10 +48,10 @@ concept ValidSphereDataType =
       typename Agg::scalar_t; 
     { Agg::get_topology() } -> std::convertible_to<stk::topology::topology_t>;
     } &&
-    std::convertible_to<decltype(std::declval<Agg>().bulk_data()), stk::mesh::BulkData&> &&
-    std::convertible_to<decltype(std::declval<Agg>().center_data()), stk::mesh::Field<typename Agg::scalar_t>&> &&
-    (std::convertible_to<decltype(std::declval<Agg>().radius_data()), stk::mesh::Field<typename Agg::scalar_t>&> ||
-     std::convertible_to<decltype(std::declval<Agg>().radius_data()), typename Agg::scalar_t&>);
+    std::convertible_to<decltype(std::declval<Agg>().bulk_data()), const stk::mesh::BulkData&> &&
+    std::convertible_to<decltype(std::declval<Agg>().center_data()), const stk::mesh::Field<typename Agg::scalar_t>&> &&
+    (std::convertible_to<decltype(std::declval<Agg>().radius_data()), const stk::mesh::Field<typename Agg::scalar_t>&> ||
+     std::convertible_to<decltype(std::declval<Agg>().radius_data()), const typename Agg::scalar_t&>);
 
 /// \brief Check if the type provides the same data as NgpSphereData
 template <typename Agg>
@@ -60,10 +60,10 @@ concept ValidNgpSphereDataType =
       typename Agg::scalar_t; 
     { Agg::get_topology() } -> std::convertible_to<stk::topology::topology_t>;
     } &&
-    std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh&> &&
-    std::convertible_to<decltype(std::declval<Agg>().center_data()), stk::mesh::NgpField<typename Agg::scalar_t>&> &&
-    (std::convertible_to<decltype(std::declval<Agg>().radius_data()), stk::mesh::NgpField<typename Agg::scalar_t>&> ||
-     std::convertible_to<decltype(std::declval<Agg>().radius_data()), typename Agg::scalar_t&>);
+    std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh> &&
+    std::convertible_to<decltype(std::declval<Agg>().center_data()), stk::mesh::NgpField<typename Agg::scalar_t>> &&
+    (std::convertible_to<decltype(std::declval<Agg>().radius_data()), stk::mesh::NgpField<typename Agg::scalar_t>> ||
+     std::convertible_to<decltype(std::declval<Agg>().radius_data()), typename Agg::scalar_t>);
 
 }  // namespace geom
 

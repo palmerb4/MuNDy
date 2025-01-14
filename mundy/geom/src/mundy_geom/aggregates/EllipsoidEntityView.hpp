@@ -65,7 +65,7 @@ class EllipsoidEntityView<Base, EllipsoidDataType> : public Base {
   EllipsoidEntityView(const Base& base, const EllipsoidDataType& data) : Base(base), data_(data) {
   }
 
-  const stk::mesh::Entity& ellipsoid_entity() const {
+  stk::mesh::Entity ellipsoid_entity() const {
     return Base::entity();
   }
 
@@ -131,11 +131,11 @@ class EllipsoidEntityView<Base, EllipsoidDataType> : public Base {
   EllipsoidEntityView(const Base& base, const EllipsoidDataType& data) : Base(base), data_(data) {
   }
 
-  const stk::mesh::Entity& ellipsoid_entity() const {
+  stk::mesh::Entity ellipsoid_entity() const {
     return Base::entity();
   }
 
-  const stk::mesh::Entity& center_node_entity() const {
+  stk::mesh::Entity center_node_entity() const {
     return Base::connected_node(0);
   }
 
@@ -201,7 +201,7 @@ class NgpEllipsoidEntityView<Base, NgpEllipsoidDataType> : public Base {
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& ellipsoid_index() const {
+  stk::mesh::FastMeshIndex ellipsoid_index() const {
     return Base::entity_index();
   }
 
@@ -276,22 +276,12 @@ class NgpEllipsoidEntityView<Base, NgpEllipsoidDataType> : public Base {
   }
 
   KOKKOS_INLINE_FUNCTION
-  stk::mesh::FastMeshIndex& ellipsoid_index() {
+  stk::mesh::FastMeshIndex ellipsoid_index() const {
     return Base::entity_index();
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& ellipsoid_index() const {
-    return Base::entity_index();
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  stk::mesh::FastMeshIndex& center_node_index() {
-    return Base::connected_node_index(0);
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& center_node_index() const {
+  stk::mesh::FastMeshIndex center_node_index() const {
     return Base::connected_node_index(0);
   }
 

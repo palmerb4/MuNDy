@@ -45,15 +45,15 @@ namespace geom {
 template <typename Agg>
 concept ValidAABBDataType =
     requires(Agg agg) { typename Agg::scalar_t; } &&
-    std::convertible_to<decltype(std::declval<Agg>().bulk_data()), stk::mesh::BulkData&> &&
-    std::convertible_to<decltype(std::declval<Agg>().aabb_data()), stk::mesh::Field<typename Agg::scalar_t>&>;
+    std::convertible_to<decltype(std::declval<Agg>().bulk_data()), const stk::mesh::BulkData&> &&
+    std::convertible_to<decltype(std::declval<Agg>().aabb_data()), const stk::mesh::Field<typename Agg::scalar_t>&>;
 
 /// \brief A concept to check if a type provides the same data as NgpAABBData
 template <typename Agg>
 concept ValidNgpAABBDataType =
     requires(Agg agg) { typename Agg::scalar_t; } &&
-    std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh&> &&
-    std::convertible_to<decltype(std::declval<Agg>().aabb_data()), stk::mesh::NgpField<typename Agg::scalar_t>&>;
+    std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh> &&
+    std::convertible_to<decltype(std::declval<Agg>().aabb_data()), stk::mesh::NgpField<typename Agg::scalar_t>>;
 
 }  // namespace geom
 

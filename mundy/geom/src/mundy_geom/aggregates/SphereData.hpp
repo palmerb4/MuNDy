@@ -229,7 +229,7 @@ class NgpSphereData {
 
   KOKKOS_INLINE_FUNCTION
   const auto get_entity_view(stk::mesh::FastMeshIndex entity_index) const {
-    using our_t = NgpPointData<Scalar, OurTopology, HasSharedRadius>;
+    using our_t = NgpSphereData<Scalar, OurTopology, HasSharedRadius>;
     return mundy::geom::create_ngp_topological_entity_view<OurTopology::value>(ngp_mesh(), entity_index)
         .template augment_view<NgpSphereEntityView, our_t>(*this);
   }

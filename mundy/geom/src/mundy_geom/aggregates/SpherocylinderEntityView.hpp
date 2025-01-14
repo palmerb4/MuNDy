@@ -66,7 +66,7 @@ class SpherocylinderEntityView<Base, SpherocylinderDataType> : public Base {
       : Base(base), data_(data) {
   }
 
-  const stk::mesh::Entity& spherocylinder_entity() const {
+  stk::mesh::Entity spherocylinder_entity() const {
     return Base::entity();
   }
 
@@ -146,20 +146,20 @@ class SpherocylinderEntityView<Base, SpherocylinderDataType> : public Base {
       : Base(base), data_(data) {
   }
 
-  const stk::mesh::Entity& spherocylinder_entity() const {
+  stk::mesh::Entity spherocylinder_entity() const {
     return Base::entity();
   }
 
-  const stk::mesh::Entity& center_node_entity() const {
+  stk::mesh::Entity center_node_entity() const {
     return Base::connected_node(0);
   }
 
   decltype(auto) center() {
-    return mundy::mesh::vector3_field_data(data_.center_data(), spherocylinder_entity());
+    return mundy::mesh::vector3_field_data(data_.center_data(), center_node_entity());
   }
 
   decltype(auto) center() const {
-    return mundy::mesh::vector3_field_data(data_.center_data(), spherocylinder_entity());
+    return mundy::mesh::vector3_field_data(data_.center_data(), center_node_entity());
   }
 
   decltype(auto) orientation() {
@@ -238,7 +238,7 @@ class NgpSpherocylinderEntityView<Base, NgpSpherocylinderDataType> : public Base
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& spherocylinder_index() const {
+  stk::mesh::FastMeshIndex spherocylinder_index() const {
     return Base::entity_index();
   }
 
@@ -328,12 +328,12 @@ class NgpSpherocylinderEntityView<Base, NgpSpherocylinderDataType> : public Base
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& spherocylinder_index() const {
+  stk::mesh::FastMeshIndex spherocylinder_index() const {
     return Base::entity_index();
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& center_node_index() const {
+  stk::mesh::FastMeshIndex center_node_index() const {
     return Base::connected_node_index(0);
   }
 

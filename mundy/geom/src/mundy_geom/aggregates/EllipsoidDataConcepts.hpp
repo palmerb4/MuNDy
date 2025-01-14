@@ -46,13 +46,13 @@ concept ValidEllipsoidDataType =
       typename Agg::scalar_t; 
     { Agg::get_topology() } -> std::convertible_to<stk::topology::topology_t>;
     } &&
-    std::convertible_to<decltype(std::declval<Agg>().bulk_data()), stk::mesh::BulkData&> &&
-    std::convertible_to<decltype(std::declval<Agg>().center_data()), stk::mesh::Field<typename Agg::scalar_t>&> &&
-    std::convertible_to<decltype(std::declval<Agg>().orientation_data()), stk::mesh::Field<typename Agg::scalar_t>&> &&
+    std::convertible_to<decltype(std::declval<Agg>().bulk_data()), const stk::mesh::BulkData&> &&
+    std::convertible_to<decltype(std::declval<Agg>().center_data()), const stk::mesh::Field<typename Agg::scalar_t>&> &&
+    std::convertible_to<decltype(std::declval<Agg>().orientation_data()), const stk::mesh::Field<typename Agg::scalar_t>&> &&
     (std::convertible_to<decltype(std::declval<Agg>().axis_lengths_data()),
-                         stk::mesh::Field<typename Agg::scalar_t>&> ||
+                         const stk::mesh::Field<typename Agg::scalar_t>&> ||
      std::convertible_to<decltype(std::declval<Agg>().axis_lengths_data()),
-                         mundy::math::Vector3<typename Agg::scalar_t>&>);
+                         const mundy::math::Vector3<typename Agg::scalar_t>&>);
 
 /// \brief Check if the type provides the same data as NgpEllipsoidData
 template <typename Agg>
@@ -61,14 +61,14 @@ concept ValidNgpEllipsoidDataType =
       typename Agg::scalar_t; 
     { Agg::get_topology() } -> std::convertible_to<stk::topology::topology_t>;
     } &&
-    std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh&> &&
-    std::convertible_to<decltype(std::declval<Agg>().center_data()), stk::mesh::NgpField<typename Agg::scalar_t>&> &&
+    std::convertible_to<decltype(std::declval<Agg>().ngp_mesh()), stk::mesh::NgpMesh> &&
+    std::convertible_to<decltype(std::declval<Agg>().center_data()), stk::mesh::NgpField<typename Agg::scalar_t>> &&
     std::convertible_to<decltype(std::declval<Agg>().orientation_data()),
-                        stk::mesh::NgpField<typename Agg::scalar_t>&> &&
+                        stk::mesh::NgpField<typename Agg::scalar_t>> &&
     (std::convertible_to<decltype(std::declval<Agg>().axis_lengths_data()),
-                         stk::mesh::NgpField<typename Agg::scalar_t>&> ||
+                         stk::mesh::NgpField<typename Agg::scalar_t>> ||
      std::convertible_to<decltype(std::declval<Agg>().axis_lengths_data()),
-                         mundy::math::Vector3<typename Agg::scalar_t>&>);
+                         mundy::math::Vector3<typename Agg::scalar_t>>);
 
 }  // namespace geom
 

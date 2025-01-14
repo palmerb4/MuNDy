@@ -62,7 +62,7 @@ class SphereEntityView<Base, SphereDataType> : public Base {
   SphereEntityView(const Base& base, const SphereDataType& data) : Base(base), data_(data) {
   }
 
-  const stk::mesh::Entity& sphere_entity() const {
+  stk::mesh::Entity sphere_entity() const {
     return Base::entity();
   }
 
@@ -113,11 +113,11 @@ class SphereEntityView<Base, SphereDataType> : public Base {
   SphereEntityView(const Base& base, const SphereDataType& data) : Base(base), data_(data) {
   }
 
-  const stk::mesh::Entity& sphere_entity() const {
+  stk::mesh::Entity sphere_entity() const {
     return Base::entity();
   }
 
-  const stk::mesh::Entity& center_node_entity() const {
+  stk::mesh::Entity center_node_entity() const {
     return Base::connected_node(0);
   }
 
@@ -175,7 +175,7 @@ class NgpSphereEntityView<Base, NgpSphereDataType> : public Base {
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& sphere_index() const {
+  stk::mesh::FastMeshIndex sphere_index() const {
     return Base::entity_index();
   }
 
@@ -232,12 +232,12 @@ class NgpSphereEntityView<Base, NgpSphereDataType> : public Base {
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& sphere_index() const {
+  stk::mesh::FastMeshIndex sphere_index() const {
     return Base::entity_index();
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& center_node_index() const {
+  stk::mesh::FastMeshIndex center_node_index() const {
     return Base::connected_node_index(0);
   }
 

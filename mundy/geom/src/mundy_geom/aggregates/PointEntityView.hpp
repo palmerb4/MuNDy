@@ -63,7 +63,7 @@ class PointEntityView<Base, PointDataType> : public Base {
   PointEntityView(const Base& base, const PointDataType& data) : Base(base), data_(data) {
   }
 
-  const stk::mesh::Entity& point_entity() const {
+  stk::mesh::Entity point_entity() const {
     return Base::entity();
   }
 
@@ -101,11 +101,11 @@ class PointEntityView<Base, PointDataType> : public Base {
   PointEntityView(const Base& base, const PointDataType& data) : Base(base), data_(data) {
   }
 
-  const stk::mesh::Entity& point_entity() const {
+  stk::mesh::Entity point_entity() const {
     return Base::entity();
   }
 
-  const stk::mesh::Entity& center_node_entity() const {
+  stk::mesh::Entity center_node_entity() const {
     return Base::connected_node(0);
   }
 
@@ -151,7 +151,7 @@ class NgpPointEntityView<Base, NgpPointDataType> : public Base {
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& point_index() const {
+  stk::mesh::FastMeshIndex point_index() const {
     return Base::entity_index();
   }
 
@@ -194,12 +194,12 @@ class NgpPointEntityView<Base, NgpPointDataType> : public Base {
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& point_index() const {
+  stk::mesh::FastMeshIndex point_index() const {
     return Base::entity_index();
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& center_node_index() const {
+  stk::mesh::FastMeshIndex center_node_index() const {
     return Base::connected_node_index(0);
   }
 

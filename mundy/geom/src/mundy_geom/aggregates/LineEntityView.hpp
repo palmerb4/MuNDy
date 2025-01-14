@@ -62,7 +62,7 @@ class LineEntityView<Base, LineDataType> : public Base {
   LineEntityView(const Base& base, const LineDataType &data) : Base(base), data_(data) {
   }
 
-  const stk::mesh::Entity& line_entity() const {
+  stk::mesh::Entity line_entity() const {
     return Base::entity();
   }
 
@@ -102,11 +102,11 @@ class LineEntityView<Base, LineDataType> : public Base {
       : Base(base), data_(data) {
   }
 
-  const stk::mesh::Entity& line_entity() const {
+  stk::mesh::Entity line_entity() const {
     return Base::entity();
   }
 
-  const stk::mesh::Entity& center_node_entity() const {
+  stk::mesh::Entity center_node_entity() const {
     return Base::connected_node(0);
   }
 
@@ -152,7 +152,7 @@ class NgpLineEntityView<Base, NgpLineDataType> : public Base {
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& line_index() const {
+  stk::mesh::FastMeshIndex line_index() const {
     return Base::entity_index();
   }
 
@@ -197,12 +197,12 @@ class NgpLineEntityView<Base, NgpLineDataType> : public Base {
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& line_index() const {
+  stk::mesh::FastMeshIndex line_index() const {
     return Base::entity_index();
   }
 
   KOKKOS_INLINE_FUNCTION
-  const stk::mesh::FastMeshIndex& center_node_index() const {
+  stk::mesh::FastMeshIndex center_node_index() const {
     return Base::connected_node_index(0);
   }
 
