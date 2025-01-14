@@ -33,6 +33,7 @@
 // Mundy libs
 #include <mundy_constraints/compute_constraint_forcing/kernels/AngularSpringsKernel.hpp>  // for mundy::...::kernels::AngularSpringsKernel
 #include <mundy_constraints/compute_constraint_forcing/kernels/FENESpringsKernel.hpp>  // for mundy::...::kernels::FENESpringsKernel
+#include <mundy_constraints/compute_constraint_forcing/kernels/FENEWCASpringsKernel.hpp>  // for mundy::...::kernels::FENEWCASpringsKernel
 #include <mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.hpp>  // for mundy::...::kernels::HookeanSpringsKernel
 #include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
@@ -100,15 +101,16 @@ class ComputeConstraintForcing
 };  // ComputeConstraintForcing
 
 // Workaround due to CUDA not liking our meta factory registration
-static inline volatile const bool register_compute_constraint_forcing_kernels_ =
-[]() {
+static inline volatile const bool register_compute_constraint_forcing_kernels_ = []() {
   // Register our default kernels
- mundy::constraints::ComputeConstraintForcing::OurKernelFactory::register_new_class<
-          mundy::constraints::compute_constraint_forcing::kernels::HookeanSpringsKernel>("HOOKEAN_SPRINGS");
- mundy::constraints::ComputeConstraintForcing::OurKernelFactory::register_new_class<
-          mundy::constraints::compute_constraint_forcing::kernels::AngularSpringsKernel>("ANGULAR_SPRINGS");
- mundy::constraints::ComputeConstraintForcing::OurKernelFactory::register_new_class<
-          mundy::constraints::compute_constraint_forcing::kernels::FENESpringsKernel>("FENE_SPRINGS");
+  mundy::constraints::ComputeConstraintForcing::OurKernelFactory::register_new_class<
+      mundy::constraints::compute_constraint_forcing::kernels::HookeanSpringsKernel>("HOOKEAN_SPRINGS");
+  mundy::constraints::ComputeConstraintForcing::OurKernelFactory::register_new_class<
+      mundy::constraints::compute_constraint_forcing::kernels::AngularSpringsKernel>("ANGULAR_SPRINGS");
+  mundy::constraints::ComputeConstraintForcing::OurKernelFactory::register_new_class<
+      mundy::constraints::compute_constraint_forcing::kernels::FENESpringsKernel>("FENE_SPRINGS");
+  mundy::constraints::ComputeConstraintForcing::OurKernelFactory::register_new_class<
+      mundy::constraints::compute_constraint_forcing::kernels::FENEWCASpringsKernel>("FENEWCA_SPRINGS");
   return true;
 }();
 
