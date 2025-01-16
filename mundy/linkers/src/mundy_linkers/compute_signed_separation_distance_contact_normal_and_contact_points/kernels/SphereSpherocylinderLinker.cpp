@@ -232,8 +232,10 @@ void SphereSpherocylinderLinker::execute(const stk::mesh::Selector &sphere_spher
             stk::mesh::field_data(linker_signed_separation_distance_field, sphere_spherocylinder_linker);
         signed_separation_distance[0] = separation_distance;
         contact_normal = left_to_right_vector * inv_distance;
-        sphere_contact_point = sphere_center_coord + sphere_radius * contact_normal;
-        spherocylinder_contact_point = sphere_contact_point + separation_distance * contact_normal;
+        // sphere_contact_point = sphere_center_coord + sphere_radius * contact_normal;
+        // spherocylinder_contact_point = sphere_contact_point + separation_distance * contact_normal;
+        sphere_contact_point = sphere_center_coord;
+        spherocylinder_contact_point = closest_point;
       });
 }
 //}

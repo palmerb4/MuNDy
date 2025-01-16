@@ -105,7 +105,7 @@ class AABB {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~AABB() = default;
 
   /// \brief Deep copy constructor

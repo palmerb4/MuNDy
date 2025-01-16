@@ -21,15 +21,15 @@
 #include <openrand/philox.h>  // for openrand::Philox
 
 // C++ core
-#include <fstream>  // for std::ofstream
-#include <numeric>  // for std::accumulate
-#include <vector>   // for std::vector
-#include <iostream>    // for std::cout, std::endl
+#include <fstream>   // for std::ofstream
+#include <iostream>  // for std::cout, std::endl
+#include <numeric>   // for std::accumulate
+#include <vector>    // for std::vector
 
 // Trilinos libs
 #include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
 
-#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+// #if TRILINOS_MAJOR_MINOR_VERSION >= 160000
 
 // Kokkos and Kokkos-Kernels
 #include <KokkosBlas.hpp>
@@ -53,6 +53,7 @@
 #include <stk_mesh/base/NgpMesh.hpp>
 #include <stk_mesh/base/Selector.hpp>
 #include <stk_mesh/base/Types.hpp>
+#include <stk_mesh/base/NgpReductions.hpp>
 
 // STK Search
 #include <stk_search/BoxIdent.hpp>
@@ -222,8 +223,11 @@ LocalResultViewType get_local_neighbor_indices(const stk::mesh::BulkData &bulk_d
 
 SearchSpheresViewType create_search_spheres(const stk::mesh::BulkData &bulk_data, const stk::mesh::NgpMesh &ngp_mesh,
                                             const stk::mesh::Selector &spheres,
-                                            const stk::mesh::NgpField<double> &node_coordinates,
-                                            const stk::mesh::NgpField<double> &element_radius) {
+                                            stk::mesh::NgpField<double> &node_coordinates,
+                                            stk::mesh::NgpField<double> &element_radius) {
+  node_coordinates.sync_to_device();
+  element_radius.sync_to_device();
+  
   auto locally_owned_spheres = spheres & bulk_data.mesh_meta_data().locally_owned_part();
   const unsigned num_local_spheres =
       stk::mesh::count_entities(bulk_data, stk::topology::ELEMENT_RANK, locally_owned_spheres);
@@ -253,6 +257,10 @@ SearchSpheresViewType create_search_spheres(const stk::mesh::BulkData &bulk_data
 }
 
 void ghost_neighbors(stk::mesh::BulkData &bulk_data, const ResultViewType &search_results) {
+  if (bulk_data.parallel_size() == 1) {
+    return;
+  }  
+  
   auto host_search_results = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultHostExecutionSpace{}, search_results);
   bulk_data.modification_begin();
   stk::mesh::Ghosting &neighbor_ghosting = bulk_data.create_ghosting("neighbors");
@@ -290,8 +298,9 @@ void apply_hertzian_contact_between_spheres(stk::mesh::NgpMesh &ngp_mesh,
                                             const double youngs_modulus, const double poisson_ratio,
                                             const stk::mesh::NgpField<double> &node_coordinates,
                                             stk::mesh::NgpField<double> &node_forces,
-                                            const stk::mesh::NgpField<double> &element_radius) {
+                                            stk::mesh::NgpField<double> &element_radius) {
   node_forces.sync_to_device();
+  element_radius.sync_to_device();
 
   const double effective_youngs_modulus =
       (youngs_modulus * youngs_modulus) / (youngs_modulus - youngs_modulus * poisson_ratio * poisson_ratio +
@@ -301,9 +310,13 @@ void apply_hertzian_contact_between_spheres(stk::mesh::NgpMesh &ngp_mesh,
   Kokkos::parallel_for(
       stk::ngp::DeviceRangePolicy(0, local_search_results.size()), KOKKOS_LAMBDA(const unsigned &i) {
         const auto search_result = local_search_results(i);
-
         stk::mesh::FastMeshIndex source_entity_index = search_result.domainIdentProc.id();
         stk::mesh::FastMeshIndex target_entity_index = search_result.rangeIdentProc.id();
+        if (source_entity_index == target_entity_index) {
+          return;
+        }
+
+
         stk::mesh::Entity source_node = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, source_entity_index)[0];
         stk::mesh::Entity target_node = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, target_entity_index)[0];
 
@@ -317,9 +330,9 @@ void apply_hertzian_contact_between_spheres(stk::mesh::NgpMesh &ngp_mesh,
         stk::mesh::EntityFieldData<double> source_forces = node_forces(source_node_index);
         stk::mesh::EntityFieldData<double> target_forces = node_forces(target_node_index);
 
-        const double source_to_target_x = source_coords[0] - target_coords[0];
-        const double source_to_target_y = source_coords[1] - target_coords[1];
-        const double source_to_target_z = source_coords[2] - target_coords[2];
+        const double source_to_target_x = target_coords[0] - source_coords[0];
+        const double source_to_target_y = target_coords[1] - source_coords[1];
+        const double source_to_target_z = target_coords[2] - source_coords[2];
 
         const double distance_between_centers =
             Kokkos::sqrt(source_to_target_x * source_to_target_x + source_to_target_y * source_to_target_y +
@@ -332,35 +345,102 @@ void apply_hertzian_contact_between_spheres(stk::mesh::NgpMesh &ngp_mesh,
           const double normal_force_magnitude_scaled =
               four_thirds * effective_youngs_modulus * Kokkos::sqrt(effective_radius) *
               Kokkos::pow(-signed_separation_distance, 1.5) / distance_between_centers;
-          source_forces[0] += normal_force_magnitude_scaled * source_to_target_x;
-          source_forces[1] += normal_force_magnitude_scaled * source_to_target_y;
-          source_forces[2] += normal_force_magnitude_scaled * source_to_target_z;
-          target_forces[0] -= normal_force_magnitude_scaled * source_to_target_x;
-          target_forces[1] -= normal_force_magnitude_scaled * source_to_target_y;
-          target_forces[2] -= normal_force_magnitude_scaled * source_to_target_z;
+          source_forces[0] -= normal_force_magnitude_scaled * source_to_target_x;
+          source_forces[1] -= normal_force_magnitude_scaled * source_to_target_y;
+          source_forces[2] -= normal_force_magnitude_scaled * source_to_target_z;
+          target_forces[0] += normal_force_magnitude_scaled * source_to_target_x;
+          target_forces[1] += normal_force_magnitude_scaled * source_to_target_y;
+          target_forces[2] += normal_force_magnitude_scaled * source_to_target_z;
         }
       });
+
   node_forces.modify_on_device();
 }
 
-void update_sphere_positions(const stk::mesh::NgpMesh &ngp_mesh, const double time_step,
-                             stk::mesh::NgpField<double> &node_coordinates,
-                             stk::mesh::NgpField<double> &node_velocity) {
+void apply_attractive_abc_flow(stk::mesh::NgpMesh &ngp_mesh, stk::mesh::NgpField<double> &node_coordinates,
+                               stk::mesh::NgpField<double> &node_forces) {
+  node_coordinates.sync_to_device();
+  node_forces.sync_to_device();
+
+  const double a = 1.0;
+  const double b = Kokkos::sqrt(2.0);
+  const double c = Kokkos::sqrt(3.0);
+  const double attraction_coeff = 2.0;
+
   node_coordinates.sync_to_device();
   auto selector = stk::mesh::Selector(*node_coordinates.get_field_base());
   stk::mesh::for_each_entity_run(
       ngp_mesh, stk::topology::NODE_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &node_index) {
-        stk::mesh::Entity node = ngp_mesh.get_entity(stk::topology::NODE_RANK, node_index);
+        stk::mesh::EntityFieldData<double> node_coords = node_coordinates(node_index);
+        stk::mesh::EntityFieldData<double> node_force = node_forces(node_index);
+
+        const double coords_x = node_coords[0];
+        const double coords_y = node_coords[1];
+        const double coords_z = node_coords[2];
+        const double r = Kokkos::sqrt(coords_x * coords_x + coords_y * coords_y + coords_z * coords_z);
+        const double inv_r = 1.0 / r;
+
+        node_force[0] += a * Kokkos::sin(coords_z) + c * Kokkos::cos(coords_y) - attraction_coeff * coords_x * inv_r;
+        node_force[1] += b * Kokkos::sin(coords_x) + a * Kokkos::cos(coords_z) - attraction_coeff * coords_y * inv_r;
+        node_force[2] += c * Kokkos::sin(coords_y) + b * Kokkos::cos(coords_x) - attraction_coeff * coords_z * inv_r;
+      });
+
+  node_forces.modify_on_device();
+}
+
+void update_sphere_positions(const stk::mesh::NgpMesh &ngp_mesh, const double time_step_size,
+                             stk::mesh::NgpField<double> &node_coordinates,
+                             stk::mesh::NgpField<double> &node_velocity) {
+  node_coordinates.sync_to_device();
+  node_velocity.sync_to_device();
+
+  auto selector = stk::mesh::Selector(*node_coordinates.get_field_base());
+  stk::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::NODE_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &node_index) {
         stk::mesh::EntityFieldData<double> node_coords = node_coordinates(node_index);
         stk::mesh::EntityFieldData<double> node_vel = node_velocity(node_index);
 
-        node_coords[0] += time_step * node_vel[0];
-        node_coords[1] += time_step * node_vel[1];
-        node_coords[2] += time_step * node_vel[2];
+        node_coords[0] += time_step_size * node_vel[0];
+        node_coords[1] += time_step_size * node_vel[1];
+        node_coords[2] += time_step_size * node_vel[2];
       });
 
   node_coordinates.modify_on_device();
 }
+
+template <typename Field>
+struct FieldSpeedReductionFunctor {
+  KOKKOS_FUNCTION
+  FieldSpeedReductionFunctor(Field &field, Kokkos::Max<double> max_reduction)
+      : field_(field), max_reduction_(max_reduction) {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const stk::mesh::FastMeshIndex &f, double &value) const {
+    const double magnitude_sq = field_(f, 0) * field_(f, 0) + field_(f, 1) * field_(f, 1) + field_(f, 2) * field_(f, 2);
+    max_reduction_.join(value, magnitude_sq);
+  }
+
+ private:
+  const Field field_;
+  const Kokkos::Max<double> max_reduction_;
+};
+
+template <typename Mesh, typename Field>
+double get_max_speed(Mesh &ngp_mesh, Field &vel_field) {
+  vel_field.sync_to_device();
+
+  stk::mesh::Selector field_selector(*vel_field.get_field_base());
+  double local_max_speed_sq = 0.0;
+  Kokkos::Max<double> max_reduction(local_max_speed_sq);
+  FieldSpeedReductionFunctor<Field> functor(vel_field, max_reduction);
+  stk::mesh::for_each_entity_reduce(ngp_mesh, vel_field.get_rank(), field_selector, max_reduction, functor);
+
+  double global_max_speed_sq = 0.0;
+  stk::all_reduce_max(vel_field.get_field_base()->get_mesh().parallel(), &local_max_speed_sq, &global_max_speed_sq, 1);
+  return Kokkos::sqrt(global_max_speed_sq);
+}
+
 //@}
 
 //! \name Load Balance
@@ -396,17 +476,19 @@ int main(int argc, char **argv) {
 
   {
     // Simulation of N spheres in a cube
-    const double viscosity = 1.0;
-    const double youngs_modulus = 10000.0;
+    const double youngs_modulus = 100.0;
     const double poisson_ratio = 0.3;
     const double sphere_radius_min = 1.0;
     const double sphere_radius_max = 1.0;
     const double num_spheres = 10000;
-    const Kokkos::Array<double, 3> unit_cell_bottom_left = {0.0, 0.0, 0.0};
-    const Kokkos::Array<double, 3> unit_cell_top_right = {100.0, 100.0, 100.0};
-    const double time_step = 0.00001;
-    const size_t num_time_steps = 1000 / time_step;
-    const size_t io_frequency = 1;
+    const double viscosity = 1.0 / (6.0 * Kokkos::numbers::pi * sphere_radius_max);
+
+    const Kokkos::Array<double, 3> unit_cell_bottom_left = {-50.0, -50.0, -50.0};
+    const Kokkos::Array<double, 3> unit_cell_top_right = {50.0, 50.0, 50.0};
+    const double time_step_size = 0.00001;
+    const size_t num_time_steps = 1000 / time_step_size;
+    const size_t io_frequency = std::round(0.1 / time_step_size);
+    const double search_buffer = 2.0 * sphere_radius_max;
 
     const double volume_fraction =
         4.0 / 3.0 * M_PI * sphere_radius_max * sphere_radius_max * sphere_radius_max * num_spheres /
@@ -417,6 +499,7 @@ int main(int argc, char **argv) {
     std::cout << "  Sphere radius min: " << sphere_radius_min << std::endl;
     std::cout << "  Sphere radius max: " << sphere_radius_max << std::endl;
     std::cout << "  Volume fraction: " << volume_fraction << std::endl;
+    std::cout << "  IO frequency: " << io_frequency << std::endl;
 
     // Setup the STK mesh
     stk::mesh::MeshBuilder mesh_builder(MPI_COMM_WORLD);
@@ -425,7 +508,7 @@ int main(int argc, char **argv) {
     std::shared_ptr<stk::mesh::MetaData> meta_data_ptr = mesh_builder.create_meta_data();
     meta_data_ptr->use_simple_fields();  // Depreciated in newer versions of STK as they have finished the transition to
                                          // all fields are simple.
-    meta_data_ptr->set_coordinate_field_name("COORDS");
+    meta_data_ptr->set_coordinate_field_name("NODE_COORDS");
     std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = mesh_builder.create(meta_data_ptr);
     stk::mesh::MetaData &meta_data = *meta_data_ptr;
     stk::mesh::BulkData &bulk_data = *bulk_data_ptr;
@@ -433,103 +516,147 @@ int main(int argc, char **argv) {
     // Create the spheres
     auto &spheres_part = meta_data.declare_part_with_topology("SPHERES", stk::topology::PARTICLE);
     stk::io::put_io_part_attribute(spheres_part);
-    auto &node_coordinates = meta_data.declare_field<double>(stk::topology::NODE_RANK, "COORDS");
+    auto &node_coordinates = meta_data.declare_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
+    auto &node_displacement_since_last_rebuild_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "OUR_DISP");
     auto &node_force = meta_data.declare_field<double>(stk::topology::NODE_RANK, "FORCE");
     auto &node_velocity = meta_data.declare_field<double>(stk::topology::NODE_RANK, "VELOCITY");
     auto &element_radius = meta_data.declare_field<double>(stk::topology::ELEMENT_RANK, "RADIUS");
 
-    // Create the sphere-sphere linkers
-    auto &sphere_sphere_linkers_part = meta_data.declare_part("SPHERE_SPHERE_LINKERS", stk::topology::CONSTRAINT_RANK);
-    auto &linked_entities_field = meta_data.declare_field<double>(stk::topology::CONSTRAINT_RANK, "LINKED_ENTITIES");
-    auto &linked_entity_owners_field =
-        meta_data.declare_field<int>(stk::topology::CONSTRAINT_RANK, "LINKED_ENTITY_OWNERS");
-
     // Assign fields to parts
+    double zero3[3] = {0.0, 0.0, 0.0};
     stk::mesh::put_field_on_mesh(node_coordinates, meta_data.universal_part(), 3, nullptr);
+    stk::mesh::put_field_on_mesh(node_displacement_since_last_rebuild_field, spheres_part, 3, zero3);
     stk::mesh::put_field_on_mesh(node_force, spheres_part, 3, nullptr);
     stk::mesh::put_field_on_mesh(node_velocity, spheres_part, 3, nullptr);
     stk::mesh::put_field_on_mesh(element_radius, spheres_part, 1, nullptr);
-    stk::mesh::put_field_on_mesh(linked_entities_field, sphere_sphere_linkers_part, 2, nullptr);
-    stk::mesh::put_field_on_mesh(linked_entity_owners_field, sphere_sphere_linkers_part, 1, nullptr);
 
     // Concretize the mesh
     meta_data.commit();
 
-    // Generate the particles
-    generate_particles(bulk_data, num_spheres, spheres_part);
-
-    // Balance the mesh
-    stk::balance::balanceStkMesh(RcbSettings{}, bulk_data);
-
     // Get the NGP stuff
     stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
     auto &ngp_node_coordinates = stk::mesh::get_updated_ngp_field<double>(node_coordinates);
+    auto &ngp_node_displacement_since_last_rebuild_field =
+        stk::mesh::get_updated_ngp_field<double>(node_displacement_since_last_rebuild_field);
     auto &ngp_node_force = stk::mesh::get_updated_ngp_field<double>(node_force);
     auto &ngp_node_velocity = stk::mesh::get_updated_ngp_field<double>(node_velocity);
     auto &ngp_element_radius = stk::mesh::get_updated_ngp_field<double>(element_radius);
+    
+    // Generate the particles
+    generate_particles(bulk_data, num_spheres, spheres_part);
 
     // Randomize the positions and radii
     randomize_positions_and_radii(ngp_mesh, spheres_part, sphere_radius_min, sphere_radius_max, unit_cell_bottom_left,
                                   unit_cell_top_right, ngp_node_coordinates, ngp_element_radius);
+
+    // Balance the mesh
+    stk::balance::balanceStkMesh(RcbSettings{}, bulk_data);
+
 
     // Timeloop
     bool rebuild_neighbors = true;
     ResultViewType search_results;
     LocalResultViewType local_search_results;
     SearchSpheresViewType search_spheres;
-    Kokkos::Timer tps_timer;
-    for (size_t time_step = 0; time_step < num_time_steps; ++time_step) {
-      if (time_step % io_frequency == 0) {
-        std::cout << "Time step: " << time_step << " running at "
-                  << static_cast<double>(io_frequency) / tps_timer.seconds() << " tps." << std::endl;
-        tps_timer.reset();
-        // Comm fields to host
-        // ngp_node_coordinates.sync_to_host();
-        // ngp_node_force.sync_to_host();
-        // ngp_node_velocity.sync_to_host();
-        // ngp_element_radius.sync_to_host();
 
-        // Write to file
-        // stk::io::write_mesh("spheres_" + std::to_string(time_step) + ".e", bulk_data, stk::io::WRITE_RESULTS);
+    Kokkos::Timer overall_timer;
+    Kokkos::Timer tps_timer;
+    for (size_t time_step_index = 0; time_step_index < num_time_steps; ++time_step_index) {
+      if (time_step_index % io_frequency == 0) {
+        std::cout << "Time step: " << time_step_index << " | Total time: " << time_step_index * time_step_size << std::endl;
+        std::cout << "  Time elapsed: " << overall_timer.seconds() << " s" << std::endl;
+        std::cout << "  Running avg tps: " << static_cast<double>(io_frequency) / tps_timer.seconds() << std::endl;
+        tps_timer.reset();
+
+        // Comm fields to host
+        ngp_node_coordinates.sync_to_host();
+        ngp_node_force.sync_to_host();
+        ngp_node_velocity.sync_to_host();
+        ngp_element_radius.sync_to_host();
+
+        // Write to file using Paraview compatable naming
+        stk::io::write_mesh_with_fields("hertz_spheres.e-s." + std::to_string(time_step_index), bulk_data, time_step_index + 1,
+                                        time_step_index * time_step_size, stk::io::WRITE_RESULTS);
       }
 
-      if (time_step % io_frequency == 0) {
+      // Update the displacement since the last rebuild
+      ngp_node_displacement_since_last_rebuild_field.sync_to_device();
+      ngp_node_force.sync_to_device();
+      stk::mesh::for_each_entity_run(
+          ngp_mesh, stk::topology::NODE_RANK,
+          stk::mesh::Selector(*ngp_node_displacement_since_last_rebuild_field.get_field_base()),
+          KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &node_index) {
+            ngp_node_displacement_since_last_rebuild_field(node_index, 0) +=
+                time_step_size * ngp_node_force(node_index, 0);
+            ngp_node_displacement_since_last_rebuild_field(node_index, 1) +=
+                time_step_size * ngp_node_force(node_index, 1);
+            ngp_node_displacement_since_last_rebuild_field(node_index, 2) +=
+                time_step_size * ngp_node_force(node_index, 2);
+          });
+      ngp_node_displacement_since_last_rebuild_field.modify_on_device();
+      double max_disp = get_max_speed(ngp_mesh, ngp_node_displacement_since_last_rebuild_field);
+      if (max_disp > search_buffer) {
+        rebuild_neighbors = true;
+      }
+
+      if (rebuild_neighbors) {
+        std::cout << "Rebuilding neighbors." << std::endl;
+
         Kokkos::Timer create_search_timer;
         search_spheres =
             create_search_spheres(bulk_data, ngp_mesh, spheres_part, ngp_node_coordinates, ngp_element_radius);
-        std::cout << "Create search spheres time: " << create_search_timer.seconds() << std::endl;
+        // std::cout << "Create search spheres time: " << create_search_timer.seconds() << std::endl;
 
         Kokkos::Timer search_timer;
         stk::search::SearchMethod search_method = stk::search::MORTON_LBVH;
 
-        stk::ngp::ExecSpace exec_space = Kokkos::DefaultExecutionSpace{};
+        stk::ngp::ExecSpace exec_space{};
         const bool results_parallel_symmetry = true;   // create source -> target and target -> source pairs
         const bool auto_swap_domain_and_range = true;  // swap source and target if target is owned and source is not
         const bool sort_search_results = true;         // sort the search results by source id
         stk::search::coarse_search(search_spheres, search_spheres, search_method, bulk_data.parallel(), search_results,
                                    exec_space, results_parallel_symmetry);
-        std::cout << "Search time: " << search_timer.seconds() << " with " << search_results.size() << " results."
-                  << std::endl;
+        // std::cout << "Search time: " << search_timer.seconds() << " with " << search_results.size() << " results."
+        //           << std::endl;
 
         // Ghost the non-owned spheres
         Kokkos::Timer ghost_timer;
         ghost_neighbors(bulk_data, search_results);
-        std::cout << "Ghost time: " << ghost_timer.seconds() << std::endl;
+        // std::cout << "Ghost time: " << ghost_timer.seconds() << std::endl;
 
         // Create local neighbor indices
         Kokkos::Timer local_index_conversion_timer;
         local_search_results = get_local_neighbor_indices(bulk_data, stk::topology::ELEMENT_RANK, search_results);
-        std::cout << "Local index conversion time: " << local_index_conversion_timer.seconds() << std::endl;
+        // std::cout << "Local index conversion time: " << local_index_conversion_timer.seconds() << std::endl;
+      
+        // Reset the accumulated displacements and the rebuild flag
+        ngp_node_displacement_since_last_rebuild_field.sync_to_device();
+        ngp_node_displacement_since_last_rebuild_field.set_all(ngp_mesh, 0.0);
+        ngp_node_displacement_since_last_rebuild_field.modify_on_device();
+        rebuild_neighbors = false;
       }
+
+      // Setup/reset the forces and velocities
+      ngp_node_force.sync_to_device();
+      ngp_node_velocity.sync_to_device();
+      ngp_node_force.set_all(ngp_mesh, 0.0);
+      ngp_node_velocity.set_all(ngp_mesh, 0.0);
+      ngp_node_force.modify_on_device();
+      ngp_node_velocity.modify_on_device();
 
       Kokkos::Timer contact_timer;
       apply_hertzian_contact_between_spheres(ngp_mesh, local_search_results, youngs_modulus, poisson_ratio,
                                              ngp_node_coordinates, ngp_node_force, ngp_element_radius);
-      std::cout << "Contact time: " << contact_timer.seconds() << std::endl;
+      // std::cout << "Contact time: " << contact_timer.seconds() << std::endl;
 
+      Kokkos::Timer flow_timer;
+      apply_attractive_abc_flow(ngp_mesh, ngp_node_coordinates, ngp_node_force);
+      // std::cout << "Flow time: " << flow_timer.seconds() << std::endl;
+
+      // Non-dimensionalized viscous drag node_velocity = node_force
       Kokkos::Timer update_timer;
-      update_sphere_positions(ngp_mesh, time_step, ngp_node_coordinates, ngp_node_velocity);
-      std::cout << "Update time: " << update_timer.seconds() << std::endl;
+      update_sphere_positions(ngp_mesh, time_step_size, ngp_node_coordinates, ngp_node_force);
+      // std::cout << "Update time: " << update_timer.seconds() << std::endl;
     }
   }
 
@@ -540,11 +667,11 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-#else
+// #else
 
-int main() {
-  std::cout << "TEST DISABLED. Trilinos version must be at least 16.0.0." << std::endl;
-  return 0;
-}
+// int main() {
+//   std::cout << "TEST DISABLED. Trilinos version must be at least 16.0.0." << std::endl;
+//   return 0;
+// }
 
-#endif  // TRILINOS_MAJOR_MINOR_VERSION
+// #endif  // TRILINOS_MAJOR_MINOR_VERSION

@@ -97,7 +97,7 @@ class TransposedAccessor<T, N, M, Accessor, Ownership::Owns> {
 
   /// \brief Default constructor.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
-  KOKKOS_INLINE_FUNCTION constexpr TransposedAccessor()
+  KOKKOS_DEFAULTED_FUNCTION constexpr TransposedAccessor()
     requires HasDefaultConstructor<Accessor>
   = default;
 

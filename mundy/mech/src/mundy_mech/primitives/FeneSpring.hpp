@@ -91,7 +91,7 @@ class FeneSpring {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~FeneSpring() = default;
 
   /// \brief Deep copy constructor

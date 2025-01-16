@@ -91,7 +91,7 @@ class TorsionalSpring {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~TorsionalSpring() = default;
 
   /// \brief Deep copy constructor

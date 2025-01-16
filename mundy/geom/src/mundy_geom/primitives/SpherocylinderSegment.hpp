@@ -95,7 +95,7 @@ class SpherocylinderSegment {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~SpherocylinderSegment() = default;
 
   /// \brief Deep copy constructor

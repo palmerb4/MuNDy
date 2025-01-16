@@ -97,7 +97,7 @@ class VSegment {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~VSegment() = default;
 
   /// \brief Deep copy constructor

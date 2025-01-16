@@ -96,7 +96,7 @@ class Line {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~Line() = default;
 
   /// \brief Deep copy constructor

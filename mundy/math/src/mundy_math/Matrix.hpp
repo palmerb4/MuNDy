@@ -644,7 +644,7 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
   }
 
   /// \brief Destructor
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   constexpr ~Matrix() = default;
 
   /// \brief Shallow copy constructor. Stores a reference to the accessor in the other matrix.
@@ -1206,7 +1206,7 @@ class Matrix {
 
   /// \brief Default constructor. Assume elements are uninitialized.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
-  KOKKOS_INLINE_FUNCTION Matrix()
+  KOKKOS_DEFAULTED_FUNCTION Matrix()
     requires HasDefaultConstructor<Accessor>
   = default;
 
@@ -1237,7 +1237,7 @@ class Matrix {
   }
 
   /// \brief Destructor
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   constexpr ~Matrix() = default;
 
   /// \brief Deep copy constructor

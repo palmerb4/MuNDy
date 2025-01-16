@@ -90,7 +90,7 @@ class LineSegment {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~LineSegment() = default;
 
   /// \brief Deep copy constructor

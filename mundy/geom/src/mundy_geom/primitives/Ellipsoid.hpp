@@ -139,7 +139,7 @@ class Ellipsoid {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~Ellipsoid() = default;
 
   /// \brief Deep copy constructor
