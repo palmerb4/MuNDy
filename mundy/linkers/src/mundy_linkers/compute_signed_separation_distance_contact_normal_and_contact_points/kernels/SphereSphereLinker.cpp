@@ -199,8 +199,10 @@ void SphereSphereLinker::execute(const stk::mesh::Selector &sphere_sphere_linker
         // It is the normal to the left sphere and negative the normal of the right sphere.
         signed_separation_distance[0] = separation_distance;
         contact_normal = left_to_right_vector * inv_distance;
-        left_contact_point = left_coords + left_radius * contact_normal;
-        right_contact_point = right_coords - right_radius * contact_normal;
+        // left_contact_point = left_coords + left_radius * contact_normal;
+        // right_contact_point = right_coords - right_radius * contact_normal;
+        left_contact_point = left_coords;
+        right_contact_point = right_coords;
       });
 }
 //}

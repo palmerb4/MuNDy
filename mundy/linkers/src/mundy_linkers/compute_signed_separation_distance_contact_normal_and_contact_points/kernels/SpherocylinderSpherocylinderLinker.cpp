@@ -240,8 +240,10 @@ void SpherocylinderSpherocylinderLinker::execute(
             stk::mesh::field_data(linker_signed_separation_distance_field, spherocylinder_spherocylinder_linker);
         signed_separation_distance[0] = separation_distance;
         contact_normal = left_to_right_vector * inv_distance;
-        spherocylinder1_contact_point = closest_point1 + spherocylinder1_radius * contact_normal;
-        spherocylinder2_contact_point = closest_point2 - spherocylinder2_radius * contact_normal;
+        // spherocylinder1_contact_point = closest_point1 + spherocylinder1_radius * contact_normal;
+        // spherocylinder2_contact_point = closest_point2 - spherocylinder2_radius * contact_normal;
+        spherocylinder1_contact_point = closest_point1;
+        spherocylinder2_contact_point = closest_point2;
       });
 }
 //}

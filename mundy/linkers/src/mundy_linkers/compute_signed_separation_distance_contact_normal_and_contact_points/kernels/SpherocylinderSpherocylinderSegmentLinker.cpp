@@ -251,8 +251,10 @@ void SpherocylinderSpherocylinderSegmentLinker::execute(
                                                                    spherocylinder_spherocylinder_segment_linker);
         signed_separation_distance[0] = separation_distance;
         contact_normal = left_to_right_vector * inv_distance;
-        spherocylinder_contact_point = closest_point1 + spherocylinder_radius * contact_normal;
-        spherocylinder_segment_contact_point = closest_point2 - spherocylinder_segment_radius * contact_normal;
+        // spherocylinder_contact_point = closest_point1 + spherocylinder_radius * contact_normal;
+        // spherocylinder_segment_contact_point = closest_point2 - spherocylinder_segment_radius * contact_normal;
+        spherocylinder_contact_point = closest_point1;
+        spherocylinder_segment_contact_point = closest_point2;
       });
 }
 //}
