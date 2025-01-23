@@ -32,14 +32,28 @@
 #include <stk_mesh/base/NgpField.hpp>     // for stk::mesh::NgpField
 #include <stk_mesh/base/NgpMesh.hpp>      // for stk::mesh::NgpMesh
 
-// Mundy mesh
+// Mundy
 #include <mundy_geom/primitives/VSegment.hpp>  // for mundy::geom::ValidVSegmentType
 #include <mundy_mesh/BulkData.hpp>             // for mundy::mesh::BulkData
 #include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_geom/aggregates/Types.hpp>  // For value_to_tag_type
 
 namespace mundy {
 
 namespace geom {
+
+/// @brief The Tag identifying our data type
+struct v_segment_tag {
+  static constexpr unsigned value = 2851176950;
+};
+//
+constexpr v_segment_tag_v = v_segment_tag::value;
+
+/// @brief The inverse map from tag value to tag type 
+template <>
+struct value_to_tag_type<2851176950> {
+    using type = v_segment_tag;
+};
 
 /// \brief Check if the type provides the same data as VSegmentData
 template <typename Agg>

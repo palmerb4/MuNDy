@@ -32,12 +32,26 @@
 #include <stk_mesh/base/NgpField.hpp>     // for stk::mesh::NgpField
 #include <stk_mesh/base/NgpMesh.hpp>      // for stk::mesh::NgpMesh
 
-// Mundy mesh
+// Mundy
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
+#include <mundy_geom/aggregates/Types.hpp>  // For value_to_tag_type
 
 namespace mundy {
 
 namespace geom {
+
+/// @brief The Tag identifying our data type
+struct ellipsoid_tag {
+  static constexpr unsigned value = 4100355741;
+};
+//
+constexpr ellipsoid_tag_v = ellipsoid_tag::value;
+
+/// @brief The inverse map from tag value to tag type 
+template <>
+struct value_to_tag_type<4100355741> {
+    using type = ellipsoid_tag;
+};
 
 /// \brief Check if the type provides the same data as EllipsoidData
 template <typename Agg>

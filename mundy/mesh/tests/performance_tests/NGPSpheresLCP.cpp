@@ -139,6 +139,43 @@ void generate_particles(stk::mesh::BulkData &bulk_data, const size_t num_particl
   bulk_data.modification_end();
 }
 
+
+// void randomize_positions_and_radii(stk::mesh::NgpMesh &ngp_mesh, const stk::mesh::Selector &spheres,
+//                                    const double radius_min, const double radius_max,
+//                                    const Kokkos::Array<double, 3> &bottom_left,
+//                                    const Kokkos::Array<double, 3> &top_right,
+//                                    stk::mesh::NgpField<double> &node_coords_field,
+//                                    stk::mesh::NgpField<double> &elem_radius_field) {
+//   node_coords_field.sync_to_device();
+//   elem_radius_field.sync_to_device();
+
+//   stk::mesh::for_each_entity_run(
+//       ngp_mesh, stk::topology::ELEMENT_RANK, spheres, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
+//         stk::mesh::Entity sphere = ngp_mesh.get_entity(stk::topology::ELEM_RANK, sphere_index);
+//         stk::mesh::EntityId sphere_id = ngp_mesh.identifier(sphere);
+//         openrand::Philox rng(sphere_id, 0);
+
+//         const size_t grid_i = sphere_id % 4;          // x-coordinate
+//         const size_t grid_j = (sphere_id / 4) % 4;    // y-coordinate
+//         const size_t grid_k = sphere_id / (4 * 4);    // z-coordinate
+
+//         // Random radius
+//         elem_radius_field(sphere_index, 0) = radius_max;
+
+//         // Random position
+//         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+//         stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(nodes[0]);
+//         stk::mesh::EntityFieldData<double> node_coords = node_coords_field(node_index);
+//         node_coords[0] = 0.5 * grid_i * radius_max;
+//         node_coords[1] = 0.5 * grid_j * radius_max;
+//         node_coords[2] = 0.5 * grid_k * radius_max;
+//       });
+
+//   node_coords_field.modify_on_device();
+//   elem_radius_field.modify_on_device();
+// }
+
+
 void randomize_positions_and_radii(stk::mesh::NgpMesh &ngp_mesh, const stk::mesh::Selector &spheres,
                                    const double radius_min, const double radius_max,
                                    const Kokkos::Array<double, 3> &bottom_left,
@@ -226,6 +263,7 @@ LocalResultViewType get_local_neighbor_indices(const stk::mesh::BulkData &bulk_d
 }
 
 SearchSpheresViewType create_search_spheres(const stk::mesh::BulkData &bulk_data, const stk::mesh::NgpMesh &ngp_mesh,
+                                            const double search_buffer,
                                             const stk::mesh::Selector &spheres,
                                             stk::mesh::NgpField<double> &node_coords_field,
                                             stk::mesh::NgpField<double> &elem_radius_field) {
@@ -252,8 +290,8 @@ SearchSpheresViewType create_search_spheres(const stk::mesh::BulkData &bulk_data
         stk::mesh::EntityFieldData<double> node_coords = node_coords_field(node_index);
 
         stk::search::Point<double> center(node_coords[0], node_coords[1], node_coords[2]);
-        double radius = elem_radius_field(sphere_index, 0);
-        search_spheres(i) = SphereIdentProc{stk::search::Sphere<double>(center, radius),
+        double search_radius = elem_radius_field(sphere_index, 0) + search_buffer;
+        search_spheres(i) = SphereIdentProc{stk::search::Sphere<double>(center, search_radius),
                                             IdentProc(ngp_mesh.identifier(sphere), my_rank)};
       });
 
@@ -701,13 +739,13 @@ CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh, const double vi
   // To account for external forces and external velocities, use them to update the initial signed_sep_dist
   // phi_0_corrected = phi_0 + dt * D^T U_ext
 
-  // // D^T U_ext
-  // compute_rate_of_change_of_sep(ngp_mesh, local_search_results, sphere_velocity, con_normal_ij, signed_sep_dot);
+  // D^T U_ext
+  compute_rate_of_change_of_sep(ngp_mesh, local_search_results, sphere_velocity, con_normal_ij, signed_sep_dot);
 
-  // // signed_sep_dist += dt * signed_sep_dot
-  // Kokkos::parallel_for(
-  //     "UpdateSignedSepDist", Kokkos::RangePolicy<DeviceExecutionSpace>(0, num_collisions),
-  //     KOKKOS_LAMBDA(const int i) { signed_sep_dist(i) += dt * signed_sep_dot(i); });
+  // signed_sep_dist += dt * signed_sep_dot
+  Kokkos::parallel_for(
+      "UpdateSignedSepDist", Kokkos::RangePolicy<DeviceExecutionSpace>(0, num_collisions),
+      KOKKOS_LAMBDA(const int i) { signed_sep_dist(i) += dt * signed_sep_dot(i); });
 
   ///////////////////////
   Kokkos::deep_copy(signed_sep_dot, 0.0);
@@ -766,8 +804,8 @@ CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh, const double vi
 
       if (maximum_abs_projected_sep < max_allowable_overlap) {
         // con_gammas worked.
-        std::cout << "Convergence reached: " << maximum_abs_projected_sep << " < " << max_allowable_overlap
-                  << std::endl;
+        // std::cout << "Convergence reached: " << maximum_abs_projected_sep << " < " << max_allowable_overlap
+        //           << std::endl;
         break;
       }
 
@@ -884,13 +922,13 @@ void check_overlap(const stk::mesh::BulkData &bulk_data, const stk::mesh::Field<
           if (ssd < -max_allowable_overlap  + 1e-12) {
             // The spheres are overlapping too much
             no_overlap = false;
-            std::cout << "Overlap detected between spheres " << target_sphere << " and " << source_sphere << std::endl;
-            std::cout << "Distance between centers: " << distance_between_centers << std::endl;
-            std::cout << "Radii: " << source_radius << " and " << target_radius << std::endl;
-            std::cout << "Overlap: " << ssd << std::endl;
-            std::cout << "Sphere positions: (" << source_coords[0] << ", " << source_coords[1] << ", "
-                      << source_coords[2] << ") and (" << target_coords[0] << ", " << target_coords[1] << ", "
-                      << target_coords[2] << ")" << std::endl;
+            // std::cout << "Overlap detected between spheres " << target_sphere << " and " << source_sphere << std::endl;
+            // std::cout << "Distance between centers: " << distance_between_centers << std::endl;
+            // std::cout << "Radii: " << source_radius << " and " << target_radius << std::endl;
+            // std::cout << "Overlap: " << ssd << std::endl;
+            // std::cout << "Sphere positions: (" << source_coords[0] << ", " << source_coords[1] << ", "
+            //           << source_coords[2] << ") and (" << target_coords[0] << ", " << target_coords[1] << ", "
+            //           << target_coords[2] << ")" << std::endl;
           }
         }
       }
@@ -988,16 +1026,15 @@ int main(int argc, char **argv) {
     // Simulation of N spheres in a cube
     const double sphere_radius_min = 1.0;
     const double sphere_radius_max = 1.0;
-    const double num_spheres = 20;
+    const double num_spheres = 100000;
     const double viscosity = 1.0 / (6.0 * Kokkos::numbers::pi * sphere_radius_max);
 
-    const Kokkos::Array<double, 3> unit_cell_bottom_left = {-4.0, -4.0, -4.0};
-    const Kokkos::Array<double, 3> unit_cell_top_right = {4.0, 4.0, 4.0};
+    const Kokkos::Array<double, 3> unit_cell_bottom_left = {-50.0, -50.0, -50.0};
+    const Kokkos::Array<double, 3> unit_cell_top_right = {50.0, 50.0, 50.0};
     const double time_step_size = 0.0001;
-    const size_t num_time_steps = 2;
-    // const size_t num_time_steps = 1000 / time_step_size;
+    const size_t num_time_steps = 1000 / time_step_size;
     const size_t io_frequency = std::round(0.1 / time_step_size);
-    const double search_buffer = 8.0 * sphere_radius_max;
+    const double search_buffer = sphere_radius_max;
     const int max_col_iterations = 10000;
     const double max_allowable_overlap = 1e-3;
 
@@ -1096,14 +1133,14 @@ int main(int argc, char **argv) {
         tps_timer.reset();
 
         // Comm fields to host
-        ngp_node_coords_field.sync_to_host();
-        ngp_node_force_field.sync_to_host();
-        ngp_node_velocity_field.sync_to_host();
-        ngp_elem_radius_field.sync_to_host();
+        // ngp_node_coords_field.sync_to_host();
+        // ngp_node_force_field.sync_to_host();
+        // ngp_node_velocity_field.sync_to_host();
+        // ngp_elem_radius_field.sync_to_host();
 
-        // Write to file using Paraview compatable naming
-        stk::io::write_mesh_with_fields("lcp_spheres.e-s." + std::to_string(time_step_index), bulk_data,
-                                        time_step_index + 1, time_step_index * time_step_size, stk::io::WRITE_RESULTS);
+        // // Write to file using Paraview compatable naming
+        // stk::io::write_mesh_with_fields("lcp_spheres.e-s." + std::to_string(time_step_index), bulk_data,
+        //                                 time_step_index + 1, time_step_index * time_step_size, stk::io::WRITE_RESULTS);
       }
 
       // Update the displacement since the last rebuild
@@ -1126,13 +1163,11 @@ int main(int argc, char **argv) {
         rebuild_neighbors = true;
       }
 
-      
-rebuild_neighbors = true;
       if (rebuild_neighbors) {
         std::cout << "Rebuilding neighbors." << std::endl;
 
         Kokkos::Timer create_search_timer;
-        search_spheres = create_search_spheres(bulk_data, ngp_mesh, spheres_part, ngp_node_coords_field,
+        search_spheres = create_search_spheres(bulk_data, ngp_mesh, search_buffer, spheres_part, ngp_node_coords_field,
                                                ngp_elem_radius_field);
         // std::cout << "Create search spheres time: " << create_search_timer.seconds() << std::endl;
 
@@ -1200,9 +1235,9 @@ rebuild_neighbors = true;
 
       // Evaluate external velocities
       Kokkos::Timer flow_timer;
-      // apply_attractive_abc_flow(ngp_mesh, ngp_node_coords_field, ngp_node_force_field);
-      // compute_the_mobility_problem(ngp_mesh, viscosity, ngp_elem_radius_field, ngp_node_force_field,
-      //                              ngp_node_velocity_field);
+      apply_attractive_abc_flow(ngp_mesh, ngp_node_coords_field, ngp_node_force_field);
+      compute_the_mobility_problem(ngp_mesh, viscosity, ngp_elem_radius_field, ngp_node_force_field,
+                                   ngp_node_velocity_field);
       // std::cout << "Flow time: " << flow_timer.seconds() << std::endl;
 
       // Initialize the constraints
@@ -1242,9 +1277,9 @@ rebuild_neighbors = true;
       // std::cout << "Update time: " << update_timer.seconds() << std::endl;
 
       // N^2 check for overlap
-      ngp_node_coords_field.sync_to_host();
-      ngp_elem_radius_field.sync_to_host();
-      check_overlap(bulk_data, node_coords_field, elem_radius_field, max_allowable_overlap);
+      // ngp_node_coords_field.sync_to_host();
+      // ngp_elem_radius_field.sync_to_host();
+      // check_overlap(bulk_data, node_coords_field, elem_radius_field, max_allowable_overlap);
     
     }
   }

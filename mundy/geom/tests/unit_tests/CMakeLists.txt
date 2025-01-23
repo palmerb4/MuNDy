@@ -40,3 +40,12 @@ tribits_add_executable_and_test(
   UnitTestAggregates.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
   )
+
+
+tribits_add_executable_and_test(
+  UnitTestAugments
+  SOURCES
+  UnitTestAugments.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  )
+  

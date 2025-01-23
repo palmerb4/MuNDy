@@ -47,6 +47,36 @@ namespace geom {
 //! \name Aggregate traits
 //@{
 
+class EllipsoidDataBase {
+ public:
+  EllipsoidDataBase(const std::string& name, const stk::mesh::BulkData& bulk_data, stk::topology topology,
+                    stk::topology::rank_t rank)
+      : name_(name), bulk_data_(bulk_data), topology_(topology), rank_(rank) {
+  }
+
+  std::string name() const {
+    return name_;
+  }
+
+  const stk::mesh::BulkData& bulk_data() const {
+    return bulk_data_;
+  }
+
+  stk::topology topology() const {
+    return topology_;
+  }
+
+  stk::topology::rank_t rank() const {
+    return rank_;
+  }
+
+ private:
+  const std::string name_;
+  const stk::mesh::BulkData& bulk_data_;
+  stk::topology topology_;
+  stk::topology::rank_t rank_;
+};
+
 /// \brief Aggregate to hold the data for a collection of ellipsoids
 ///
 /// The topology of an ellipsoid directly effects the access pattern for the underlying data:
@@ -59,49 +89,85 @@ namespace geom {
 /// consider adding a Kokkos::View to the shared data.
 ///
 /// Use \ref create_ellipsoid_data to build an EllipsoidData object with automatic template deduction.
-template <typename Scalar,       //
-          typename OurTopology,  //
-          typename HasSharedAxisLengths = std::false_type>
-class EllipsoidData {
+template <typename Scalar,                                //
+          typename OurTopology,                           //
+          typename CenterDataTag = data_tag::FIELD,       //
+          typename OrientationDataTag = data_tag::FIELD,  //
+          typename AxisLengthsDataTag = data_tag::FIELD>
+class EllipsoidData : public EllipsoidDataBase {
   static_assert(OurTopology::value == stk::topology::NODE || OurTopology::value == stk::topology::PARTICLE,
                 "The topology of an ellipsoid must be either NODE or PARTICLE");
 
  public:
   using scalar_t = Scalar;
-  using center_data_t = stk::mesh::Field<scalar_t>;
-  using orientation_data_t = stk::mesh::Field<Scalar>;
-  using axis_lengths_data_t = std::conditional_t<HasSharedAxisLengths::value,  //
-                                                 mundy::math::Vector3<scalar_t>, stk::mesh::Field<scalar_t>>;
+  using center_data_t = map_tag_to_data_type_t</* Tag */ CenterDataTag,  //
+                                               /* Scalar */ scalar_t,    //
+                                               /* Shared type */ mundy::math::Vector3<scalar_t>>;
+  using orientation_data_t = map_tag_to_data_type_t</* Tag */ OrientationDataTag,  //
+                                                    /* Scalar */ scalar_t,         //
+                                                    /* Shared type */ mundy::math::Quaternion<scalar_t>>;
+  using axis_lengths_data_t = map_tag_to_data_type_t</* Tag */ AxisLengthsDataTag,  //
+                                                     /* Scalar */ scalar_t,         //
+                                                     /* Shared type */ mundy::math::Vector3<scalar_t>>;
   static constexpr stk::topology::topology_t topology_t = OurTopology::value;
+  static constexpr stk::topology::rank_t rank_t = stk::topology_detail::topology_data<OurTopology::value>::rank;
 
   /// \brief Constructor
-  EllipsoidData(const stk::mesh::BulkData& bulk_data, const center_data_t& center_data,
+  EllipsoidData(const std::string& name, const stk::mesh::BulkData& bulk_data, const center_data_t& center_data,
                 const orientation_data_t& orientation_data, const axis_lengths_data_t& axis_lengths_data)
-      : bulk_data_(bulk_data),
+      : EllipsoidDataBase(name, bulk_data, topology_t, rank_t),
         center_data_(center_data),
         orientation_data_(orientation_data),
         axis_lengths_data_(axis_lengths_data) {
-    stk::topology our_topology = topology_t;
-    MUNDY_THROW_ASSERT(center_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
-                       "The center_data data must be a field of NODE_RANK");
-    MUNDY_THROW_ASSERT(orientation_data.entity_rank() == our_topology.rank(), std::invalid_argument,
-                       "The orientation data must be a field of the same rank as the ellipsoid");
-    if constexpr (!HasSharedAxisLengths::value) {
-      MUNDY_THROW_ASSERT(axis_lengths_data.entity_rank() == our_topology.rank(), std::invalid_argument,
+    if constexpr (std::is_same_v<CenterDataTag, data_tag::FIELD>) {
+      MUNDY_THROW_ASSERT(center_data_->entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
+                         "The center_data data must be a field of NODE_RANK");
+    } else if constexpr (std::is_same_v<CenterDataTag, data_tag::VECTOR_OF_FIELDS>) {
+      for (const auto center_field_ptr : center_data_) {
+        MUNDY_THROW_ASSERT(center_field_ptr->entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
+                           "The center_data data must be a vector of fields of NODE_RANK");
+      }
+    }
+
+    if constexpr (std::is_same_v<OrientationDataTag, data_tag::FIELD>) {
+      MUNDY_THROW_ASSERT(orientation_data_->entity_rank() == rank_t, std::invalid_argument,
+                         "The orientation data must be a field of the same rank as the ellipsoid");
+    } else if constexpr (std::is_same_v<OrientationDataTag, data_tag::VECTOR_OF_FIELDS>) {
+      for (const auto orientation_field_ptr : orientation_data_) {
+        MUNDY_THROW_ASSERT(orientation_field_ptr->entity_rank() == rank_t, std::invalid_argument,
+                           "The orientation data must be an std::vector of fields of the same rank as the ellipsoid");
+      }
+    }
+
+    if constexpr (std::is_same_v<AxisLengthsDataTag, data_tag::FIELD>) {
+      MUNDY_THROW_ASSERT(axis_lengths_data_->entity_rank() == rank_t, std::invalid_argument,
                          "The axis lengths data must be a field of the same rank as the ellipsoid");
+    } else if constexpr (std::is_same_v<AxisLengthsDataTag, data_tag::VECTOR_OF_FIELDS>) {
+      for (const auto axis_lengths_field_ptr : axis_lengths_data_) {
+        MUNDY_THROW_ASSERT(axis_lengths_field_ptr->entity_rank() == rank_t, std::invalid_argument,
+                           "The axis lengths data must be an std::vector of fields of the same rank as the ellipsoid");
+      }
     }
   }
 
-  static constexpr stk::topology::topology_t get_topology() {
+  static constexpr stk::topology::topology_t get_topology_t() {
     return topology_t;
   }
 
-  static constexpr stk::topology::topology_t get_rank() {
-    return stk::topology_detail::topology_data<OurTopology::value>::rank();
+  static constexpr stk::topology::rank_t get_rank_t() {
+    return rank_t;
   }
 
-  const stk::mesh::BulkData& bulk_data() const {
-    return bulk_data_;
+  static constexpr CenterDataTag get_center_data_tag() {
+    return CenterDataTag{};
+  }
+
+  static constexpr OrientationDataTag get_orientation_data_tag() {
+    return OrientationDataTag{};
+  }
+
+  static constexpr AxisLengthsDataTag get_axis_lengths_data_tag() {
+    return AxisLengthsDataTag{};
   }
 
   const center_data_t& center_data() const {
@@ -132,35 +198,26 @@ class EllipsoidData {
     //
     // Recursively calls get_entity_view on the next aggregate up in the chain, traversing to the very top of the chain
     // before then adding each augment in the chain to the entity view from the top down.
-    using our_t = EllipsoidData<Scalar, OurTopology, HasSharedAxisLengths>;
-    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
+    using our_t = EllipsoidData<Scalar, OurTopology, CenterDataTag, OrientationDataTag, AxisLengthsDataTag>;
+    return mundy::geom::create_topological_entity_view<OurTopology::value>(EllipsoidDataBase::bulk_data(), entity)
         .template augment_view<EllipsoidEntityView, our_t>(*this);
   }
 
   const auto get_entity_view(stk::mesh::Entity entity) const {
-    using our_t = EllipsoidData<Scalar, OurTopology, HasSharedAxisLengths>;
-    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
+    using our_t = EllipsoidData<Scalar, OurTopology, CenterDataTag, OrientationDataTag, AxisLengthsDataTag>;
+    return mundy::geom::create_topological_entity_view<OurTopology::value>(EllipsoidDataBase::bulk_data(), entity)
         .template augment_view<EllipsoidEntityView, our_t>(*this);
   }
 
   auto get_updated_ngp_data() const {
-    if constexpr (!HasSharedAxisLengths::value) {
-      return create_ngp_ellipsoid_data<scalar_t, topology_t>(
-          stk::mesh::get_updated_ngp_mesh(bulk_data_),                            //
-          stk::mesh::get_updated_ngp_field<scalar_t>(center_data_),       //
-          stk::mesh::get_updated_ngp_field<scalar_t>(orientation_data_),  //
-          stk::mesh::get_updated_ngp_field<scalar_t>(axis_lengths_data_));
-    } else {
-      return create_ngp_ellipsoid_data<scalar_t, topology_t>(
-          stk::mesh::get_updated_ngp_mesh(bulk_data_),                            //
-          stk::mesh::get_updated_ngp_field<scalar_t>(center_data_),       //
-          stk::mesh::get_updated_ngp_field<scalar_t>(orientation_data_),  //
-          axis_lengths_data_);
-    }
+    return create_ngp_ellipsoid_data<scalar_t, OurTopology>(
+        EllipsoidDataBase::bulk_data(),
+        tagged_data_to_ngp<CenterDataTag, scalar_t, mundy::math::Vector3<scalar_t>>(center_data_),
+        tagged_data_to_ngp<OrientationDataTag, scalar_t, mundy::math::Quaternion<scalar_t>>(orientation_data_),
+        tagged_data_to_ngp<AxisLengthsDataTag, scalar_t, mundy::math::Vector3<scalar_t>>(axis_lengths_data_));
   }
 
  private:
-  const stk::mesh::BulkData& bulk_data_;
   const center_data_t& center_data_;
   const orientation_data_t& orientation_data_;
   const axis_lengths_data_t& axis_lengths_data_;
@@ -168,25 +225,34 @@ class EllipsoidData {
 
 /// \brief Aggregate to hold the data for a collection of NGP-compatible ellipsoids
 /// See the discussion for EllipsoidData for more information. Only difference is NgpFields over Fields.
-/// 
-/// One additional difference is that, we cannot store a reference to host memory, so we store a const copy of any shared data.
-template <typename Scalar,       //
-          typename OurTopology,  //
-          typename HasSharedAxisLengths = std::false_type>
+///
+/// One additional difference is that, we cannot store a reference to host memory, so we store a const copy of any
+/// shared data.
+template <typename Scalar,                                //
+          typename OurTopology,                           //
+          typename CenterDataTag = data_tag::FIELD,       //
+          typename OrientationDataTag = data_tag::FIELD,  //
+          typename AxisLengthsDataTag = data_tag::FIELD>
 class NgpEllipsoidData {
   static_assert(OurTopology::value == stk::topology::NODE || OurTopology::value == stk::topology::PARTICLE,
                 "The topology of an ellipsoid must be either NODE or PARTICLE");
 
  public:
   using scalar_t = Scalar;
-  using center_data_t = stk::mesh::NgpField<Scalar>;
-  using orientation_data_t = stk::mesh::NgpField<Scalar>;
-  using axis_lengths_data_t =
-      std::conditional_t<HasSharedAxisLengths::value, mundy::math::Vector3<Scalar>, stk::mesh::NgpField<Scalar>>;
+  using center_data_t = map_tag_to_ngp_data_type_t</* Tag */ CenterDataTag,  //
+                                                   /* Scalar */ scalar_t,    //
+                                                   /* Shared type */ mundy::math::Vector3<scalar_t>>;
+  using orientation_data_t = map_tag_to_ngp_data_type_t</* Tag */ OrientationDataTag,  //
+                                                        /* Scalar */ scalar_t,         //
+                                                        /* Shared type */ mundy::math::Quaternion<scalar_t>>;
+  using axis_lengths_data_t = map_tag_to_ngp_data_type_t</* Tag */ AxisLengthsDataTag,  //
+                                                         /* Scalar */ scalar_t,         //
+                                                         /* Shared type */ mundy::math::Vector3<scalar_t>>;
   static constexpr stk::topology::topology_t topology_t = OurTopology::value;
+  static constexpr stk::topology::rank_t rank_t = stk::topology_detail::topology_data<OurTopology::value>::rank;
 
   /// \brief Constructor
-  NgpEllipsoidData(const stk::mesh::NgpMesh &ngp_mesh, const center_data_t& center_data,
+  NgpEllipsoidData(const stk::mesh::NgpMesh& ngp_mesh, const center_data_t& center_data,
                    const orientation_data_t& orientation_data, const axis_lengths_data_t& axis_lengths_data)
       : ngp_mesh_(ngp_mesh),
         center_data_(center_data),
@@ -195,22 +261,22 @@ class NgpEllipsoidData {
     stk::topology our_topology = topology_t;
     MUNDY_THROW_ASSERT(center_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                        "The center_data data must be a field of NODE_RANK");
-    MUNDY_THROW_ASSERT(orientation_data.get_rank() == our_topology.rank(), std::invalid_argument,
+    MUNDY_THROW_ASSERT(orientation_data.get_rank() == rank_t, std::invalid_argument,
                        "The orientation data must be a field of the same rank as the ellipsoid");
     if constexpr (!HasSharedAxisLengths::value) {
-      MUNDY_THROW_ASSERT(axis_lengths_data.get_rank() == our_topology.rank(), std::invalid_argument,
+      MUNDY_THROW_ASSERT(axis_lengths_data.get_rank() == rank_t, std::invalid_argument,
                          "The axis lengths data must be a field of the same rank as the ellipsoid");
     }
   }
 
   KOKKOS_INLINE_FUNCTION
-  static constexpr stk::topology::topology_t get_topology() {
+  static constexpr stk::topology::topology_t get_topology_t() {
     return topology_t;
   }
 
   KOKKOS_INLINE_FUNCTION
-  static constexpr stk::topology::topology_t get_rank() {
-    return stk::topology_detail::topology_data<OurTopology::value>::rank();
+  static constexpr stk::topology::rank_t get_rank_t() {
+    return rank_t;
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -293,7 +359,8 @@ template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
           typename AxisLengthsDataType>           // deduced
 auto create_ellipsoid_data(const stk::mesh::BulkData& bulk_data, const stk::mesh::Field<Scalar>& center_data,
-                           const stk::mesh::Field<Scalar>& orientation_data, const AxisLengthsDataType& axis_lengths_data) {
+                           const stk::mesh::Field<Scalar>& orientation_data,
+                           const AxisLengthsDataType& axis_lengths_data) {
   constexpr bool is_axis_lengths_shared = mundy::math::is_vector3_v<AxisLengthsDataType>;
   if constexpr (is_axis_lengths_shared) {
     return EllipsoidData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::true_type>{
@@ -309,8 +376,9 @@ auto create_ellipsoid_data(const stk::mesh::BulkData& bulk_data, const stk::mesh
 template <typename Scalar,                        // Must be provided
           stk::topology::topology_t OurTopology,  // Must be provided
           typename AxisLengthsDataType>           // deduced
-auto create_ngp_ellipsoid_data(const stk::mesh::NgpMesh &ngp_mesh, const stk::mesh::NgpField<Scalar>& center_data,
-                               const stk::mesh::NgpField<Scalar>& orientation_data, const AxisLengthsDataType& axis_lengths_data) {
+auto create_ngp_ellipsoid_data(const stk::mesh::NgpMesh& ngp_mesh, const stk::mesh::NgpField<Scalar>& center_data,
+                               const stk::mesh::NgpField<Scalar>& orientation_data,
+                               const AxisLengthsDataType& axis_lengths_data) {
   constexpr bool is_axis_lengths_shared = mundy::math::is_vector3_v<AxisLengthsDataType>;
   if constexpr (is_axis_lengths_shared) {
     return NgpEllipsoidData<Scalar, stk::topology_detail::topology_data<OurTopology>, std::true_type>{

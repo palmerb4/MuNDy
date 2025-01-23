@@ -41,6 +41,19 @@ namespace mundy {
 
 namespace geom {
 
+/// @brief The Tag identifying our data type
+struct aabb_tag {
+  static constexpr unsigned value = 3645315970;
+};
+//
+constexpr aabb_tag_v = aabb_tag::value;
+
+/// @brief The inverse map from tag value to tag type 
+template <>
+struct value_to_tag_type<3645315970> {
+    using type = aabb_tag;
+};
+
 /// \brief A concept to check if a type provides the same data as AABBData
 template <typename Agg>
 concept ValidAABBDataType =

@@ -33,12 +33,12 @@
 #include <stk_mesh/base/NgpMesh.hpp>      // for stk::mesh::NgpMesh
 
 // Mundy mesh
+#include <mundy_geom/aggregates/EntityView.hpp>  // for mundy::geom::EntityView and mundy::geom::create_topological_entity_view
 #include <mundy_geom/augments/AABBDataConcepts.hpp>  // for mundy::geom::ValidAABBDataType
 #include <mundy_geom/augments/AABBEntityView.hpp>    // for mundy::geom::AABBEntityView
-#include <mundy_geom/aggregates/EntityView.hpp>  // for mundy::geom::EntityView and mundy::geom::create_topological_entity_view
-#include <mundy_geom/primitives/AABB.hpp>  // for mundy::geom::ValidAABBType
-#include <mundy_mesh/BulkData.hpp>         // for mundy::mesh::BulkData
-#include <mundy_mesh/FieldViews.hpp>       // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_geom/primitives/AABB.hpp>            // for mundy::geom::ValidAABBType
+#include <mundy_mesh/BulkData.hpp>                   // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
 
 namespace mundy {
 
@@ -53,14 +53,14 @@ namespace geom {
 /// The rank of an AABB does not change the access pattern for the underlying data.
 ///
 /// \tparam Scalar The scalar type of the aabb data's aabb.
-template <typename Base, typename Scalar>
+template <typename Base>
 class AABBData : public Base {
  public:
-  using scalar_t = Scalar;
+  using scalar_t = typename Base::scalar_t;
   using aabb_data_t = stk::mesh::Field<scalar_t>;
 
   AABBData(const Base& base, const aabb_data_t& aabb_data) : Base(base), aabb_data_(aabb_data) {
-    MUNDY_THROW_REQUIRE(aabb_data.entity_rank() == Base::get_rank(),
+    MUNDY_THROW_REQUIRE(aabb_data.entity_rank() == Base::get_rank(), std::invalid_argument,
                         "The rank of the aabb field must match the rank of the base");
   }
 
@@ -80,19 +80,17 @@ class AABBData : public Base {
 
   /// \brief Get the entity view for an entity within this aggregate
   auto get_entity_view(stk::mesh::Entity entity) {
-    using our_t = AABBData<Base, Scalar>;
-    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
-        .template augment_view<AABBEntityView, our_t>(*this);
+    using our_t = AABBData<Base>;
+    return Base::get_entity_view(entity).template augment_view<AABBEntityView, our_t>(*this);
   }
 
   const auto get_entity_view(stk::mesh::Entity entity) const {
-    using our_t = AABBData<Base, Scalar>;
-    return mundy::geom::create_topological_entity_view<OurTopology::value>(bulk_data(), entity)
-        .template augment_view<AABBEntityView, our_t>(*this);
+    using our_t = AABBData<Base>;
+    return Base::get_entity_view(entity).template augment_view<AABBEntityView, our_t>(*this);
   }
 
   auto get_updated_ngp_data() const {
-    return create_ngp_aabb_data<scalar_t>(Base::get_updated_ngp_data(),  //
+    return create_ngp_aabb_data(Base::get_updated_ngp_data(),  //
                                           stk::mesh::get_updated_ngp_field<scalar_t>(aabb_data_));
   }
 
@@ -102,14 +100,14 @@ class AABBData : public Base {
 
 /// \brief A struct to hold the data for a collection of NGP-compatible aabbs
 /// See the discussion for AABBData for more information. Only difference is NgpFields over Fields.
-template <typename Base, typename Scalar>
+template <typename Base>
 class NgpAABBData : public Base {
  public:
-  using scalar_t = Scalar;
+  using scalar_t = typename Base::scalar_t;
   using aabb_data_t = stk::mesh::NgpField<scalar_t>;
 
   NgpAABBData(const Base& base, const aabb_data_t& aabb_data) : Base(base), aabb_data_(aabb_data) {
-    MUNDY_THROW_REQUIRE(aabb_data.get_rank() == Base::get_rank(),
+    MUNDY_THROW_REQUIRE(aabb_data.get_rank() == Base::get_rank(), std::invalid_argument,
                         "The rank of the aabb field must match the rank of the base");
   }
 
@@ -134,16 +132,14 @@ class NgpAABBData : public Base {
   /// \brief Get the entity view for an entity within this aggregate
   KOKKOS_INLINE_FUNCTION
   auto get_entity_view(stk::mesh::FastMeshIndex entity_index) {
-    using our_t = NgpAABBData<Base, Scalar>;
-    return mundy::geom::create_ngp_topological_entity_view<OurTopology::value>(ngp_mesh(), entity_index)
-        .template augment_view<NgpAABBEntityView, our_t>(*this);
+    using our_t = NgpAABBData<Base>;
+    return Base::get_entity_view(entity_index).template augment_view<NgpAABBEntityView, our_t>(*this);
   }
 
   KOKKOS_INLINE_FUNCTION
   const auto get_entity_view(stk::mesh::FastMeshIndex entity_index) const {
-    using our_t = NgpAABBData<Base, Scalar>;
-    return mundy::geom::create_ngp_topological_entity_view<OurTopology::value>(ngp_mesh(), entity_index)
-        .template augment_view<NgpAABBEntityView, our_t>(*this);
+    using our_t = NgpAABBData<Base>;
+    return Base::get_entity_view(entity_index).template augment_view<NgpAABBEntityView, our_t>(*this);
   }
 
  private:
@@ -152,24 +148,22 @@ class NgpAABBData : public Base {
 
 /// \brief A helper function to create an AABBData object
 /// Typically, these objects are created via adding them as an augment to another object.
-template <typename Scalar,  // Must be provided
-          typename Base>    // deduced
-auto create_aabb_data(const Base& base, const stk::mesh::Field<Scalar>& aabb_data) {
-  return AABBData<Base, Scalar>{base, aabb_data};
+template <typename Base>  // deduced
+auto create_aabb_data(const Base& base, const stk::mesh::Field<typename Base::scalar_t>& aabb_data) {
+  return AABBData<Base>{base, aabb_data};
 }
 
 /// \brief A helper function to create an NgpEllipsoidData object
 /// See the discussion for create_ellipsoid_data for more information. Only difference is NgpFields over Fields.
-template <typename Scalar,  // Must be provided
-          typename Base>    // deduced
-auto create_ngp_aabb_data(const Base& base, const stk::mesh::NgpField<Scalar>& aabb_data) {
-  return NgpAABBData<Base, Scalar>{base, aabb_data};
+template <typename Base>  // deduced
+auto create_ngp_aabb_data(const Base& base, const stk::mesh::NgpField<typename Base::scalar_t>& aabb_data) {
+  return NgpAABBData<Base>{base, aabb_data};
 }
 
 /// \brief A helper function to get an updated NgpAABBData object from a AABBData object
 /// \param data The AABBData object to convert
-template <typename Base, typename Scalar>  // deduced
-auto get_updated_ngp_data(const AABBData<Base, Scalar>& data) {
+template <typename Base>  // deduced
+auto get_updated_ngp_data(const AABBData<Base>& data) {
   return data.get_updated_ngp_data();
 }
 //@}

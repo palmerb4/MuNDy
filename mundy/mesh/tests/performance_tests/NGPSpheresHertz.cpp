@@ -222,12 +222,13 @@ LocalResultViewType get_local_neighbor_indices(const stk::mesh::BulkData &bulk_d
 }
 
 SearchSpheresViewType create_search_spheres(const stk::mesh::BulkData &bulk_data, const stk::mesh::NgpMesh &ngp_mesh,
+                                            const double search_buffer,
                                             const stk::mesh::Selector &spheres,
-                                            stk::mesh::NgpField<double> &node_coordinates,
-                                            stk::mesh::NgpField<double> &element_radius) {
-  node_coordinates.sync_to_device();
-  element_radius.sync_to_device();
-  
+                                            stk::mesh::NgpField<double> &node_coords_field,
+                                            stk::mesh::NgpField<double> &elem_radius_field) {
+  node_coords_field.sync_to_device();
+  elem_radius_field.sync_to_device();
+
   auto locally_owned_spheres = spheres & bulk_data.mesh_meta_data().locally_owned_part();
   const unsigned num_local_spheres =
       stk::mesh::count_entities(bulk_data, stk::topology::ELEMENT_RANK, locally_owned_spheres);
@@ -245,11 +246,11 @@ SearchSpheresViewType create_search_spheres(const stk::mesh::BulkData &bulk_data
 
         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
         stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(nodes[0]);
-        stk::mesh::EntityFieldData<double> node_coords = node_coordinates(node_index);
+        stk::mesh::EntityFieldData<double> node_coords = node_coords_field(node_index);
 
         stk::search::Point<double> center(node_coords[0], node_coords[1], node_coords[2]);
-        double radius = element_radius(sphere_index, 0);
-        search_spheres(i) = SphereIdentProc{stk::search::Sphere<double>(center, radius),
+        double search_radius = elem_radius_field(sphere_index, 0) + search_buffer;
+        search_spheres(i) = SphereIdentProc{stk::search::Sphere<double>(center, search_radius),
                                             IdentProc(ngp_mesh.identifier(sphere), my_rank)};
       });
 
@@ -480,7 +481,7 @@ int main(int argc, char **argv) {
     const double poisson_ratio = 0.3;
     const double sphere_radius_min = 1.0;
     const double sphere_radius_max = 1.0;
-    const double num_spheres = 10000;
+    const double num_spheres = 100000;
     const double viscosity = 1.0 / (6.0 * Kokkos::numbers::pi * sphere_radius_max);
 
     const Kokkos::Array<double, 3> unit_cell_bottom_left = {-50.0, -50.0, -50.0};
@@ -488,7 +489,7 @@ int main(int argc, char **argv) {
     const double time_step_size = 0.00001;
     const size_t num_time_steps = 1000 / time_step_size;
     const size_t io_frequency = std::round(0.1 / time_step_size);
-    const double search_buffer = 2.0 * sphere_radius_max;
+    const double search_buffer = sphere_radius_max;
 
     const double volume_fraction =
         4.0 / 3.0 * M_PI * sphere_radius_max * sphere_radius_max * sphere_radius_max * num_spheres /
@@ -568,15 +569,15 @@ int main(int argc, char **argv) {
         std::cout << "  Running avg tps: " << static_cast<double>(io_frequency) / tps_timer.seconds() << std::endl;
         tps_timer.reset();
 
-        // Comm fields to host
-        ngp_node_coordinates.sync_to_host();
-        ngp_node_force.sync_to_host();
-        ngp_node_velocity.sync_to_host();
-        ngp_element_radius.sync_to_host();
+        // // Comm fields to host
+        // ngp_node_coordinates.sync_to_host();
+        // ngp_node_force.sync_to_host();
+        // ngp_node_velocity.sync_to_host();
+        // ngp_element_radius.sync_to_host();
 
-        // Write to file using Paraview compatable naming
-        stk::io::write_mesh_with_fields("hertz_spheres.e-s." + std::to_string(time_step_index), bulk_data, time_step_index + 1,
-                                        time_step_index * time_step_size, stk::io::WRITE_RESULTS);
+        // // Write to file using Paraview compatable naming
+        // stk::io::write_mesh_with_fields("hertz_spheres.e-s." + std::to_string(time_step_index), bulk_data, time_step_index + 1,
+        //                                 time_step_index * time_step_size, stk::io::WRITE_RESULTS);
       }
 
       // Update the displacement since the last rebuild
@@ -604,7 +605,7 @@ int main(int argc, char **argv) {
 
         Kokkos::Timer create_search_timer;
         search_spheres =
-            create_search_spheres(bulk_data, ngp_mesh, spheres_part, ngp_node_coordinates, ngp_element_radius);
+            create_search_spheres(bulk_data, ngp_mesh, search_buffer, spheres_part, ngp_node_coordinates, ngp_element_radius);
         // std::cout << "Create search spheres time: " << create_search_timer.seconds() << std::endl;
 
         Kokkos::Timer search_timer;

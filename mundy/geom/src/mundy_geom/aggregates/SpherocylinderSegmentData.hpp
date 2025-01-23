@@ -85,8 +85,8 @@ class SpherocylinderSegmentData {
     return topology_t;
   }
 
-  static constexpr stk::topology::topology_t get_rank() {
-    return stk::topology_detail::topology_data<OurTopology::value>::rank();
+  static constexpr stk::topology::rank_t get_rank() {
+    return stk::topology_detail::topology_data<OurTopology::value>::rank;
   }
 
   const stk::mesh::BulkData& bulk_data() const {
@@ -181,8 +181,8 @@ class NgpSpherocylinderSegmentData {
   }
 
   KOKKOS_INLINE_FUNCTION
-  static constexpr stk::topology::topology_t get_rank() {
-    return stk::topology_detail::topology_data<OurTopology::value>::rank();
+  static constexpr stk::topology::rank_t get_rank() {
+    return stk::topology_detail::topology_data<OurTopology::value>::rank;
   }
 
   KOKKOS_INLINE_FUNCTION

@@ -32,10 +32,24 @@
 #include <stk_mesh/base/NgpField.hpp>     // for stk::mesh::NgpField
 #include <stk_mesh/base/NgpMesh.hpp>      // for stk::mesh::NgpMesh
 
-// Mundy mesh
+// Mundy
 #include <mundy_geom/primitives/Spherocylinder.hpp>  // for mundy::geom::ValidSpherocylinderType
 #include <mundy_mesh/BulkData.hpp>                   // for mundy::mesh::BulkData
 #include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_geom/aggregates/Types.hpp>  // For value_to_tag_type
+
+/// @brief The Tag identifying our data type
+struct spherocylinder_tag {
+  static constexpr unsigned value = 3814515394;
+};
+//
+constexpr spherocylinder_tag_v = spherocylinder_tag::value;
+
+/// @brief The inverse map from tag value to tag type 
+template <>
+struct value_to_tag_type<3814515394> {
+    using type = spherocylinder_tag;
+};
 
 namespace mundy {
 

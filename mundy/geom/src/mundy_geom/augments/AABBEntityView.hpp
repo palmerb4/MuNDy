@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_GEOM_AUGMENTS_AABBDATA_HPP_
-#define MUNDY_GEOM_AUGMENTS_AABBDATA_HPP_
+#ifndef MUNDY_GEOM_AUGMENTS_AABBENTITYVIEW_HPP_
+#define MUNDY_GEOM_AUGMENTS_AABBENTITYVIEW_HPP_
 
 // C++ core
 #include <type_traits>  // for std::conditional_t, std::false_type, std::true_type
@@ -129,7 +129,7 @@ class AABBEntityView : public Base {
 template <typename Base, ValidNgpAABBDataType NgpAABBDataType>
 class NgpAABBEntityView : public Base {
  public:
-  using scalar_t = typename AABBDataType::scalar_t;
+  using scalar_t = typename NgpAABBDataType::scalar_t;
 
   KOKKOS_INLINE_FUNCTION
   NgpAABBEntityView(const Base& base, const NgpAABBDataType &data) : Base(base), data_(data) {
@@ -227,4 +227,4 @@ class NgpAABBEntityView : public Base {
 
 }  // namespace mundy
 
-#endif  // MUNDY_GEOM_AUGMENTS_AABBDATA_HPP_
+#endif  // MUNDY_GEOM_AUGMENTS_AABBENTITYVIEW_HPP_
