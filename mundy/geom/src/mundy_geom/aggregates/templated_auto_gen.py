@@ -81,6 +81,12 @@ class TagInfo:
         self.parent_tag = parent_tag
         self.value = value
 
+    def __eq__(self, other):
+        return self.name_upper == other.name_upper
+
+    def __hash__(self):
+        return hash(self.name_upper)
+
     def __repr__(self):
         return f"TagInfo(name_upper={self.name_upper}, name_lower={self.name_lower}, parent_tag={self.parent_tag}, value={self.value})"
 
@@ -151,13 +157,13 @@ def generate_topological_replacements(aggregate_info):
     replacements.append(PlaceholderReplacement('example_name', aggregate_info.name_lower))
 
     # Replace the documentation
-    replacements.append(PlaceholderReplacement('/// example_discussion_placeholder', aggregate_info.documentation))
+    replacements.append(PlaceholderReplacement('example_discussion_placeholder', aggregate_info.documentation))
 
     # Replace the template tags (with and without defaults)
     #   - list_of_templated_tags_with_defaults_placeholder becomes:
     #     '''
-    #       typename ExampleData1Tag = HAS_EXAMPLE_DATA1_FIELD,  //
-    #       typename ExampleData2Tag = HAS_EXAMPLE_DATA2_FIELD
+    #       typename ExampleData1Tag = EXAMPLE_DATA1_IS_FIELD,  //
+    #       typename ExampleData2Tag = EXAMPLE_DATA2_IS_FIELD
     #     '''
     #   - list_of_templated_tags_placeholder
     #     '''
@@ -168,13 +174,13 @@ def generate_topological_replacements(aggregate_info):
     #       ExampleData1Tag, ExampleData2Tag
     #     '''
     templated_tags_with_defaults = ", //\n".join(
-        [f"typename {item.name_camel}Tag = HAS_{item.name_upper}_FIELD" for item in aggregate_info.data_items]
+        [f"typename {item.name_camel}DataTag = {item.name_upper}_DATA_IS_FIELD" for item in aggregate_info.data_items]
     )
     templated_tags = ", ".join(
-        [f"typename {item.name_camel}Tag" for item in aggregate_info.data_items]
+        [f"typename {item.name_camel}DataTag" for item in aggregate_info.data_items]
     )
     tag_list = ", ".join(
-        [f"{item.name_camel}Tag" for item in aggregate_info.data_items]
+        [f"{item.name_camel}DataTag" for item in aggregate_info.data_items]
     )
     replacements.append(PlaceholderReplacement('list_of_templated_tags_with_defaults_placeholder', templated_tags_with_defaults))
     replacements.append(PlaceholderReplacement('list_of_templated_tags_placeholder', templated_tags))
@@ -194,12 +200,12 @@ def generate_topological_replacements(aggregate_info):
 
     # Replace the data type aliases (both ngp and non-ngp)
     data_type_aliases = "\n".join(
-        [f"using {item.name_lower}_t = map_tag_to_data_type_t</* Tag */ {item.name_camel}Tag, //\n"
+        [f"using {item.name_lower}_data_t = map_tag_to_data_type_t</* Tag */ {item.name_camel}DataTag, //\n"
          f"                                           /* Scalar */ scalar_t, //\n"
          f"                                           /* Shared type */ {item.shared_data_type}>;" for item in aggregate_info.data_items]
     )
     ngp_data_type_aliases = "\n".join(
-        [f"using {item.name_lower}_t = map_tag_to_ngp_data_type_t</* Tag */ {item.name_camel}Tag, //\n"
+        [f"using {item.name_lower}_data_t = map_tag_to_ngp_data_type_t</* Tag */ {item.name_camel}DataTag, //\n"
          f"                                           /* Scalar */ scalar_t, //\n"
          f"                                           /* Shared type */ {item.shared_data_type}>;" for item in aggregate_info.data_items]
     )
@@ -216,7 +222,7 @@ def generate_topological_replacements(aggregate_info):
     #       example_data1_(example_data1_), example_data2_(example_data2_)
     #     '''
     list_of_input_data = ", ".join([item.name_lower for item in aggregate_info.data_items])
-    list_of_input_data_initialization = ", ".join([f"{item.name_lower}_({item.name_lower}_)" for item in aggregate_info.data_items])
+    list_of_input_data_initialization = ", ".join([f"{item.name_lower}_data_({item.name_lower}_data_)" for item in aggregate_info.data_items])
 
     replacements.append(PlaceholderReplacement('list_of_input_data_placeholder', list_of_input_data))
     replacements.append(PlaceholderReplacement('list_of_input_data_initialization_placeholder', list_of_input_data_initialization))
@@ -228,7 +234,7 @@ def generate_topological_replacements(aggregate_info):
     #       /// \param example_data2 The example_data2 data documentation (shared type: ExampleData2SharedType)
     #     '''
     params_documentation = "\n".join(
-        [f"/// \\param {item.name_lower} {item.documentation} (shared type: {item.shared_data_type})" 
+        [f"/// \\param {item.name_lower}_data {item.documentation} (shared type: {item.shared_data_type})" 
             for item in aggregate_info.data_items]
     )
     replacements.append(PlaceholderReplacement('/// params_documentation_placeholder', params_documentation))
@@ -241,25 +247,25 @@ def generate_topological_replacements(aggregate_info):
     for item in aggregate_info.data_items:
         if item.rank == 'SAME_RANK_AS_TOPOLOGY':
             rank_assertions.append(
-                f"if constexpr (std::is_same_v<{item.name_camel}Tag, data_tag::FIELD>) {{\n"
-                f"  MUNDY_THROW_ASSERT({item.name_lower}_->entity_rank() == rank_t, std::invalid_argument,\n"
-                f"                     \"The {item.name_lower} data must be a field of rank_t\");\n"
-                f"}} else if constexpr (std::is_same_v<{item.name_camel}Tag, data_tag::VECTOR_OF_FIELDS>) {{\n"
-                f"  for (const auto {item.name_lower}_field_ptr_ : {item.name_lower}_) {{\n"
-                f"    MUNDY_THROW_ASSERT({item.name_lower}_field_ptr_->entity_rank() == rank_t, std::invalid_argument,\n"
-                f"                       \"The {item.name_lower} data must be a vector of fields of rank_t\");\n"
+                f"if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::FIELD>) {{\n"
+                f"  MUNDY_THROW_ASSERT({item.name_lower}_data_->entity_rank() == rank_t, std::invalid_argument,\n"
+                f"                     \"The {item.name_lower}_data data must be a field of rank_t\");\n"
+                f"}} else if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::VECTOR_OF_FIELDS>) {{\n"
+                f"  for (const auto {item.name_lower}_data_field_ptr_ : {item.name_lower}_data_) {{\n"
+                f"    MUNDY_THROW_ASSERT({item.name_lower}_data_field_ptr_->entity_rank() == rank_t, std::invalid_argument,\n"
+                f"                       \"The {item.name_lower}_data data must be a vector of fields of rank_t\");\n"
                 f"  }}\n"
                 f"}}"
             )
         else:
             rank_assertions.append(
-                f"if constexpr (std::is_same_v<{item.name_camel}Tag, data_tag::FIELD>) {{\n"
-                f"  MUNDY_THROW_ASSERT({item.name_lower}_->entity_rank() == {item.rank}, std::invalid_argument,\n"
-                f"                     \"The {item.name_lower} data must be a field of {item.rank}\");\n"
-                f"}} else if constexpr (std::is_same_v<{item.name_camel}Tag, data_tag::VECTOR_OF_FIELDS>) {{\n"
-                f"  for (const auto {item.name_lower}_field_ptr_ : {item.name_lower}_) {{\n"
-                f"    MUNDY_THROW_ASSERT({item.name_lower}_field_ptr_->entity_rank() == {item.rank}, std::invalid_argument,\n"
-                f"                       \"The {item.name_lower} data must be a vector of fields of {item.rank}\");\n"
+                f"if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::FIELD>) {{\n"
+                f"  MUNDY_THROW_ASSERT({item.name_lower}_data_->entity_rank() == {item.rank}, std::invalid_argument,\n"
+                f"                     \"The {item.name_lower}_data data must be a field of {item.rank}\");\n"
+                f"}} else if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::VECTOR_OF_FIELDS>) {{\n"
+                f"  for (const auto {item.name_lower}_data_field_ptr_ : {item.name_lower}_data_) {{\n"
+                f"    MUNDY_THROW_ASSERT({item.name_lower}_data_field_ptr_->entity_rank() == {item.rank}, std::invalid_argument,\n"
+                f"                       \"The {item.name_lower}_data data must be a vector of fields of {item.rank}\");\n"
                 f"  }}\n"
                 f"}}"
             )
@@ -269,25 +275,25 @@ def generate_topological_replacements(aggregate_info):
     for item in aggregate_info.data_items:
         if item.rank == 'SAME_RANK_AS_TOPOLOGY':
             ngp_rank_assertions.append(
-                f"if constexpr (std::is_same_v<{item.name_camel}Tag, data_tag::FIELD>) {{\n"
-                f"  MUNDY_THROW_ASSERT({item.name_lower}_->get_rank() == rank_t, std::invalid_argument,\n"
-                f"                     \"The {item.name_lower} data must be a field of rank_t\");\n"
-                f"}} else if constexpr (std::is_same_v<{item.name_camel}Tag, data_tag::VECTOR_OF_FIELDS>) {{\n"
-                f"  for (const auto {item.name_lower}_field_ptr_ : {item.name_lower}_) {{\n"
-                f"    MUNDY_THROW_ASSERT({item.name_lower}_field_ptr_->get_rank() == rank_t, std::invalid_argument,\n"
-                f"                       \"The {item.name_lower} data must be a vector of fields of rank_t\");\n"
+                f"if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::FIELD>) {{\n"
+                f"  MUNDY_THROW_ASSERT({item.name_lower}_data_->get_rank() == rank_t, std::invalid_argument,\n"
+                f"                     \"The {item.name_lower}_data data must be a field of rank_t\");\n"
+                f"}} else if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::VECTOR_OF_FIELDS>) {{\n"
+                f"  for (const auto {item.name_lower}_data_field_ptr_ : {item.name_lower}_data_) {{\n"
+                f"    MUNDY_THROW_ASSERT({item.name_lower}_data_field_ptr_->get_rank() == rank_t, std::invalid_argument,\n"
+                f"                       \"The {item.name_lower}_data data must be a vector of fields of rank_t\");\n"
                 f"  }}\n"
                 f"}}"
             )
         else:
             ngp_rank_assertions.append(
-                f"if constexpr (std::is_same_v<{item.name_camel}Tag, data_tag::FIELD>) {{\n"
-                f"  MUNDY_THROW_ASSERT({item.name_lower}_->get_rank() == {item.rank}, std::invalid_argument,\n"
-                f"                     \"The {item.name_lower} data must be a field of {item.rank}\");\n"
-                f"}} else if constexpr (std::is_same_v<{item.name_camel}Tag, data_tag::VECTOR_OF_FIELDS>) {{\n"
-                f"  for (const auto {item.name_lower}_field_ptr_ : {item.name_lower}_) {{\n"
-                f"    MUNDY_THROW_ASSERT({item.name_lower}_field_ptr_->get_rank() == {item.rank}, std::invalid_argument,\n"
-                f"                       \"The {item.name_lower} data must be a vector of fields of {item.rank}\");\n"
+                f"if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::FIELD>) {{\n"
+                f"  MUNDY_THROW_ASSERT({item.name_lower}_data_->get_rank() == {item.rank}, std::invalid_argument,\n"
+                f"                     \"The {item.name_lower}_data data must be a field of {item.rank}\");\n"
+                f"}} else if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::VECTOR_OF_FIELDS>) {{\n"
+                f"  for (const auto {item.name_lower}_data_field_ptr_ : {item.name_lower}_data_) {{\n"
+                f"    MUNDY_THROW_ASSERT({item.name_lower}_data_field_ptr_->get_rank() == {item.rank}, std::invalid_argument,\n"
+                f"                       \"The {item.name_lower}_data data must be a vector of fields of {item.rank}\");\n"
                 f"  }}\n"
                 f"}}"
             )
@@ -300,12 +306,12 @@ def generate_topological_replacements(aggregate_info):
     # NGP is the same as the non-ngp but with KOKKOS_INLINE_FUNCTION
     #   - getters_for_tags_placeholder;  (be sure to replace the ";". It's only there to allow the templates to be auto-formatted)
     #     '''
-    #       /// \brief Get the tag for the example_data1 data
+    #       /// \brief Get the tag for the example_data1
     #       static constexpr ExampleData1Tag get_example_data1_tag() {
     #         return ExampleData1Tag{};
     #       }
     #       
-    #       /// \brief Get the tag for the example_data2 data
+    #       /// \brief Get the tag for the example_data2
     #       static constexpr ExampleData2Tag get_example_data2_tag() {
     #         return ExampleData2Tag{};
     #       }
@@ -313,42 +319,42 @@ def generate_topological_replacements(aggregate_info):
     #
     #   - getters_for_data_placeholder;
     #     '''
-    #       /// \brief Get the example_data1 data
+    #       /// \brief Get the example_data1
     #       const example_data1_t& example_data1() const {
     #         return example_data1_;
     #       }
     #       
-    #       /// \brief Get the example_data2 data
+    #       /// \brief Get the example_data2
     #       const example_data2_t& example_data2() const {
     #         return example_data2_;
     #       }
     #     '''
 
     getters_for_tags = "\n".join(
-        [f"/// \\brief Get the tag for the {item.name_lower} data\n"
-         f"static constexpr {item.name_camel}Tag get_{item.name_lower}_tag() {{\n"
-         f"  return {item.name_camel}Tag{{}};\n"
+        [f"/// \\brief Get the tag for the {item.name_lower}_data\n"
+         f"static constexpr {item.name_camel}DataTag get_{item.name_lower}_data_tag() {{\n"
+         f"  return {item.name_camel}DataTag{{}};\n"
          f"}}\n" for item in aggregate_info.data_items]
     )
     getters_for_data = "\n".join(
-        [f"/// \\brief Get the {item.name_lower} data\n"
-         f"const {item.name_lower}_t& {item.name_lower}() const {{\n"
-         f"  return {item.name_lower}_;\n"
+        [f"/// \\brief Get the {item.name_lower}_data\n"
+         f"const {item.name_lower}_data_t& {item.name_lower}_data() const {{\n"
+         f"  return {item.name_lower}_data_;\n"
          f"}}\n" for item in aggregate_info.data_items]
     )
 
     ngp_getters_for_tags = "\n".join(
-        [f"/// \\brief Get the tag for the {item.name_lower} data\n"
+        [f"/// \\brief Get the tag for the {item.name_lower}_data\n"
          f"KOKKOS_INLINE_FUNCTION\n"
-         f"static constexpr {item.name_camel}Tag get_{item.name_lower}_tag() {{\n"
-         f"  return {item.name_camel}Tag{{}};\n"
+         f"static constexpr {item.name_camel}DataTag get_{item.name_lower}_data_tag() {{\n"
+         f"  return {item.name_camel}DataTag{{}};\n"
          f"}}\n" for item in aggregate_info.data_items]
     )
     ngp_getters_for_data = "\n".join(
-        [f"/// \\brief Get the {item.name_lower} data\n"
+        [f"/// \\brief Get the {item.name_lower}_data\n"
          f"KOKKOS_INLINE_FUNCTION\n"
-         f"const {item.name_lower}_t& {item.name_lower}() const {{\n"
-         f"  return {item.name_lower}_;\n"
+         f"const {item.name_lower}_data_t& {item.name_lower}_data() const {{\n"
+         f"  return {item.name_lower}_data_;\n"
          f"}}\n" for item in aggregate_info.data_items]
     )
 
@@ -364,7 +370,7 @@ def generate_topological_replacements(aggregate_info):
     #      example_data2_t example_data2_;  ///< example_data2 description
     #    '''
     internal_data = "\n".join(
-        [f"{item.name_lower}_t {item.name_lower}_;  ///< {item.documentation}" for item in aggregate_info.data_items]
+        [f"{item.name_lower}_data_t {item.name_lower}_data_;  ///< {item.documentation}" for item in aggregate_info.data_items]
     )
 
     replacements.append(PlaceholderReplacement('list_of_internal_data_placeholder;', internal_data))
@@ -383,10 +389,10 @@ def generate_topological_replacements(aggregate_info):
     #    '''
 
     type_to_tag_deduction = "\n".join(
-        [f"using {item.name_lower}_tag = map_data_type_to_tag_t<{item.name_camel}Type>;" for item in aggregate_info.data_items]
+        [f"using {item.name_camel}DataTag = map_data_type_to_tag_t<{item.name_camel}DataType>;" for item in aggregate_info.data_items]
     )
     ngp_type_to_tag_deduction = "\n".join(
-        [f"using {item.name_lower}_tag = map_ngp_data_type_to_tag_t<{item.name_camel}Type>;" for item in aggregate_info.data_items]
+        [f"using {item.name_camel}DataTag = map_ngp_data_type_to_tag_t<{item.name_camel}DataType>;" for item in aggregate_info.data_items]
     )
 
     replacements.append(PlaceholderReplacement('type_to_tag_deduction_placeholder;', type_to_tag_deduction))
@@ -406,8 +412,8 @@ def generate_topological_replacements(aggregate_info):
     #     ExampleData1Type, ExampleData2Type
     #   '''
     data_list = ", ".join([item.name_lower for item in aggregate_info.data_items])
-    type_deduced_data_list = ", ".join([f"const {item.name_camel}Type &{item.name_lower}" for item in aggregate_info.data_items])
-    templated_data_types = ", ".join([f"{item.name_camel}Type" for item in aggregate_info.data_items])
+    type_deduced_data_list = ", ".join([f"const {item.name_camel}DataType &{item.name_lower}_data" for item in aggregate_info.data_items])
+    templated_data_types = ", ".join([f"{item.name_camel}DataType" for item in aggregate_info.data_items])
     replacements.append(PlaceholderReplacement('list_of_data_placeholder', data_list))
     replacements.append(PlaceholderReplacement('list_of_type_deduced_data_placeholder', type_deduced_data_list))
     replacements.append(PlaceholderReplacement('list_of_templated_data_types_placeholder', templated_data_types))
@@ -450,29 +456,31 @@ def create_tags(aggregate_info):
     :param aggregate_info: An AggregateInfo object
     """
 
-    tags = set()
-    tags.add(TagInfo(name_upper=aggregate_info.name_upper, 
-                     name_lower=aggregate_info.name_lower,
-                     parent_tag='tag_type::AGGREGATE', 
-                     value=random_unsigned()))
+    tags = []
+    tags.append(TagInfo(name_upper=aggregate_info.name_upper, 
+                        name_lower=aggregate_info.name_lower,
+                        parent_tag='tag_type::AGGREGATE', 
+                        value=random_unsigned()))
+    
+    qualifiers = []
     for item in aggregate_info.data_items:
-        tags.add(TagInfo(name_upper=f"{item.name_upper}_IS_FIELD", 
-                         name_lower=f"{item.name_lower}_is_field",
-                         parent_tag='tag_type::FIELD', 
-                         value=random_unsigned()))
-        tags.add(TagInfo(name_upper=f"{item.name_upper}_IS_VECTOR_OF_FIELDS", 
-                            name_lower=f"{item.name_lower}_is_vector_of_fields",
+        qualifiers.append(TagInfo(name_upper=f"{item.name_upper}_DATA_IS_FIELD", 
+                            name_lower=f"{item.name_lower}_data_is_field",
+                            parent_tag='tag_type::FIELD', 
+                            value=random_unsigned()))
+        qualifiers.append(TagInfo(name_upper=f"{item.name_upper}_DATA_IS_VECTOR_OF_FIELDS", 
+                            name_lower=f"{item.name_lower}_data_is_vector_of_fields",
                             parent_tag='tag_type::VECTOR_OF_FIELDS', 
                             value=random_unsigned())) 
-        tags.add(TagInfo(name_upper=f"{item.name_upper}_IS_SHARED", 
-                         name_lower=f"{item.name_lower}_is_shared",
-                         parent_tag='tag_type::SHARED', value=random_unsigned()))    
-        tags.add(TagInfo(name_upper=f"{item.name_upper}_IS_VECTOR_OF_SHARED", 
-                         name_lower=f"{item.name_lower}_is_vector_of_shared",
-                         parent_tag='tag_type::VECTOR_OF_SHARED', 
-                         value=random_unsigned()))
+        qualifiers.append(TagInfo(name_upper=f"{item.name_upper}_DATA_IS_SHARED", 
+                            name_lower=f"{item.name_lower}_data_is_shared",
+                            parent_tag='tag_type::SHARED', value=random_unsigned()))    
+        qualifiers.append(TagInfo(name_upper=f"{item.name_upper}_DATA_IS_VECTOR_OF_SHARED", 
+                            name_lower=f"{item.name_lower}_data_is_vector_of_shared",
+                            parent_tag='tag_type::VECTOR_OF_SHARED', 
+                            value=random_unsigned()))
 
-    return tags
+    return tags, qualifiers
 
 def write_tags_to_file(template_tag_file_path, tag_file_path, aggregate_infos):
     """
@@ -498,8 +506,19 @@ def write_tags_to_file(template_tag_file_path, tag_file_path, aggregate_infos):
     :param tag_file_path: The path to the output file
     :param tags: A list of TagInfo objects
     """
-    tags = set().union(*[create_tags(aggregate_info) for aggregate_info in aggregate_infos])
-    tags = sorted(tags, key=lambda tag: tag.name_upper)
+    tags = []
+    qualifiers = []
+    for aggregate_info in aggregate_infos:
+        aggregate_tags, aggregate_qualifiers = create_tags(aggregate_info)
+        tags.extend(aggregate_tags)
+        qualifiers.extend(aggregate_qualifiers)
+
+    # Sort and unique the tags based on their name_upper
+    tags = sorted(list(set(tags)), key=lambda tag: tag.name_upper)
+    qualifiers = sorted(list(set(qualifiers)), key=lambda tag: tag.name_upper)
+
+    # Place the qualifiers at the very end for organization and readability
+    tags.extend(qualifiers)
 
     tag_content = "\n\n".join(
         [f"/// @brief The Tag identifying our data type\n"
@@ -525,27 +544,181 @@ if __name__ == '__main__':
     topological_template_path = 'TemplateTopologicalAgg.hpp'
     tag_template_path = 'TemplateTags.hpp'
 
-    test_agg = AggregateInfo(
-        name_upper='TEST_AGGREGATE',
-        name_camel='TestAggregate',
-        name_lower='test_aggregate',
-        valid_topologies=['LINE_2', 'LINE_3'],
-        documentation="/// \\brief This is a test aggregate class."
-                      "/// This class is used for testing purposes only.",
+    # Lets create our real aggregates
+    #   - EllipsoidData 
+    #       Data: center (NODE_RANK), orientation (SAME_RANK_AS_TOPOLOGY), radii (SAME_RANK_AS_TOPOLOGY)
+    #       Valid topologies: NODE, PARTICLE
+    #   - LineData
+    #       Data: center (NODE_RANK), direction (SAME_RANK_AS_TOPOLOGY)
+    #       Valid topologies: NODE, PARTICLE
+    #   - PointData 
+    #       Data: center (NODE_RANK)
+    #       Valid topologies: NODE, PARTICLE
+    #   - SphereData 
+    #       Data: center (NODE_RANK), radius (SAME_RANK_AS_TOPOLOGY)
+    #       Valid topologies: NODE, PARTICLE
+    #   - SpherocylinderData 
+    #       Data: center (NODE_RANK), orientation (SAME_RANK_AS_TOPOLOGY), radius (SAME_RANK_AS_TOPOLOGY), length (SAME_RANK_AS_TOPOLOGY)
+    #       Valid topologies: NODE, PARTICLE
+    #   - SpherocylinderSegmentData 
+    #       Data: node_coords (NODE_RANK)
+    #       Valid topologies: LINE_2, LINE_3, BEAM_2, BEAM_3, SPRING_2, SPRING_3
+    #   - VSegmentData 
+    #       Data: node_coords (NODE_RANK)
+    #       Valid topologies: SPRING_3, TRI_3, SHELL_TRI_3
+
+    ellipsoid_data = AggregateInfo(
+        name_upper='ELLIPSOID',
+        name_camel='Ellipsoid',
+        name_lower='ellipsoid',
+        valid_topologies=['NODE', 'PARTICLE'],
+        documentation="The topology of an ellipsoid directly effects the access pattern for the underlying data:\n"
+                      "///   - NODE: All data is stored on a single node\n"
+                      "///   - PARTICLE: The center is stored on a node, whereas the orientation and radii are stored on the\n"
+                      "///   element-rank particle",
         data_items=[
-            DataItemInfo(name_upper='TESTDATA1', 
-                         name_camel='TestData1', 
-                         name_lower='test_data1',
+            DataItemInfo(name_upper='CENTER', 
+                         name_camel='Center', 
+                         name_lower='center',
                          rank='NODE_RANK', 
-                         data_type='double', 
-                         documentation='This is a test data item.'),
-            DataItemInfo(name_upper='TESTDATA2', 
-                         name_camel='TestData2', 
-                         name_lower='test_data2',
-                         rank='EDGE_RANK', 
-                         data_type='double', 
-                         documentation='This is another test data item.')
+                         data_type='mundy::math::Vector3<scalar_t>', 
+                         documentation='Center of each ellipsoid (NODE_RANK).'),
+            DataItemInfo(name_upper='ORIENTATION', 
+                         name_camel='Orientation', 
+                         name_lower='orientation',
+                         rank='SAME_RANK_AS_TOPOLOGY', 
+                         data_type='mundy::math::Quaternion<scalar_t>', 
+                         documentation='Orientation of each ellipsoid (SAME_RANK_AS_TOPOLOGY).'),
+            DataItemInfo(name_upper='RADII', 
+                         name_camel='Radii', 
+                         name_lower='radii',
+                         rank='SAME_RANK_AS_TOPOLOGY', 
+                         data_type='mundy::math::Vector3<scalar_t>', 
+                         documentation='Radii of each ellipsoid (SAME_RANK_AS_TOPOLOGY).')
+        ])
+
+    line_data = AggregateInfo(
+        name_upper='LINE',
+        name_camel='Line',
+        name_lower='line',
+        valid_topologies=['NODE', 'PARTICLE'],
+        documentation="",
+        data_items=[
+            DataItemInfo(name_upper='CENTER', 
+                         name_camel='Center', 
+                         name_lower='center',
+                         rank='NODE_RANK', 
+                         data_type='mundy::math::Vector3<scalar_t>', 
+                         documentation='Center of each line (NODE_RANK).'),
+            DataItemInfo(name_upper='DIRECTION', 
+                         name_camel='Direction', 
+                         name_lower='direction',
+                         rank='SAME_RANK_AS_TOPOLOGY', 
+                         data_type='mundy::math::Vector3<scalar_t>', 
+                         documentation='Direction of each line (SAME_RANK_AS_TOPOLOGY).')
         ])
     
-    create_topological_aggregate(topological_template_path, 'TestAggregate.hpp', test_agg)
-    write_tags_to_file(tag_template_path, 'TestTags.hpp', [test_agg])
+    point_data = AggregateInfo(
+        name_upper='POINT',
+        name_camel='Point',
+        name_lower='point',
+        valid_topologies=['NODE', 'PARTICLE'],
+        documentation="",
+        data_items=[
+            DataItemInfo(name_upper='CENTER', 
+                         name_camel='Center', 
+                         name_lower='center',
+                         rank='NODE_RANK', 
+                         data_type='mundy::math::Vector3<scalar_t>', 
+                         documentation='Center of each point (NODE_RANK).')
+        ])
+
+    sphere_data = AggregateInfo(
+        name_upper='SPHERE',
+        name_camel='Sphere',
+        name_lower='sphere',
+        valid_topologies=['NODE', 'PARTICLE'],
+        documentation="",
+        data_items=[
+            DataItemInfo(name_upper='CENTER', 
+                         name_camel='Center', 
+                         name_lower='center',
+                         rank='NODE_RANK', 
+                         data_type='mundy::math::Vector3<scalar_t>', 
+                         documentation='Center of each sphere (NODE_RANK).'),
+            DataItemInfo(name_upper='RADIUS', 
+                         name_camel='Radius', 
+                         name_lower='radius',
+                         rank='SAME_RANK_AS_TOPOLOGY', 
+                         data_type='scalar_t', 
+                         documentation='Radius of each sphere (SAME_RANK_AS_TOPOLOGY).')
+        ])
+    
+    spherocylinder_data = AggregateInfo(
+        name_upper='SPHEROCYLINDER',
+        name_camel='Spherocylinder',
+        name_lower='spherocylinder',
+        valid_topologies=['NODE', 'PARTICLE'],
+        documentation="",
+        data_items=[
+            DataItemInfo(name_upper='CENTER', 
+                         name_camel='Center', 
+                         name_lower='center',
+                         rank='NODE_RANK', 
+                         data_type='mundy::math::Vector3<scalar_t>', 
+                         documentation='Center of each spherocylinder (NODE_RANK).'),
+            DataItemInfo(name_upper='ORIENTATION', 
+                         name_camel='Orientation', 
+                         name_lower='orientation',
+                         rank='SAME_RANK_AS_TOPOLOGY', 
+                         data_type='mundy::math::Quaternion<scalar_t>', 
+                         documentation='Orientation of each spherocylinder (SAME_RANK_AS_TOPOLOGY).'),
+            DataItemInfo(name_upper='RADIUS', 
+                         name_camel='Radius', 
+                         name_lower='radius',
+                         rank='SAME_RANK_AS_TOPOLOGY', 
+                         data_type='scalar_t', 
+                         documentation='Radius of each spherocylinder (SAME_RANK_AS_TOPOLOGY).'),
+            DataItemInfo(name_upper='LENGTH', 
+                         name_camel='Length', 
+                         name_lower='length',
+                         rank='SAME_RANK_AS_TOPOLOGY', 
+                         data_type='scalar_t', 
+                         documentation='Length of each spherocylinder (SAME_RANK_AS_TOPOLOGY).')
+        ])
+    
+    spherocylinder_segment_data = AggregateInfo(
+        name_upper='SPHEROCYLINDER_SEGMENT',
+        name_camel='SpherocylinderSegment',
+        name_lower='spherocylinder_segment',
+        valid_topologies=['LINE_2', 'LINE_3', 'BEAM_2', 'BEAM_3', 'SPRING_2', 'SPRING_3'],
+        documentation="",
+        data_items=[
+            DataItemInfo(name_upper='NODE_COORDS', 
+                         name_camel='NodeCoords', 
+                         name_lower='node_coords',
+                         rank='NODE_RANK', 
+                         data_type='std::vector<mundy::math::Vector3<scalar_t>>', 
+                         documentation='Coordinates of the nodes of each segment (NODE_RANK).')
+        ])
+    
+    v_segment_data = AggregateInfo(
+        name_upper='V_SEGMENT',
+        name_camel='VSegment',
+        name_lower='v_segment',
+        valid_topologies=['SPRING_3', 'TRI_3', 'SHELL_TRI_3'],
+        documentation="",
+        data_items=[
+            DataItemInfo(name_upper='NODE_COORDS', 
+                         name_camel='NodeCoords', 
+                         name_lower='node_coords',
+                         rank='NODE_RANK', 
+                         data_type='std::vector<mundy::math::Vector3<scalar_t>>', 
+                         documentation='Coordinates of the nodes of each V segment (NODE_RANK).')
+        ])
+
+    aggs = [ellipsoid_data, line_data, point_data, sphere_data, spherocylinder_data, spherocylinder_segment_data, v_segment_data]
+    for agg in aggs:
+        create_topological_aggregate(topological_template_path, f'{agg.name_camel}Data.hpp', agg)
+    
+    write_tags_to_file(tag_template_path, 'Tags.hpp', aggs)

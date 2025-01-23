@@ -34,7 +34,7 @@ namespace mundy {
 
 namespace geom {
 
-//! \name Invalid tag
+//! \name Helper stuff
 //@{
 
 /// \brief Tag indicating an invalid tag
@@ -43,6 +43,14 @@ struct INVALID {
 };
 //
 constexpr invalid_tag_v = INVALID::value;
+
+namespace tag_type {
+struct AGGREGATE {};
+struct FIELD {};
+struct VECTOR_OF_FIELDS {};
+struct SHARED {};
+struct VECTOR_OF_SHARED {};
+}  // namespace tag_type
 //@}
 
 //! \name Map tag to data type helpers
@@ -62,30 +70,30 @@ struct map_tag_to_data_type {
 template <typename Tag, typename Scalar, typename SharedType = void>
 using map_tag_to_data_type_t = typename map_tag_to_data_type<Tag, Scalar, SharedType>::type;
 
-/// @brief Specialization of map_tag_to_data_type for types that inherit from data_tag::FIELD
+/// @brief Specialization of map_tag_to_data_type for types that inherit from tag_type::FIELD
 template <typename Tag, typename Scalar>
-  requires std::is_base_of_v<data_tag::FIELD, Tag>
+  requires std::is_base_of_v<tag_type::FIELD, Tag>
 struct map_tag_to_data_type<Tag, Scalar> {
   using type = stk::mesh::Field<Scalar>*;
 };
 
-/// @brief Specialization of map_tag_to_data_type for types that inherit from data_tag::VECTOR_OF_FIELDS
+/// @brief Specialization of map_tag_to_data_type for types that inherit from tag_type::VECTOR_OF_FIELDS
 template <typename Tag, typename Scalar>
-  requires std::is_base_of_v<data_tag::VECTOR_OF_FIELDS, Tag>
+  requires std::is_base_of_v<tag_type::VECTOR_OF_FIELDS, Tag>
 struct map_tag_to_data_type<Tag, Scalar> {
   using type = std::vector<stk::mesh::Field<Scalar>*>;
 };
 
-/// @brief Specialization of map_tag_to_data_type for types that inherit from data_tag::SHARED
+/// @brief Specialization of map_tag_to_data_type for types that inherit from tag_type::SHARED
 template <typename Tag, typename Scalar, typename SharedType>
-  requires std::is_base_of_v<data_tag::SHARED, Tag>
+  requires std::is_base_of_v<tag_type::SHARED, Tag>
 struct map_tag_to_data_type<Tag, Scalar, SharedType> {
   using type = SharedType;
 };
 
-/// @brief Specialization of map_tag_to_data_type for types that inherit from data_tag::VECTOR_OF_SHARED
+/// @brief Specialization of map_tag_to_data_type for types that inherit from tag_type::VECTOR_OF_SHARED
 template <typename Tag, typename Scalar, typename SharedType>
-  requires std::is_base_of_v<data_tag::VECTOR_OF_SHARED, Tag>
+  requires std::is_base_of_v<tag_type::VECTOR_OF_SHARED, Tag>
 struct map_tag_to_data_type<Tag, Scalar, SharedType> {
   using type = std::vector<SharedType>;
 };
@@ -108,30 +116,30 @@ struct map_tag_to_ngp_data_type {
 template <typename Tag, typename Scalar, typename SharedType = void>
 using map_tag_to_ngp_data_type_t = typename map_tag_to_ngp_data_type<Tag, Scalar, SharedType>::type;
 
-/// @brief Specialization of map_tag_to_ngp_data_type for types that inherit from data_tag::FIELD
+/// @brief Specialization of map_tag_to_ngp_data_type for types that inherit from tag_type::FIELD
 template <typename Tag, typename Scalar>
-  requires std::is_base_of_v<data_tag::FIELD, Tag>
+  requires std::is_base_of_v<tag_type::FIELD, Tag>
 struct map_tag_to_ngp_data_type<Tag, Scalar> {
   using type = stk::mesh::NgpField<Scalar>;
 };
 
-/// @brief Specialization of map_tag_to_ngp_data_type for types that inherit from data_tag::VECTOR_OF_FIELDS
+/// @brief Specialization of map_tag_to_ngp_data_type for types that inherit from tag_type::VECTOR_OF_FIELDS
 template <typename Tag, typename Scalar>
-  requires std::is_base_of_v<data_tag::VECTOR_OF_FIELDS, Tag>
+  requires std::is_base_of_v<tag_type::VECTOR_OF_FIELDS, Tag>
 struct map_tag_to_ngp_data_type<Tag, Scalar> {
   using type = mundy::core::NgpVector<stk::mesh::NgpField<Scalar>>;
 };
 
-/// @brief Specialization of map_tag_to_ngp_data_type for types that inherit from data_tag::SHARED
+/// @brief Specialization of map_tag_to_ngp_data_type for types that inherit from tag_type::SHARED
 template <typename Tag, typename Scalar, typename SharedType>
-  requires std::is_base_of_v<data_tag::SHARED, Tag>
+  requires std::is_base_of_v<tag_type::SHARED, Tag>
 struct map_tag_to_ngp_data_type<Tag, Scalar, SharedType> {
   using type = mundy::core::NgpVector<SharedType>;
 };
 
-/// @brief Specialization of map_tag_to_ngp_data_type for types that inherit from data_tag::VECTOR_OF_SHARED
+/// @brief Specialization of map_tag_to_ngp_data_type for types that inherit from tag_type::VECTOR_OF_SHARED
 template <typename Tag, typename Scalar, typename SharedType>
-  requires std::is_base_of_v<data_tag::VECTOR_OF_SHARED, Tag>
+  requires std::is_base_of_v<tag_type::VECTOR_OF_SHARED, Tag>
 struct map_tag_to_ngp_data_type<Tag, Scalar, SharedType> {
   using type = mundy::core::NgpVector<SharedType>;
 };
@@ -154,7 +162,7 @@ using value_to_tag_type_t = value_to_tag_type<Value>::type;
 //@{
 
 /// @brief Map a list of tags to the corresponding aggregate type.
-/// This map is one-to-one with the ~set~ of tags, i.e., we must sort and unique 
+/// This map is one-to-one with the ~set~ of tags, i.e., we must sort and unique
 /// the tags before mapping them to the aggregate type.
 template <typename... Tags>
 struct map_tags_to_aggregate_type {

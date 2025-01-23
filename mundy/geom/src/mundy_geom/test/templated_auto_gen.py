@@ -1,22 +1,4 @@
 # The goal of this script is to generate all of our aggregate and augment classes without having to manually write them all out.
-# We have three separate templates that we use for this purpose:
-#   - RankedAggTemplate.hpp
-#   - TopologicalAggTemplate.hpp
-#   - AugmentTemplate.hpp
-#
-# Our goal is to have a simple function here that accepts the minimal amount of information needed to generate the class.
-#
-# Each class must provide:
-#  - The name of the class in all 3 cases (EXAMPLENAME, ExampleName, example_name)
-#  - The list of valid topologies
-#  - The doxygen documentation for the class
-#  - The list of data information for the class
-#
-# Each data item must provide:
-#  - The name of the data item in all 3 cases (EXAMPLEDATA1, ExampleData1, example_data1)
-#  - The expected rank of the data item (NODE_RANK, EDGE_RANK, FACE_RANK, ELEM_RANK, SAME_RANK_AS_TOPOLOGY)
-#  - The type of the data item if shared
-#  - The doxygen documentation for the data item
 
 class DataItemInfo:
     def __init__(self, name_upper, name_camel, name_lower, rank, data_type, documentation):
@@ -66,6 +48,119 @@ class AggregateInfo:
                 f"name_lower={self.name_lower}, valid_topologies={self.valid_topologies}, "
                 f"documentation={self.documentation}, data_items={self.data_items})")
 
+class EntityGetterInfo:
+    def __init__(self, name, entity_access, entity_index_access, requirements=None):
+        """
+        Initialize an EntityGetter object.
+
+        Example use:
+            EntityGetterInfo(name='ellipsoid', entity_access='Base::entity()', entity_index_access='Base::entity_index()')
+
+        :param name: The name of the entity getter
+        :param entity_access: The access pattern for the entity getter
+        :param entity_index_access: The access pattern for the entity index getter
+        :param requirements: The requirements for the entity getter (default is None)
+        """
+        self.name = name
+        self.entity_access = entity_access
+        self.entity_index_access = entity_index_access
+        self.requirements = requirements
+
+    def __repr__(self):
+        return f"EntityGetter(name={self.name}, entity_access={self.entity_access}, entity_index_access={self.entity_index_access})"
+
+class DataGetterInfo:
+    def __init__(self, name, generate_access_pattern, generate_ngp_access_pattern):
+        """
+        Initialize a DataGetter object.
+
+        Example use:
+            DataGetter(name='radius', 
+                generate_access_pattern=
+                    lambda data, object_used_for_access: f'stk::mesh::field_data({data}, {object_used_for_access})[0]'),
+                generate_ngp_access_pattern=
+                    lambda data, object_used_for_access: f'{data}({object_used_for_access}, 0)')
+
+        :param name: The name of the data getter
+        :param access_pattern: The access pattern for the data getter
+        """
+        self.name = name
+        self.generate_access_pattern = generate_access_pattern
+        self.generate_ngp_access_pattern = generate_ngp_access_pattern
+
+    def __repr__(self):
+        return (f"DataGetter(name={self.name}, generate_access_pattern={self.generate_access_pattern}), "
+                f"generate_ngp_access_pattern={self.generate_ngp_access_pattern})")
+
+def tagged_data_access(tag_name, data, access_pattern, object_used_for_access):
+    access = ""
+    access += f"if constexpr (std::is_base_of_v<tag_type::FIELD, {tag_name}>) {{\n"
+    access += f"  return {access_pattern(data, object_used_for_access)};\n"
+    access += f"}} else if constexpr (std::is_base_of_v<tag_type::VECTOR_OF_FIELDS, {tag_name}>) {{\n"
+    access += f"  const auto part_ptrs = data_.parts();\n"
+    access += f"  unsigned num_parts = part_ptrs.size();\n"
+    access += f"  for (unsigned i = 0; i < num_parts; ++i) {{\n"
+    access += f"    if (data_.bulk_data().bucket({object_used_for_access}).member(*part_ptr[i])) {{\n"
+
+    data_subset = f"{data}()[i]"
+
+    access += f"      return {access_pattern(data_subset, object_used_for_access)};\n"
+    access += f"    }}\n"
+    access += f"  }}\n"
+    access += f"}} else if constexpr (std::is_base_of_v<tag_type::SHARED, {tag_name}>) {{\n"
+    access += f"  return {data}();\n"
+    access += f"}} else if constexpr (std::is_base_of_v<tag_type::VECTOR_OF_SHARED, {tag_name}>) {{\n"
+    access += f"  const auto part_ptrs = data_.parts();\n"
+    access += f"  unsigned num_parts = part_ptrs.size();\n"
+    access += f"  for (unsigned i = 0; i < num_parts; ++i) {{\n"
+    access += f"    if (data_.bulk_data().bucket({object_used_for_access}).member(*part_ptr[i])) {{\n"
+
+    data_subset = f"{data}()[i]"
+
+    access += f"      return {access_pattern(data_subset, object_used_for_access)};\n"
+    access += f"    }}\n"
+    access += f"  }}\n"
+    access += f"}} else {{\n"
+    access += f"  MUNDY_THROW_ASSERT(false, std::invalid_argument, \"Invalid tag type. This should be unreachable.\");\n"
+    access += f"}}\n"
+
+    return access
+
+def scalar_access_pattern(data, object_used_for_access):
+    return f'stk::mesh::field_data({data}, {object_used_for_access})[0]'
+
+def ngp_scalar_access_pattern(data, object_used_for_access):
+    return f'{data}({object_used_for_access}, 0)'
+
+def vector3_access_pattern(data, object_used_for_access):
+    return f'mundy::mesh::vector3_field_data({data}, {object_used_for_access})'
+
+def ngp_vector3_access_pattern(data, object_used_for_access):
+    return vector3_access_pattern(data, object_used_for_access)
+
+def quaternion_access_pattern(data, object_used_for_access):
+    return f'mundy::mesh::quaternion_field_data({data}, {object_used_for_access})'
+
+def ngp_quaternion_access_pattern(data, object_used_for_access):
+    return quaternion_access_pattern(data, object_used_for_access)
+
+class EntityViewInfo:
+    def __init__(self, aggregate_info, entity_getters, generate_data_getters):
+        """
+        Initialize an EntityViewInfo object.
+
+        :param aggregate_info: An AggregateInfo object we are generating an entity view for
+        :param entity_getters: A list of EntityGetter objects
+        :param generate_data_getters: A list of GenerateDataGetter objects
+        """
+        self.aggregate_info = aggregate_info
+        self.entity_getters = entity_getters
+        self.generate_data_getters = generate_data_getters
+
+    def __repr__(self):
+        return (f"EntityViewInfo(aggregate_info={self.aggregate_info}, "
+                f"entity_getters={self.entity_getters}, generate_data_getters={self.generate_data_getters})")
+
 class TagInfo:
     def __init__(self, name_upper, name_lower, parent_tag, value):
         """
@@ -73,7 +168,7 @@ class TagInfo:
 
         :param name_upper: The name of the tag in uppercase (e.g., LINE)
         :param name_lower: The name of the tag in lowercase (e.g., line)
-        :param patent_tag: The parent tag of the tag (e.g., data_tag::FIELD)
+        :param patent_tag: The parent tag of the tag (e.g., tag_type::FIELD)
         :param value: The value of the tag
         """
         self.name_upper = name_upper
@@ -137,7 +232,128 @@ def save_updated_content(file_path, content):
     with open(file_path, 'w') as file:
         file.write(content)
 
-def generate_topological_replacements(aggregate_info):
+def generate_topological_entity_view_replacements(entity_info):
+    """
+    Generate a list of PlaceholderReplacement objects based on the given AggregateInfo.
+
+    These replacements are to create a TopologicalEntityView class.
+
+    :param entity_info: An EbtityInfo object
+    :return: A list of PlaceholderReplacement objects
+    """
+    aggregate_info = entity_info.aggregate_info
+    replacements = []
+
+    # Replace the names
+    replacements.append(PlaceholderReplacement('EXAMPLENAME', aggregate_info.name_upper))
+    replacements.append(PlaceholderReplacement('ExampleName', aggregate_info.name_camel))
+    replacements.append(PlaceholderReplacement('example_name', aggregate_info.name_lower))
+
+    # Replace the entity getters
+    #   - entity_getters_placeholder
+    #     '''
+    #       stk::mesh::Entity ellipsoid_entity() const {
+    #         return Base::entity();
+    #       }
+    #    
+    #       stk::mesh::Entity center_node_entity() const {
+    #         return Base::connected_node(0);
+    #       }
+    #     '''
+    #
+    # generate_entity_getters is a python function that takes in the topology returns [the name of the entity, a string for how the entity is accessed]
+    entity_getters = ""
+    for item in entity_info.entity_getters:
+        if item.requirements:
+            entity_getters += f"stk::mesh::Entity {item.name}_entity() const \n"
+            entity_getters += f"requires({item.requirements}) {{\n"
+            entity_getters += f"  return {item.entity_access};\n"
+            entity_getters += f"}}\n\n"
+        else:
+            entity_getters += f"stk::mesh::Entity {item.name}_entity() const {{\n"
+            entity_getters += f"  return {item.entity_access};\n"
+            entity_getters += f"}}\n\n"
+    
+    entity_index_getters = ""
+    for item in entity_info.entity_getters:
+        if item.requirements:
+            entity_index_getters += f"unsigned {item.name}_entity_index() const \n"
+            entity_index_getters += f"requires({item.requirements}) {{\n"
+            entity_index_getters += f"  return {item.entity_index_access};\n"
+            entity_index_getters += f"}}\n\n"
+        else:
+            entity_index_getters += f"unsigned {item.name}_entity_index() const {{\n"
+            entity_index_getters += f"  return {item.entity_index_access};\n"
+            entity_index_getters += f"}}\n\n"
+
+    replacements.append(PlaceholderReplacement('entity_getters_placeholder', entity_getters))
+    replacements.append(PlaceholderReplacement('entity_index_getters_placeholder', entity_index_getters))
+
+    # Replace the data getters
+    #   - data_getters_placeholder
+    #     '''
+    #       decltype(auto) center() {
+    #         return mundy::mesh::vector3_field_data(data_.center_data(), spherocylinder_entity());
+    #       }
+    #    
+    #       decltype(auto) center() const {
+    #         return mundy::mesh::vector3_field_data(data_.center_data(), spherocylinder_entity());
+    #       }
+    #    
+    #       decltype(auto) orientation() {
+    #         return mundy::mesh::quaternion_field_data(data_.orientation_data(), spherocylinder_entity());
+    #       }
+    #    
+    #       decltype(auto) orientation() const {
+    #         return mundy::mesh::quaternion_field_data(data_.orientation_data(), spherocylinder_entity());
+    #       }
+    #     '''
+
+    # generate_access_pattern is a python function that takes in a string representing the data and the object used for access and returns a string
+    # generate_object_used_for_access is a python function that takes in the topology and returns a string
+
+    data_getters = ""
+    for constness in ['const', '']:
+        for item in entity_info.generate_data_getters:
+            data_getters += f"decltype(auto) {item.name}() {constness} {{\n"
+
+            for valid_topology in aggregate_info.valid_topologies:
+                data_getters += f"  if constexpr (topology_t == stk::topology::{valid_topology}) {{\n"
+
+                object_used_for_access = item.generate_object_used_for_access(valid_topology)
+                access_pattern = item.generate_access_pattern(f"data_.{item.name}_data()", object_used_for_access)
+
+                data_getters += f"    return {access_pattern};\n"
+                data_getters += f"  }} else "
+
+            data_getters += "{\n"
+            data_getters += f"    MUNDY_THROW_ASSERT(false, std::invalid_argument, \"Invalid topology. This should be unreachable.\");\n"
+            data_getters += f"}}\n\n"
+    
+    ngp_data_getters = ""
+    for constness in ['const', '']:
+        for item in entity_info.generate_ngp_data_getters:
+            ngp_data_getters += f"decltype(auto) {item.name}() {constness} {{\n"
+
+            for valid_topology in aggregate_info.valid_topologies:
+                ngp_data_getters += f"  if constexpr (topology_t == stk::topology::{valid_topology}) {{\n"
+
+                object_used_for_access = item.generate_ngp_object_used_for_access(valid_topology)
+                access_pattern = item.generate_ngp_access_pattern(f"data_.{item.name}_data()", object_used_for_access)
+
+                ngp_data_getters += f"    return {access_pattern};\n"
+                ngp_data_getters += f"  }} else "
+
+            ngp_data_getters += "{\n"
+            ngp_data_getters += f"    MUNDY_THROW_ASSERT(false, std::invalid_argument, \"Invalid topology. This should be unreachable.\");\n"
+            ngp_data_getters += f"}}\n\n"
+
+    replacements.append(PlaceholderReplacement('getters_for_data_placeholder', data_getters))
+    replacements.append(PlaceholderReplacement('getters_for_ngp_data_placeholder', ngp_data_getters))
+
+
+
+def generate_topological_aggregate_replacements(aggregate_info):
     """
     Generate a list of PlaceholderReplacement objects based on the given AggregateInfo.
 
@@ -247,10 +463,10 @@ def generate_topological_replacements(aggregate_info):
     for item in aggregate_info.data_items:
         if item.rank == 'SAME_RANK_AS_TOPOLOGY':
             rank_assertions.append(
-                f"if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::FIELD>) {{\n"
+                f"if constexpr (std::is_same_v<{item.name_camel}DataTag, tag_type::FIELD>) {{\n"
                 f"  MUNDY_THROW_ASSERT({item.name_lower}_data_->entity_rank() == rank_t, std::invalid_argument,\n"
                 f"                     \"The {item.name_lower}_data data must be a field of rank_t\");\n"
-                f"}} else if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::VECTOR_OF_FIELDS>) {{\n"
+                f"}} else if constexpr (std::is_same_v<{item.name_camel}DataTag, tag_type::VECTOR_OF_FIELDS>) {{\n"
                 f"  for (const auto {item.name_lower}_data_field_ptr_ : {item.name_lower}_data_) {{\n"
                 f"    MUNDY_THROW_ASSERT({item.name_lower}_data_field_ptr_->entity_rank() == rank_t, std::invalid_argument,\n"
                 f"                       \"The {item.name_lower}_data data must be a vector of fields of rank_t\");\n"
@@ -259,10 +475,10 @@ def generate_topological_replacements(aggregate_info):
             )
         else:
             rank_assertions.append(
-                f"if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::FIELD>) {{\n"
+                f"if constexpr (std::is_same_v<{item.name_camel}DataTag, tag_type::FIELD>) {{\n"
                 f"  MUNDY_THROW_ASSERT({item.name_lower}_data_->entity_rank() == {item.rank}, std::invalid_argument,\n"
                 f"                     \"The {item.name_lower}_data data must be a field of {item.rank}\");\n"
-                f"}} else if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::VECTOR_OF_FIELDS>) {{\n"
+                f"}} else if constexpr (std::is_same_v<{item.name_camel}DataTag, tag_type::VECTOR_OF_FIELDS>) {{\n"
                 f"  for (const auto {item.name_lower}_data_field_ptr_ : {item.name_lower}_data_) {{\n"
                 f"    MUNDY_THROW_ASSERT({item.name_lower}_data_field_ptr_->entity_rank() == {item.rank}, std::invalid_argument,\n"
                 f"                       \"The {item.name_lower}_data data must be a vector of fields of {item.rank}\");\n"
@@ -275,10 +491,10 @@ def generate_topological_replacements(aggregate_info):
     for item in aggregate_info.data_items:
         if item.rank == 'SAME_RANK_AS_TOPOLOGY':
             ngp_rank_assertions.append(
-                f"if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::FIELD>) {{\n"
+                f"if constexpr (std::is_same_v<{item.name_camel}DataTag, tag_type::FIELD>) {{\n"
                 f"  MUNDY_THROW_ASSERT({item.name_lower}_data_->get_rank() == rank_t, std::invalid_argument,\n"
                 f"                     \"The {item.name_lower}_data data must be a field of rank_t\");\n"
-                f"}} else if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::VECTOR_OF_FIELDS>) {{\n"
+                f"}} else if constexpr (std::is_same_v<{item.name_camel}DataTag, tag_type::VECTOR_OF_FIELDS>) {{\n"
                 f"  for (const auto {item.name_lower}_data_field_ptr_ : {item.name_lower}_data_) {{\n"
                 f"    MUNDY_THROW_ASSERT({item.name_lower}_data_field_ptr_->get_rank() == rank_t, std::invalid_argument,\n"
                 f"                       \"The {item.name_lower}_data data must be a vector of fields of rank_t\");\n"
@@ -287,10 +503,10 @@ def generate_topological_replacements(aggregate_info):
             )
         else:
             ngp_rank_assertions.append(
-                f"if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::FIELD>) {{\n"
+                f"if constexpr (std::is_same_v<{item.name_camel}DataTag, tag_type::FIELD>) {{\n"
                 f"  MUNDY_THROW_ASSERT({item.name_lower}_data_->get_rank() == {item.rank}, std::invalid_argument,\n"
                 f"                     \"The {item.name_lower}_data data must be a field of {item.rank}\");\n"
-                f"}} else if constexpr (std::is_same_v<{item.name_camel}DataTag, data_tag::VECTOR_OF_FIELDS>) {{\n"
+                f"}} else if constexpr (std::is_same_v<{item.name_camel}DataTag, tag_type::VECTOR_OF_FIELDS>) {{\n"
                 f"  for (const auto {item.name_lower}_data_field_ptr_ : {item.name_lower}_data_) {{\n"
                 f"    MUNDY_THROW_ASSERT({item.name_lower}_data_field_ptr_->get_rank() == {item.rank}, std::invalid_argument,\n"
                 f"                       \"The {item.name_lower}_data data must be a vector of fields of {item.rank}\");\n"
@@ -449,7 +665,7 @@ def create_tags(aggregate_info):
     Each aggregate has its own tag with an all uppercase name. Such as LINE for the LineData aggregate. Each 
     data item has 4 tags consisting of its name followed by a qualifier about its type: *_IS_FIELD, 
     *_IS_VECTOR_OF_FIELDS, *_IS_SHARED, *_IS_VECTOR_OF_SHARED. These tags all inherit from centralized types 
-    to make them easier to tell apart such as data_tag::FIELD or data_tag::AGGREGATE. We then associate with 
+    to make them easier to tell apart such as tag_type::FIELD or tag_type::AGGREGATE. We then associate with 
     each tag a random unsigned value between 0 and 4,294,967,295. All of this is done to ensure that the set
     of tags for an aggregate uniquely identifies it.
 
@@ -596,6 +812,29 @@ if __name__ == '__main__':
                          data_type='mundy::math::Vector3<scalar_t>', 
                          documentation='Radii of each ellipsoid (SAME_RANK_AS_TOPOLOGY).')
         ])
+
+    ellipsoid_entity_view = EntityViewInfo(
+        aggregate_info=ellipsoid_data,
+        entity_getters=[
+            EntityGetterInfo(name='ellipsoid', 
+                             entity_access='Base::entity()', 
+                             entity_index_access='Base::entity_index()')
+            EntityGetterInfo(name='center_node',
+                             entity_access='Base::connected_node(0)',
+                             entity_index_access='Base::connected_node_index(0)',
+                             requirements='topology_t == stk::topology::PARTICLE')],
+        data_getters=[
+            DataGetterInfo(name='center', generate_access_pattern=vector3_access_pattern, 
+                            generate_ngp_access_pattern=ngp_vector3_access_pattern),
+            DataGetterInfo(name='orientation', generate_access_pattern=quaternion_access_pattern,
+                            generate_ngp_access_pattern=ngp_quaternion_access_pattern),
+            DataGetterInfo(name='radii', generate_access_pattern=vector3_access_pattern,
+                            generate_ngp_access_pattern=ngp_vector3_access_pattern)
+        ])
+    
+
+
+
 
     line_data = AggregateInfo(
         name_upper='LINE',
