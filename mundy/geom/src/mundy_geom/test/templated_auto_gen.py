@@ -70,12 +70,13 @@ class EntityGetterInfo:
         return f"EntityGetter(name={self.name}, entity_access={self.entity_access}, entity_index_access={self.entity_index_access})"
 
 class DataGetterInfo:
-    def __init__(self, name, generate_access_pattern, generate_ngp_access_pattern):
+    def __init__(self, name, topology_to_object_map, generate_access_pattern, generate_ngp_access_pattern):
         """
         Initialize a DataGetter object.
 
         Example use:
             DataGetter(name='radius', 
+                topology_to_object_map={'NODE': 'ellipsoid_entity()', 'PARTICLE': 'center_node_entity()'},
                 generate_access_pattern=
                     lambda data, object_used_for_access: f'stk::mesh::field_data({data}, {object_used_for_access})[0]'),
                 generate_ngp_access_pattern=
@@ -85,39 +86,42 @@ class DataGetterInfo:
         :param access_pattern: The access pattern for the data getter
         """
         self.name = name
+        self.topology_to_object_map = topology_to_object_map
         self.generate_access_pattern = generate_access_pattern
         self.generate_ngp_access_pattern = generate_ngp_access_pattern
 
     def __repr__(self):
-        return (f"DataGetter(name={self.name}, generate_access_pattern={self.generate_access_pattern}), "
+        return (f"DataGetter(name={self.name}, "
+                f"topology_to_object_map={self.topology_to_object_map}, "
+                f"generate_access_pattern={self.generate_access_pattern}), "
                 f"generate_ngp_access_pattern={self.generate_ngp_access_pattern})")
 
-def tagged_data_access(tag_name, data, access_pattern, object_used_for_access):
+def tagged_data_access(tag_type, data, generate_access_pattern, object_used_for_access):
     access = ""
-    access += f"if constexpr (std::is_base_of_v<tag_type::FIELD, {tag_name}>) {{\n"
-    access += f"  return {access_pattern(data, object_used_for_access)};\n"
-    access += f"}} else if constexpr (std::is_base_of_v<tag_type::VECTOR_OF_FIELDS, {tag_name}>) {{\n"
+    access += f"if constexpr (std::is_base_of_v<tag_type::FIELD, {tag_type}>) {{\n"
+    access += f"  return {generate_access_pattern(data, object_used_for_access)};\n"
+    access += f"}} else if constexpr (std::is_base_of_v<tag_type::VECTOR_OF_FIELDS, {tag_type}>) {{\n"
     access += f"  const auto part_ptrs = data_.parts();\n"
     access += f"  unsigned num_parts = part_ptrs.size();\n"
     access += f"  for (unsigned i = 0; i < num_parts; ++i) {{\n"
     access += f"    if (data_.bulk_data().bucket({object_used_for_access}).member(*part_ptr[i])) {{\n"
 
-    data_subset = f"{data}()[i]"
+    data_subset = f"{data}[i]"
 
-    access += f"      return {access_pattern(data_subset, object_used_for_access)};\n"
+    access += f"      return {generate_access_pattern(data_subset, object_used_for_access)};\n"
     access += f"    }}\n"
     access += f"  }}\n"
-    access += f"}} else if constexpr (std::is_base_of_v<tag_type::SHARED, {tag_name}>) {{\n"
+    access += f"}} else if constexpr (std::is_base_of_v<tag_type::SHARED, {tag_type}>) {{\n"
     access += f"  return {data}();\n"
-    access += f"}} else if constexpr (std::is_base_of_v<tag_type::VECTOR_OF_SHARED, {tag_name}>) {{\n"
+    access += f"}} else if constexpr (std::is_base_of_v<tag_type::VECTOR_OF_SHARED, {tag_type}>) {{\n"
     access += f"  const auto part_ptrs = data_.parts();\n"
     access += f"  unsigned num_parts = part_ptrs.size();\n"
     access += f"  for (unsigned i = 0; i < num_parts; ++i) {{\n"
     access += f"    if (data_.bulk_data().bucket({object_used_for_access}).member(*part_ptr[i])) {{\n"
 
-    data_subset = f"{data}()[i]"
+    data_subset = f"{data}[i]"
 
-    access += f"      return {access_pattern(data_subset, object_used_for_access)};\n"
+    access += f"      return {generate_access_pattern(data_subset, object_used_for_access)};\n"
     access += f"    }}\n"
     access += f"  }}\n"
     access += f"}} else {{\n"
@@ -145,21 +149,21 @@ def ngp_quaternion_access_pattern(data, object_used_for_access):
     return quaternion_access_pattern(data, object_used_for_access)
 
 class EntityViewInfo:
-    def __init__(self, aggregate_info, entity_getters, generate_data_getters):
+    def __init__(self, aggregate_info, entity_getters, data_getters):
         """
         Initialize an EntityViewInfo object.
 
         :param aggregate_info: An AggregateInfo object we are generating an entity view for
         :param entity_getters: A list of EntityGetter objects
-        :param generate_data_getters: A list of GenerateDataGetter objects
+        :param data_getters: A list of DataGetterInfo objects
         """
         self.aggregate_info = aggregate_info
         self.entity_getters = entity_getters
-        self.generate_data_getters = generate_data_getters
+        self.data_getters = data_getters
 
     def __repr__(self):
         return (f"EntityViewInfo(aggregate_info={self.aggregate_info}, "
-                f"entity_getters={self.entity_getters}, generate_data_getters={self.generate_data_getters})")
+                f"entity_getters={self.entity_getters}, data_getters={self.data_getters})")
 
 class TagInfo:
     def __init__(self, name_upper, name_lower, parent_tag, value):
@@ -249,6 +253,17 @@ def generate_topological_entity_view_replacements(entity_info):
     replacements.append(PlaceholderReplacement('ExampleName', aggregate_info.name_camel))
     replacements.append(PlaceholderReplacement('example_name', aggregate_info.name_lower))
 
+    # Replace the static assert valid topology
+    #   - static_assert_valid_topology_placeholder;
+    #     '''
+    #       static_assert(EllipsoidDataType::topology_t == stk::topology::NODE || EllipsoidDataType::topology_t == stk::topology::PARTICLE,
+    #                  "The topology of the ellipsoid data must match the view");
+    is_valid_topology = " || ".join([f"{aggregate_info.name_camel}DataType::topology_t == {topology}" for topology in aggregate_info.valid_topologies])
+    topology_or = " or ".join([f"{topology}" for topology in aggregate_info.valid_topologies])
+    static_assert_string = f"The topology of the given {aggregate_info.name_lower} aggregate must be {topology_or}."
+    static_assert_valid_topology = f"static_assert({is_valid_topology},\n\"{static_assert_string}\");"
+    replacements.append(PlaceholderReplacement('static_assert_valid_topology_placeholder;', static_assert_valid_topology))
+
     # Replace the entity getters
     #   - entity_getters_placeholder
     #     '''
@@ -260,8 +275,6 @@ def generate_topological_entity_view_replacements(entity_info):
     #         return Base::connected_node(0);
     #       }
     #     '''
-    #
-    # generate_entity_getters is a python function that takes in the topology returns [the name of the entity, a string for how the entity is accessed]
     entity_getters = ""
     for item in entity_info.entity_getters:
         if item.requirements:
@@ -286,8 +299,8 @@ def generate_topological_entity_view_replacements(entity_info):
             entity_index_getters += f"  return {item.entity_index_access};\n"
             entity_index_getters += f"}}\n\n"
 
-    replacements.append(PlaceholderReplacement('entity_getters_placeholder', entity_getters))
-    replacements.append(PlaceholderReplacement('entity_index_getters_placeholder', entity_index_getters))
+    replacements.append(PlaceholderReplacement('entity_getters_placeholder;', entity_getters))
+    replacements.append(PlaceholderReplacement('entity_index_getters_placeholder;', entity_index_getters))
 
     # Replace the data getters
     #   - data_getters_placeholder
@@ -308,50 +321,52 @@ def generate_topological_entity_view_replacements(entity_info):
     #         return mundy::mesh::quaternion_field_data(data_.orientation_data(), spherocylinder_entity());
     #       }
     #     '''
-
-    # generate_access_pattern is a python function that takes in a string representing the data and the object used for access and returns a string
-    # generate_object_used_for_access is a python function that takes in the topology and returns a string
-
     data_getters = ""
     for constness in ['const', '']:
-        for item in entity_info.generate_data_getters:
+        for item in entity_info.data_getters:
             data_getters += f"decltype(auto) {item.name}() {constness} {{\n"
 
             for valid_topology in aggregate_info.valid_topologies:
                 data_getters += f"  if constexpr (topology_t == stk::topology::{valid_topology}) {{\n"
 
-                object_used_for_access = item.generate_object_used_for_access(valid_topology)
-                access_pattern = item.generate_access_pattern(f"data_.{item.name}_data()", object_used_for_access)
+                data = f"data_.{item.name}_data()"
+                tag_type = f"decltype(data_.{item.name}_tag())"
+                object_used_for_access = f"{item.topology_to_object_map[valid_topology]}_entity()"
+                our_tagged_data_access = tagged_data_access(tag_type, data, item.generate_access_pattern, object_used_for_access)
 
-                data_getters += f"    return {access_pattern};\n"
+                data_getters += f"    {our_tagged_data_access}\n"
                 data_getters += f"  }} else "
 
-            data_getters += "{\n"
+            data_getters += f"  {{\n"
             data_getters += f"    MUNDY_THROW_ASSERT(false, std::invalid_argument, \"Invalid topology. This should be unreachable.\");\n"
+            data_getters += f"  }}\n"
             data_getters += f"}}\n\n"
     
     ngp_data_getters = ""
     for constness in ['const', '']:
-        for item in entity_info.generate_ngp_data_getters:
+        for item in entity_info.data_getters:
             ngp_data_getters += f"decltype(auto) {item.name}() {constness} {{\n"
 
             for valid_topology in aggregate_info.valid_topologies:
                 ngp_data_getters += f"  if constexpr (topology_t == stk::topology::{valid_topology}) {{\n"
 
-                object_used_for_access = item.generate_ngp_object_used_for_access(valid_topology)
-                access_pattern = item.generate_ngp_access_pattern(f"data_.{item.name}_data()", object_used_for_access)
-
-                ngp_data_getters += f"    return {access_pattern};\n"
+                data = f"data_.{item.name}_data()"
+                tag_type = f"decltype(data_.{item.name}_tag())"
+                object_used_for_access = f"{item.topology_to_object_map[valid_topology]}_index()"
+                our_tagged_data_access = tagged_data_access(tag_type, data, item.generate_ngp_access_pattern, object_used_for_access)
+                
+                ngp_data_getters += f"    {our_tagged_data_access}\n"
                 ngp_data_getters += f"  }} else "
 
-            ngp_data_getters += "{\n"
+            ngp_data_getters += f"  {{\n"
             ngp_data_getters += f"    MUNDY_THROW_ASSERT(false, std::invalid_argument, \"Invalid topology. This should be unreachable.\");\n"
+            ngp_data_getters += f"  }}\n"
             ngp_data_getters += f"}}\n\n"
 
-    replacements.append(PlaceholderReplacement('getters_for_data_placeholder', data_getters))
-    replacements.append(PlaceholderReplacement('getters_for_ngp_data_placeholder', ngp_data_getters))
+    replacements.append(PlaceholderReplacement('data_getters_placeholder;', data_getters))
+    replacements.append(PlaceholderReplacement('data_getters_ngp_placeholder;', ngp_data_getters))
 
-
+    return replacements
 
 def generate_topological_aggregate_replacements(aggregate_info):
     """
@@ -523,12 +538,12 @@ def generate_topological_aggregate_replacements(aggregate_info):
     #   - getters_for_tags_placeholder;  (be sure to replace the ";". It's only there to allow the templates to be auto-formatted)
     #     '''
     #       /// \brief Get the tag for the example_data1
-    #       static constexpr ExampleData1Tag get_example_data1_tag() {
+    #       static constexpr ExampleData1Tag example_data1_tag() {
     #         return ExampleData1Tag{};
     #       }
     #       
     #       /// \brief Get the tag for the example_data2
-    #       static constexpr ExampleData2Tag get_example_data2_tag() {
+    #       static constexpr ExampleData2Tag example_data2_tag() {
     #         return ExampleData2Tag{};
     #       }
     #     '''
@@ -548,7 +563,7 @@ def generate_topological_aggregate_replacements(aggregate_info):
 
     getters_for_tags = "\n".join(
         [f"/// \\brief Get the tag for the {item.name_lower}_data\n"
-         f"static constexpr {item.name_camel}DataTag get_{item.name_lower}_data_tag() {{\n"
+         f"static constexpr {item.name_camel}DataTag {item.name_lower}_data_tag() {{\n"
          f"  return {item.name_camel}DataTag{{}};\n"
          f"}}\n" for item in aggregate_info.data_items]
     )
@@ -562,7 +577,7 @@ def generate_topological_aggregate_replacements(aggregate_info):
     ngp_getters_for_tags = "\n".join(
         [f"/// \\brief Get the tag for the {item.name_lower}_data\n"
          f"KOKKOS_INLINE_FUNCTION\n"
-         f"static constexpr {item.name_camel}DataTag get_{item.name_lower}_data_tag() {{\n"
+         f"static constexpr {item.name_camel}DataTag {item.name_lower}_data_tag() {{\n"
          f"  return {item.name_camel}DataTag{{}};\n"
          f"}}\n" for item in aggregate_info.data_items]
     )
@@ -638,16 +653,29 @@ def generate_topological_aggregate_replacements(aggregate_info):
 
 def create_topological_aggregate(template_path, aggregate_file_path, aggregate_info):
     """
-    Use the TopologicalAggTemplate.hpp file to generate a new aggregate class.
+    Use the template file to generate a new aggregate class.
 
-    :param file_path: The path to the TopologicalAggTemplate.hpp file
+    :param file_path: The path to the template file
     :param aggregate_file_path: The path to the output file
     :param aggregate_info: An AggregateInfo object for which we want to generate the class
     """
     content = read_template_file(template_path)
-    replacements = generate_topological_replacements(aggregate_info)
+    replacements = generate_topological_aggregate_replacements(aggregate_info)
     updated_content = perform_replacements(content, replacements)
     save_updated_content(aggregate_file_path, updated_content)
+
+def create_topological_entity_view(template_path, entity_view_file_path, entity_info):
+    """
+    Use the template file to generate a new entity view class.
+
+    :param file_path: The path to the template file
+    :param entity_view_file_path: The path to the output file
+    :param entity_info: An EntityViewInfo object for which we want to generate the class
+    """
+    content = read_template_file(template_path)
+    replacements = generate_topological_entity_view_replacements(entity_info)
+    updated_content = perform_replacements(content, replacements)
+    save_updated_content(entity_view_file_path, updated_content)
 
 def random_unsigned():
     """
@@ -757,9 +785,6 @@ def write_tags_to_file(template_tag_file_path, tag_file_path, aggregate_infos):
     save_updated_content(tag_file_path, updated_tag_content)
 
 if __name__ == '__main__':
-    topological_template_path = 'TemplateTopologicalAgg.hpp'
-    tag_template_path = 'TemplateTags.hpp'
-
     # Lets create our real aggregates
     #   - EllipsoidData 
     #       Data: center (NODE_RANK), orientation (SAME_RANK_AS_TOPOLOGY), radii (SAME_RANK_AS_TOPOLOGY)
@@ -817,24 +842,26 @@ if __name__ == '__main__':
         aggregate_info=ellipsoid_data,
         entity_getters=[
             EntityGetterInfo(name='ellipsoid', 
-                             entity_access='Base::entity()', 
-                             entity_index_access='Base::entity_index()')
+                              entity_access='Base::entity()', 
+                              entity_index_access='Base::entity_index()'),
             EntityGetterInfo(name='center_node',
-                             entity_access='Base::connected_node(0)',
-                             entity_index_access='Base::connected_node_index(0)',
-                             requirements='topology_t == stk::topology::PARTICLE')],
+                              entity_access='Base::connected_node(0)',
+                              entity_index_access='Base::connected_node_index(0)',
+                              requirements='topology_t == stk::topology::PARTICLE')],
         data_getters=[
-            DataGetterInfo(name='center', generate_access_pattern=vector3_access_pattern, 
+            DataGetterInfo(name='center', 
+                            topology_to_object_map={'NODE': 'ellipsoid', 'PARTICLE': 'center_node'},
+                            generate_access_pattern=vector3_access_pattern, 
                             generate_ngp_access_pattern=ngp_vector3_access_pattern),
-            DataGetterInfo(name='orientation', generate_access_pattern=quaternion_access_pattern,
+            DataGetterInfo(name='orientation', 
+                            topology_to_object_map={'NODE': 'ellipsoid', 'PARTICLE': 'ellipsoid'},
+                            generate_access_pattern=quaternion_access_pattern,
                             generate_ngp_access_pattern=ngp_quaternion_access_pattern),
-            DataGetterInfo(name='radii', generate_access_pattern=vector3_access_pattern,
+            DataGetterInfo(name='radii',
+                            topology_to_object_map={'NODE': 'ellipsoid', 'PARTICLE': 'ellipsoid'},
+                            generate_access_pattern=vector3_access_pattern,
                             generate_ngp_access_pattern=ngp_vector3_access_pattern)
         ])
-    
-
-
-
 
     line_data = AggregateInfo(
         name_upper='LINE',
@@ -956,8 +983,11 @@ if __name__ == '__main__':
                          documentation='Coordinates of the nodes of each V segment (NODE_RANK).')
         ])
 
+ 
+    create_topological_entity_view('TemplateTopologicalEntityView.hpp', 'EllipsoidEntityView.hpp', ellipsoid_entity_view)
+
     aggs = [ellipsoid_data, line_data, point_data, sphere_data, spherocylinder_data, spherocylinder_segment_data, v_segment_data]
     for agg in aggs:
-        create_topological_aggregate(topological_template_path, f'{agg.name_camel}Data.hpp', agg)
+        create_topological_aggregate('TemplateTopologicalAgg.hpp', f'{agg.name_camel}Data.hpp', agg)
     
-    write_tags_to_file(tag_template_path, 'Tags.hpp', aggs)
+    write_tags_to_file('TemplateTags.hpp', 'Tags.hpp', aggs)
