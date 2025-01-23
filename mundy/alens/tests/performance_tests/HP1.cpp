@@ -138,6 +138,7 @@ enum class INITIALIZATION_TYPE : unsigned {
   OVERLAP_TEST,
   HILBERT_RANDOM_UNIT_CELL,
   HILBERT_LATTICE,
+  HILBERT_FILE,
   USHAPE_TEST,
   FROM_EXO,
   FROM_DAT
@@ -188,6 +189,9 @@ std::ostream &operator<<(std::ostream &os, const INITIALIZATION_TYPE &init_type)
       break;
     case INITIALIZATION_TYPE::HILBERT_LATTICE:
       os << "HILBERT_LATTICE";
+      break;
+    case INITIALIZATION_TYPE::HILBERT_FILE:
+      os << "HILBERT_FILE";
       break;
     case INITIALIZATION_TYPE::USHAPE_TEST:
       os << "USHAPE_TEST";
@@ -404,6 +408,9 @@ class HP1 {
       initialization_type_ = INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL;
     } else if (initiliazation_type_string == "HILBERT_LATTICE") {
       initialization_type_ = INITIALIZATION_TYPE::HILBERT_LATTICE;
+    } else if (initiliazation_type_string == "HILBERT_FILE") {
+      initialization_type_ = INITIALIZATION_TYPE::HILBERT_FILE;
+      hilbert_centers_filename_ = simulation_params.get<std::string>("hilbert_centers_filename");  
     } else if (initiliazation_type_string == "FROM_EXO") {
       initialization_type_ = INITIALIZATION_TYPE::FROM_EXO;
       initialize_from_exo_filename_ = simulation_params.get<std::string>("initialize_from_exo_filename");
@@ -416,7 +423,7 @@ class HP1 {
       MUNDY_THROW_REQUIRE(false, std::invalid_argument,
                           std::string("Invalid initialization type. Received '") + initiliazation_type_string +
                               "' but expected 'GRID', 'RANDOM_UNIT_CELL', "
-                              "'OVERLAP_TEST', 'HILBERT_RANDOM_UNIT_CELL', 'HILBERT_LATTICE', or "
+                              "'OVERLAP_TEST', 'HILBERT_RANDOM_UNIT_CELL', 'HILBERT_LATTICE', 'HILBERT_FILE', or "
                               "'FROM_FILE'.");
     }
     if (initialization_type_ == INITIALIZATION_TYPE::RANDOM_UNIT_CELL ||
@@ -693,6 +700,8 @@ class HP1 {
              "Exo file to initialize from if initialization_type is FROM_EXO.")
         .set("initialize_from_dat_filename", std::string(default_initialize_from_dat_filename_),
              "Dat file to initialize from if initialization_type is FROM_DAT.")
+        .set("hilbert_centers_filename", std::string(default_hilbert_centers_filename_),
+              "Dat file containing the centers of the Hilbert curve if initialization_type is HILBERT_FILE.")        
         .set<Teuchos::Array<double>>(
             "unit_cell_size",
             Teuchos::tuple<double>(default_unit_cell_size_[0], default_unit_cell_size_[1], default_unit_cell_size_[2]),
@@ -2191,6 +2200,92 @@ class HP1 {
     }
   }
 
+  void initialize_chromosome_positions_hilbert_file() {
+    // Initialize the chromosomes (hilbert curves) with centers given in a file.
+    //
+    // Each chromosome is initialized as a hilbert curve with a random orientation and segment length initial_chromosome_separation_.
+    // All chromosomes are considered to have the same number of nodes.
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      // Read in the chromosome centers from the file
+      auto read_centers = [](const std::string &filename, const size_t expected_num_elements, std::vector<double> &vector) {
+        vector.resize(expected_num_elements);
+        std::ifstream infile(filename);
+        if (!infile) {
+          MUNDY_THROW_REQUIRE(false, std::invalid_argument, fmt::format("Failed to open file: {}", filename));
+        }
+        // Parse the input
+        size_t num_elements;
+        if (!(infile >> num_elements)) {
+          MUNDY_THROW_REQUIRE(false, std::invalid_argument, fmt::format("Failed to read vector size from file: {}", filename));
+          return;
+        }
+        if (num_elements != expected_num_elements) {
+          MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                              fmt::format("Vector size mismatch: expected {} elements, got {} elements.", expected_num_elements, num_elements));
+          return;
+        }
+        for (size_t i = 0; i < num_elements; ++i) {
+          if (!(infile >> vector[i])) {
+            std::cerr << "Failed to read vector element at index " << i << std::endl;
+            return;
+          }
+        }
+        // Close the file
+        infile.close();
+      };
+      std::string hilbert_centers_filename = hilbert_centers_filename_;
+      std::vector<double> chromosome_centers;
+      read_centers(hilbert_centers_filename, 3 * num_chromosomes_, chromosome_centers);
+      const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                  num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+      const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+      const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+      // Because all chromosomes are the same, we can create a single hilbert curve and then place it in the lattice
+      // for each chromosome.
+      const mundy::math::Vector3<double> x_hat(1.0, 0.0, 0.0);
+      auto [hilbert_position_array, hilbert_directors] = mundy::math::create_hilbert_positions_and_directors(
+          num_nodes_per_chromosome, x_hat, initial_chromosome_separation_);
+      // Determine the center and bounding radius of the hilbert curve
+      mundy::math::Vector3<double> hilbert_center(0.0, 0.0, 0.0);
+      for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
+        hilbert_center += hilbert_position_array[i];
+      }
+      hilbert_center /= static_cast<double>(num_nodes_per_chromosome);
+      double hilbert_bounding_radius = 0.0;
+      for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
+        hilbert_bounding_radius = std::max(hilbert_bounding_radius, mundy::math::two_norm(hilbert_center - hilbert_position_array[i]));
+      }
+      std::cout << "Hilbert curve center: " << hilbert_center << " bounding radius: " << hilbert_bounding_radius << std::endl;
+      for (size_t ichromosome = 0; ichromosome < num_chromosomes_; ichromosome++) {
+        // Figure out which nodes we are doing
+        size_t start_node_index = num_nodes_per_chromosome * ichromosome + 1u;
+        size_t end_node_index = num_nodes_per_chromosome * (ichromosome + 1) + 1u;
+        const mundy::math::Vector3<double> center{chromosome_centers[3 * ichromosome],
+                                                  chromosome_centers[3 * ichromosome + 1],
+                                                  chromosome_centers[3 * ichromosome + 2]};
+        // Generate a random orientation for the chromosome
+        openrand::Philox rng(ichromosome, 0);
+        const double zrand = rng.rand<double>() - 1.0;
+        const double wrand = std::sqrt(1.0 - zrand * zrand);
+        const double trand = 2.0 * M_PI * rng.rand<double>();
+        mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
+        mundy::math::Quaternion<double> quat = mundy::math::quat_from_parallel_transport(x_hat, u_hat);
+        std::cout << "Chromosome " << ichromosome << " center: " << center << " orientation: " << quat << " radius: " << hilbert_bounding_radius << std::endl;
+        // Update the coordinates for this chromosome
+        for (size_t i = start_node_index, idx = 0; i < end_node_index; ++i, ++idx) {
+          stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument,
+                             fmt::format("Node {} is not valid", i));
+          // Assign the node coordinates
+          auto pos = quat * (hilbert_position_array[idx] - hilbert_center) + center;
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = pos[0];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = pos[1];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = pos[2];
+        }
+      }
+    }
+  }
+
   // Initialize the chromatin backbone and HP1 linkers based on part membership
   //
   // The part membership should already be set up, which makes this much easier to do, as we can just loop over the
@@ -2276,6 +2371,9 @@ class HP1 {
       } else if (initialization_type_ == INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL) {
         std::cout << "Initializing chromosomes in a hilbert random unit cell" << std::endl;
         initialize_chromosome_positions_hilbert_random_unit_cell();
+      } else if (initialization_type_ == INITIALIZATION_TYPE::HILBERT_FILE) {
+        std::cout << "Initializing chromosomes as a hilbert curve with given centers " << std::endl;
+        initialize_chromosome_positions_hilbert_file();
       } else if (initialization_type_ == INITIALIZATION_TYPE::USHAPE_TEST) {
         std::cout << "Initializing chromosomes as a U-shaped test" << std::endl;
         initialize_chromosome_positions_ushape_test();
@@ -3624,10 +3722,40 @@ class HP1 {
         });
   }
 
+  void compute_spherical_periphery_collision_forces_fast_approximate() {
+    const double periphery_collision_radius = periphery_collision_radius_;
+    // Fetch local references to the fields
+    stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+    stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+    mundy::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
+        [&node_coord_field, &node_force_field, &element_aabb_field, &element_radius_field, &periphery_collision_radius](
+          const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+          const stk::mesh::Entity sphere_node = bulk_data.begin_nodes(sphere_element)[0];
+          auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
+          const double node_coords_norm = mundy::math::two_norm(node_coords);
+          const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
+          const double shared_normal_ssd = periphery_collision_radius - node_coords_norm - sphere_radius;
+          const bool sphere_collides_with_periphery = shared_normal_ssd < 0.0;
+          if (sphere_collides_with_periphery) {
+            // Just shift the nodes along the normal to no longer overlap
+            auto inward_normal = -node_coords / node_coords_norm;
+            node_coords -= inward_normal * shared_normal_ssd;
+          }
+        });
+  }
+
   void compute_periphery_collision_forces() {
     Kokkos::Profiling::pushRegion("HP1::compute_periphery_collision_forces");
     if (periphery_collision_shape_ == PERIPHERY_SHAPE::SPHERE) {
-      compute_spherical_periphery_collision_forces();
+      if (periphery_collision_use_fast_approx_) {
+        compute_spherical_periphery_collision_forces_fast_approximate();
+      } else {
+        compute_spherical_periphery_collision_forces();
+      }
     } else if (periphery_collision_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
       if (periphery_collision_use_fast_approx_) {
         compute_ellipsoidal_periphery_collision_forces_fast_approximate();
@@ -4349,6 +4477,7 @@ class HP1 {
   INITIALIZATION_TYPE initialization_type_;
   std::string initialize_from_exo_filename_;
   std::string initialize_from_dat_filename_;
+  std::string hilbert_centers_filename_;
   double unit_cell_size_[3];
   bool loadbalance_post_initialization_;
   bool check_maximum_speed_pre_position_update_;
@@ -4460,6 +4589,7 @@ class HP1 {
   static constexpr std::string_view default_initialization_type_string_ = "GRID";
   static constexpr std::string_view default_initialize_from_exo_filename_ = "HP1";
   static constexpr std::string_view default_initialize_from_dat_filename_ = "HP1_pos.dat";
+  static constexpr std::string_view default_hilbert_centers_filename_ = "HP1_hilbert_centers.dat";
   static constexpr bool default_loadbalance_post_initialization_ = false;
   static constexpr double default_unit_cell_size_[3] = {10.0, 10.0, 10.0};
   static constexpr bool default_check_maximum_speed_pre_position_update_ = false;
@@ -4575,6 +4705,7 @@ int main(int argc, char **argv) {
   // Initialize MPI
   stk::parallel_machine_init(&argc, &argv);
   Kokkos::initialize(argc, argv);
+  Kokkos::print_configuration(std::cout);
 
   // Run the simulation using the given parameters
   mundy::alens::hp1::HP1().run(argc, argv);
