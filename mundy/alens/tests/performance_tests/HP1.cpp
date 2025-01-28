@@ -410,7 +410,7 @@ class HP1 {
       initialization_type_ = INITIALIZATION_TYPE::HILBERT_LATTICE;
     } else if (initiliazation_type_string == "HILBERT_FILE") {
       initialization_type_ = INITIALIZATION_TYPE::HILBERT_FILE;
-      hilbert_centers_filename_ = simulation_params.get<std::string>("hilbert_centers_filename");  
+      hilbert_centers_filename_ = simulation_params.get<std::string>("hilbert_centers_filename");
     } else if (initiliazation_type_string == "FROM_EXO") {
       initialization_type_ = INITIALIZATION_TYPE::FROM_EXO;
       initialize_from_exo_filename_ = simulation_params.get<std::string>("initialize_from_exo_filename");
@@ -632,6 +632,7 @@ class HP1 {
       periphery_num_bind_sites_ = param_list.get<size_t>("num_bind_sites");
     } else if (periphery_bind_sites_type_string == "FROM_FILE") {
       periphery_bind_sites_type_ = PERIPHERY_BIND_SITES_TYPE::FROM_FILE;
+      periphery_num_bind_sites_ = param_list.get<size_t>("num_bind_sites");
       periphery_bind_site_locations_filename_ = param_list.get<std::string>("bind_site_locations_filename");
     } else {
       MUNDY_THROW_REQUIRE(false, std::invalid_argument,
@@ -701,7 +702,7 @@ class HP1 {
         .set("initialize_from_dat_filename", std::string(default_initialize_from_dat_filename_),
              "Dat file to initialize from if initialization_type is FROM_DAT.")
         .set("hilbert_centers_filename", std::string(default_hilbert_centers_filename_),
-              "Dat file containing the centers of the Hilbert curve if initialization_type is HILBERT_FILE.")        
+             "Dat file containing the centers of the Hilbert curve if initialization_type is HILBERT_FILE.")
         .set<Teuchos::Array<double>>(
             "unit_cell_size",
             Teuchos::tuple<double>(default_unit_cell_size_[0], default_unit_cell_size_[1], default_unit_cell_size_[2]),
@@ -1004,6 +1005,7 @@ class HP1 {
           std::cout << "  num_bind_sites: " << periphery_num_bind_sites_ << std::endl;
         } else if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::FROM_FILE) {
           std::cout << "  bind_sites_type: FROM_FILE" << std::endl;
+          std::cout << "  num_bind_sites: " << periphery_num_bind_sites_ << std::endl;
           std::cout << "  bind_site_locations_filename: " << periphery_bind_site_locations_filename_ << std::endl;
         }
       }
@@ -2203,11 +2205,12 @@ class HP1 {
   void initialize_chromosome_positions_hilbert_file() {
     // Initialize the chromosomes (hilbert curves) with centers given in a file.
     //
-    // Each chromosome is initialized as a hilbert curve with a random orientation and segment length initial_chromosome_separation_.
-    // All chromosomes are considered to have the same number of nodes.
+    // Each chromosome is initialized as a hilbert curve with a random orientation and segment length
+    // initial_chromosome_separation_. All chromosomes are considered to have the same number of nodes.
     if (bulk_data_ptr_->parallel_rank() == 0) {
       // Read in the chromosome centers from the file
-      auto read_centers = [](const std::string &filename, const size_t expected_num_elements, std::vector<double> &vector) {
+      auto read_centers = [](const std::string &filename, const size_t expected_num_elements,
+                             std::vector<double> &vector) {
         vector.resize(expected_num_elements);
         std::ifstream infile(filename);
         if (!infile) {
@@ -2216,12 +2219,14 @@ class HP1 {
         // Parse the input
         size_t num_elements;
         if (!(infile >> num_elements)) {
-          MUNDY_THROW_REQUIRE(false, std::invalid_argument, fmt::format("Failed to read vector size from file: {}", filename));
+          MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                              fmt::format("Failed to read vector size from file: {}", filename));
           return;
         }
         if (num_elements != expected_num_elements) {
           MUNDY_THROW_REQUIRE(false, std::invalid_argument,
-                              fmt::format("Vector size mismatch: expected {} elements, got {} elements.", expected_num_elements, num_elements));
+                              fmt::format("Vector size mismatch: expected {} elements, got {} elements.",
+                                          expected_num_elements, num_elements));
           return;
         }
         for (size_t i = 0; i < num_elements; ++i) {
@@ -2237,7 +2242,7 @@ class HP1 {
       std::vector<double> chromosome_centers;
       read_centers(hilbert_centers_filename, 3 * num_chromosomes_, chromosome_centers);
       const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
-                                                  num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
       const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
       const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
       // Because all chromosomes are the same, we can create a single hilbert curve and then place it in the lattice
@@ -2253,9 +2258,11 @@ class HP1 {
       hilbert_center /= static_cast<double>(num_nodes_per_chromosome);
       double hilbert_bounding_radius = 0.0;
       for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
-        hilbert_bounding_radius = std::max(hilbert_bounding_radius, mundy::math::two_norm(hilbert_center - hilbert_position_array[i]));
+        hilbert_bounding_radius =
+            std::max(hilbert_bounding_radius, mundy::math::two_norm(hilbert_center - hilbert_position_array[i]));
       }
-      std::cout << "Hilbert curve center: " << hilbert_center << " bounding radius: " << hilbert_bounding_radius << std::endl;
+      std::cout << "Hilbert curve center: " << hilbert_center << " bounding radius: " << hilbert_bounding_radius
+                << std::endl;
       for (size_t ichromosome = 0; ichromosome < num_chromosomes_; ichromosome++) {
         // Figure out which nodes we are doing
         size_t start_node_index = num_nodes_per_chromosome * ichromosome + 1u;
@@ -2270,7 +2277,8 @@ class HP1 {
         const double trand = 2.0 * M_PI * rng.rand<double>();
         mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
         mundy::math::Quaternion<double> quat = mundy::math::quat_from_parallel_transport(x_hat, u_hat);
-        std::cout << "Chromosome " << ichromosome << " center: " << center << " orientation: " << quat << " radius: " << hilbert_bounding_radius << std::endl;
+        std::cout << "Chromosome " << ichromosome << " center: " << center << " orientation: " << quat
+                  << " radius: " << hilbert_bounding_radius << std::endl;
         // Update the coordinates for this chromosome
         for (size_t i = start_node_index, idx = 0; i < end_node_index; ++i, ++idx) {
           stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
@@ -2472,6 +2480,7 @@ class HP1 {
 
   void declare_and_initialize_periphery_bind_sites() {
     // Declare first
+    std::cout << "Creating periphery bind site locations\n";
     bulk_data_ptr_->modification_begin();
     std::vector<std::size_t> requests(meta_data_ptr_->entity_rank_count(), 0);
     if (bulk_data_ptr_->parallel_rank() == 0) {
@@ -2490,6 +2499,7 @@ class HP1 {
       }
     }
     bulk_data_ptr_->modification_end();
+    std::cout << "..Finished creating periphery bind site locations\n";
 
     // Initialize second
     if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::RANDOM) {
@@ -2556,28 +2566,48 @@ class HP1 {
       }
     } else if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::FROM_FILE) {
       if (bulk_data_ptr_->parallel_rank() == 0) {
-        std::ifstream infile(periphery_bind_site_locations_filename_, std::ios::binary);
-        if (!infile) {
-          std::cerr << "Failed to open file: " << periphery_bind_site_locations_filename_ << std::endl;
-          return;
-        }
+        // std::ifstream infile(periphery_bind_site_locations_filename_, std::ios::binary);
+        // if (!infile) {
+        //   std::cerr << "Failed to open file: " << periphery_bind_site_locations_filename_ << std::endl;
+        //   return;
+        // }
 
-        // Parse the input
-        size_t num_elements;
-        infile.read(reinterpret_cast<char *>(&num_elements), sizeof(size_t));
-        MUNDY_THROW_REQUIRE(num_elements == 3 * periphery_num_bind_sites_, std::invalid_argument,
-                            fmt::format("Num bind sites mismatch: expected {} but got {}",
-                                        3 * periphery_num_bind_sites_, num_elements));
-        for (size_t i = 0; i < periphery_num_bind_sites_; ++i) {
-          const stk::mesh::Entity &node_i = requested_entities[i];
-          const stk::mesh::Entity &sphere_i = requested_entities[periphery_num_bind_sites_ + i];
-          double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node_i);
-          for (size_t j = 0; j < 3; ++j) {
-            infile.read(reinterpret_cast<char *>(&node_coords[3 * i + j]), sizeof(double));
+        // // Parse the input
+        // size_t num_elements;
+        // infile.read(reinterpret_cast<char *>(&num_elements), sizeof(size_t));
+        // MUNDY_THROW_REQUIRE(num_elements == 3 * periphery_num_bind_sites_, std::invalid_argument,
+        //                     fmt::format("Num bind sites mismatch: expected {} but got {}",
+        //                                 3 * periphery_num_bind_sites_, num_elements));
+        // for (size_t i = 0; i < periphery_num_bind_sites_; ++i) {
+        //   const stk::mesh::Entity &node_i = requested_entities[i];
+        //   const stk::mesh::Entity &sphere_i = requested_entities[periphery_num_bind_sites_ + i];
+        //   double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node_i);
+        //   for (size_t j = 0; j < 3; ++j) {
+        //     infile.read(reinterpret_cast<char *>(&node_coords[3 * i + j]), sizeof(double));
+        //   }
+        // }
+
+        // // Close the file
+        // infile.close();
+        std::cout << "..Reading " << periphery_num_bind_sites_
+                  << " bind site locations from ASCII file : " << periphery_bind_site_locations_filename_ << std::endl;
+        std::ifstream infile(periphery_bind_site_locations_filename_);
+        MUNDY_THROW_REQUIRE(infile.is_open(), std::invalid_argument,
+                            fmt::format("Could not open file {}", periphery_bind_site_locations_filename_));
+        std::string line;
+        while (std::getline(infile, line)) {
+          std::istringstream iss(line);
+          int bind_site_id;
+          double x, y, z;
+          if (!(iss >> bind_site_id >> x >> y >> z)) {
+            MUNDY_THROW_REQUIRE(false, std::invalid_argument, fmt::format("Could not parse line {}", line));
           }
+          const stk::mesh::Entity &node_i = requested_entities[bind_site_id];
+          double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node_i);
+          node_coords[0] = x;
+          node_coords[1] = y;
+          node_coords[2] = z;
         }
-
-        // Close the file
         infile.close();
       }
     } else {
@@ -2897,7 +2927,7 @@ class HP1 {
               const double r0 = stk::mesh::field_data(crosslinker_spring_r0, crosslinker)[0];
               double Z = 0.0;
               if (dr_mag < r0) {
-                double Z = A * std::pow(1.0 - (dr_mag / r0) * (dr_mag / r0), 0.5 * inv_kt * k * r0 * r0);
+                Z = A * std::pow(1.0 - (dr_mag / r0) * (dr_mag / r0), 0.5 * inv_kt * k * r0 * r0);
               }
               stk::mesh::field_data(constraint_state_change_probability, neighbor_genx)[0] = Z;
             }
@@ -2956,7 +2986,7 @@ class HP1 {
                 const double r0 = periphery_spring_r0;
                 double Z = 0.0;
                 if (dr_mag < r0) {
-                  double Z = A * std::pow(1.0 - (dr_mag / r0) * (dr_mag / r0), 0.5 * inv_kt * k * r0 * r0);
+                  Z = A * std::pow(1.0 - (dr_mag / r0) * (dr_mag / r0), 0.5 * inv_kt * k * r0 * r0);
                 }
                 stk::mesh::field_data(constraint_state_change_probability, neighbor_genx)[0] = Z;
               }
@@ -3073,12 +3103,13 @@ class HP1 {
           if (randu01 < (1.0 - std::exp(-z_tot))) {
             // Binding occurs.
             // Loop back over the neighbor linkers to see if one of them binds in the running sum
-
             double cumsum = 0.0;
             for (unsigned j = 0; j < num_neighbor_genx_linkers; j++) {
               auto &constraint_rank_entity = neighbor_genx_linkers[j];
               bool is_hp1_h_neighbor_genx = bulk_data.bucket(constraint_rank_entity).member(hp1_h_neighbor_genx_part);
-              if (is_hp1_h_neighbor_genx) {
+              bool is_hp1_bs_neighbor_genx = bulk_data.bucket(constraint_rank_entity).member(hp1_bs_neighbor_genx_part);
+              // Check in both the periphery binding and hp1 binding parts
+              if (is_hp1_h_neighbor_genx || (enable_periphery_binding && is_hp1_bs_neighbor_genx)) {
                 const double binding_probability =
                     scale_factor * stk::mesh::field_data(constraint_state_change_rate_field, constraint_rank_entity)[0];
                 cumsum += binding_probability;
@@ -3169,9 +3200,12 @@ class HP1 {
 
     // Get the vector of entities to modify
     stk::mesh::EntityVector hp1_h_neighbor_genxs;
+    stk::mesh::EntityVector hp1_bs_neighbor_genxs;
     stk::mesh::EntityVector doubly_bound_hp1s;
     stk::mesh::get_selected_entities(stk::mesh::Selector(*hp1_h_neighbor_genx_part_ptr_),
                                      bulk_data_ptr_->buckets(constraint_rank_), hp1_h_neighbor_genxs);
+    stk::mesh::get_selected_entities(stk::mesh::Selector(*hp1_bs_neighbor_genx_part_ptr_),
+                                     bulk_data_ptr_->buckets(constraint_rank_), hp1_bs_neighbor_genxs);
     stk::mesh::get_selected_entities(stk::mesh::Selector(*doubly_hp1_h_part_ptr_),
                                      bulk_data_ptr_->buckets(element_rank_), doubly_bound_hp1s);
 
@@ -3221,8 +3255,52 @@ class HP1 {
         }
       }
     }
+    // Do the periphery binding as well
+    if (enable_periphery_binding_) {
+      for (const stk::mesh::Entity &hp1_bs_neighbor_genx : hp1_bs_neighbor_genxs) {
+        // Decode the binding type enum for this entity
+        auto state_change_action = static_cast<BINDING_STATE_CHANGE>(
+            stk::mesh::field_data(*constraint_perform_state_change_field_ptr_, hp1_bs_neighbor_genx)[0]);
+        const bool perform_state_change = state_change_action != BINDING_STATE_CHANGE::NONE;
+        if (perform_state_change) {
+          // Get our connections (as the genx)
+          const stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+              stk::mesh::field_data(*constraint_linked_entities_field_ptr_, hp1_bs_neighbor_genx));
+          const stk::mesh::Entity &crosslinker_hp1 = bulk_data_ptr_->get_entity(key_t_ptr[0]);
+          const stk::mesh::Entity &target_sphere = bulk_data_ptr_->get_entity(key_t_ptr[1]);
+
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(crosslinker_hp1), std::invalid_argument,
+                             "Encountered invalid crosslinker entity in state_change_crosslinkers.");
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(target_sphere), std::invalid_argument,
+                             "Encountered invalid sphere entity in state_change_crosslinkers.");
+
+          const stk::mesh::Entity &target_sphere_node = bulk_data_ptr_->begin_nodes(target_sphere)[0];
+          // Call the binding function
+          if (state_change_action == BINDING_STATE_CHANGE::LEFT_TO_DOUBLY) {
+            // Unbind the right side of the crosslinker from the left node and bind it to the target node
+            const bool bind_worked = ::mundy::alens::crosslinkers::bind_crosslinker_to_node_unbind_existing(
+                *bulk_data_ptr_, crosslinker_hp1, target_sphere_node, 1);
+            MUNDY_THROW_ASSERT(bind_worked, std::logic_error, "Failed to bind crosslinker to node.");
+
+            std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Periphery: Binding crosslinker "
+                      << bulk_data_ptr_->identifier(crosslinker_hp1) << " to node "
+                      << bulk_data_ptr_->identifier(target_sphere_node) << std::endl;
+
+            // Now change the part from left to doubly bound.
+            const bool is_crosslinker_locally_owned =
+                bulk_data_ptr_->parallel_owner_rank(crosslinker_hp1) == bulk_data_ptr_->parallel_rank();
+            if (is_crosslinker_locally_owned) {
+              auto add_parts = stk::mesh::PartVector{doubly_hp1_h_part_ptr_};
+              auto remove_parts = stk::mesh::PartVector{left_hp1_part_ptr_};
+              bulk_data_ptr_->change_entity_parts(crosslinker_hp1, add_parts, remove_parts);
+            }
+          }
+        }
+      }
+    }
 
     // Perform D->L
+    // This should handle both the HP1 and periphery crosslinkers
     for (const stk::mesh::Entity &crosslinker_hp1 : doubly_bound_hp1s) {
       // Decode the binding type enum for this entity
       auto state_change_action = static_cast<BINDING_STATE_CHANGE>(
@@ -3733,7 +3811,7 @@ class HP1 {
     mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
         [&node_coord_field, &node_force_field, &element_aabb_field, &element_radius_field, &periphery_collision_radius](
-          const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+            const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
           const stk::mesh::Entity sphere_node = bulk_data.begin_nodes(sphere_element)[0];
           auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
           const double node_coords_norm = mundy::math::two_norm(node_coords);
