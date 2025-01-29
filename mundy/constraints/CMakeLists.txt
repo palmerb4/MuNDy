@@ -20,18 +20,21 @@ SET(NOINSTALLHEADERS
   src/mundy_constraints/ComputeConstraintForcing.hpp
   src/mundy_constraints/compute_constraint_forcing/kernels/AngularSpringsKernel.hpp
   src/mundy_constraints/compute_constraint_forcing/kernels/FENESpringsKernel.hpp
+  src/mundy_constraints/compute_constraint_forcing/kernels/FENEWCASpringsKernel.hpp
   src/mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.hpp
   src/mundy_constraints/Constraints.hpp
   src/mundy_constraints/DeclareAndInitConstraints.hpp
   src/mundy_constraints/declare_and_initialize_constraints/techniques/ArchlengthCoordinateMapping.hpp
   src/mundy_constraints/declare_and_initialize_constraints/techniques/ChainOfSprings.hpp
   src/mundy_constraints/FENESprings.hpp
+  src/mundy_constraints/FENEWCASprings.hpp
   src/mundy_constraints/HookeanSprings.hpp
   )
 
 SET(SOURCES 
   src/mundy_constraints/compute_constraint_forcing/kernels/AngularSpringsKernel.cpp
   src/mundy_constraints/compute_constraint_forcing/kernels/FENESpringsKernel.cpp
+  src/mundy_constraints/compute_constraint_forcing/kernels/FENEWCASpringsKernel.cpp
   src/mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.cpp
   src/mundy_constraints/declare_and_initialize_constraints/techniques/ChainOfSprings.cpp
   )

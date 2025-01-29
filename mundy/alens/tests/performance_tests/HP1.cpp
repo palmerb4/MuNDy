@@ -144,7 +144,7 @@ enum class INITIALIZATION_TYPE : unsigned {
   FROM_DAT
 };
 
-enum class BOND_TYPE : unsigned { HARMONIC = 0u, FENE };
+enum class BOND_TYPE : unsigned { HARMONIC = 0u, FENE, FENEWCA };
 enum class PERIPHERY_BIND_SITES_TYPE : unsigned { RANDOM = 0u, FROM_FILE };
 enum class PERIPHERY_SHAPE : unsigned { SPHERE = 0u, ELLIPSOID };
 enum class PERIPHERY_QUADRATURE : unsigned { GAUSS_LEGENDRE = 0u, FROM_FILE };
@@ -216,6 +216,9 @@ std::ostream &operator<<(std::ostream &os, const BOND_TYPE &bond_type) {
       break;
     case BOND_TYPE::FENE:
       os << "FENE";
+      break;
+    case BOND_TYPE::FENEWCA:
+      os << "FENEWCA";
       break;
     default:
       os << "UNKNOWN";
@@ -495,10 +498,14 @@ class HP1 {
       backbone_spring_type_ = BOND_TYPE::FENE;
       backbone_spring_constant_ = param_list.get<double>("spring_constant");
       backbone_spring_r0_ = param_list.get<double>("spring_r0");
+    } else if (backbone_spring_type_string == "FENEWCA") {
+      backbone_spring_type_ = BOND_TYPE::FENEWCA;
+      backbone_spring_constant_ = param_list.get<double>("spring_constant");
+      backbone_spring_r0_ = param_list.get<double>("spring_r0");
     } else {
       MUNDY_THROW_REQUIRE(false, std::invalid_argument,
                           std::string("Invalid backbone spring type. Received '") + backbone_spring_type_string +
-                              "' but expected 'HARMONIC' or 'FENE'.");
+                              "' but expected 'HARMONIC' or 'FENE' or 'FENEWCA'.");
     }
   }
 
@@ -514,10 +521,12 @@ class HP1 {
       crosslinker_spring_type_ = BOND_TYPE::HARMONIC;
     } else if (crosslinker_spring_type_string == "FENE") {
       crosslinker_spring_type_ = BOND_TYPE::FENE;
+    } else if (crosslinker_spring_type_string == "FENEWCA") {
+      crosslinker_spring_type_ = BOND_TYPE::FENEWCA;
     } else {
       MUNDY_THROW_REQUIRE(false, std::invalid_argument,
                           std::string("Invalid crosslinker spring type. Received '") + crosslinker_spring_type_string +
-                              "' but expected 'HARMONIC' or 'FENE'.");
+                              "' but expected 'HARMONIC' or 'FENE' or 'FENEWCA'.");
     }
 
     crosslinker_kt_ = param_list.get<double>("kt");
@@ -531,6 +540,9 @@ class HP1 {
       crosslinker_cutoff_radius_ =
           crosslinker_r0_ + 5.0 * std::sqrt(1.0 / (crosslinker_kt_ * crosslinker_spring_constant_));
     } else if (crosslinker_spring_type_ == BOND_TYPE::FENE) {
+      // The r0 quantity for FENE bonds is the rmax at which force goes to infinity, so anything beyond this in invalid!
+      crosslinker_cutoff_radius_ = crosslinker_r0_;
+    } else if (crosslinker_spring_type_ == BOND_TYPE::FENEWCA) {
       // The r0 quantity for FENE bonds is the rmax at which force goes to infinity, so anything beyond this in invalid!
       crosslinker_cutoff_radius_ = crosslinker_r0_;
     }
@@ -620,6 +632,7 @@ class HP1 {
       periphery_num_bind_sites_ = param_list.get<size_t>("num_bind_sites");
     } else if (periphery_bind_sites_type_string == "FROM_FILE") {
       periphery_bind_sites_type_ = PERIPHERY_BIND_SITES_TYPE::FROM_FILE;
+      periphery_num_bind_sites_ = param_list.get<size_t>("num_bind_sites");
       periphery_bind_site_locations_filename_ = param_list.get<std::string>("bind_site_locations_filename");
     } else {
       MUNDY_THROW_REQUIRE(false, std::invalid_argument,
@@ -689,7 +702,7 @@ class HP1 {
         .set("initialize_from_dat_filename", std::string(default_initialize_from_dat_filename_),
              "Dat file to initialize from if initialization_type is FROM_DAT.")
         .set("hilbert_centers_filename", std::string(default_hilbert_centers_filename_),
-              "Dat file containing the centers of the Hilbert curve if initialization_type is HILBERT_FILE.")
+             "Dat file containing the centers of the Hilbert curve if initialization_type is HILBERT_FILE.")
         .set<Teuchos::Array<double>>(
             "unit_cell_size",
             Teuchos::tuple<double>(default_unit_cell_size_[0], default_unit_cell_size_[1], default_unit_cell_size_[2]),
@@ -734,7 +747,7 @@ class HP1 {
     valid_parameter_list.sublist("backbone_springs")
         .set("spring_type", std::string(default_backbone_spring_type_string_), "Chromatin spring type.")
         .set("spring_constant", default_backbone_spring_constant_, "Chromatin spring constant.")
-        .set("spring_r0", default_backbone_spring_r0_, "Chromatin rest length (HARMONIC) or rmax (FENE).");
+        .set("spring_r0", default_backbone_spring_r0_, "Chromatin rest length (HARMONIC) or rmax (FENE, FENEWCA).");
 
     valid_parameter_list.sublist("backbone_collision")
         .set("backbone_excluded_volume_radius", default_backbone_excluded_volume_radius_,
@@ -902,6 +915,8 @@ class HP1 {
           std::cout << "  spring_rest_length: " << backbone_spring_r0_ << std::endl;
         } else if (backbone_spring_type_ == BOND_TYPE::FENE) {
           std::cout << "  spring_rmax:        " << backbone_spring_r0_ << std::endl;
+        } else if (backbone_spring_type_ == BOND_TYPE::FENEWCA) {
+          std::cout << "  spring_rmax:        " << backbone_spring_r0_ << std::endl;
         }
       }
 
@@ -990,6 +1005,7 @@ class HP1 {
           std::cout << "  num_bind_sites: " << periphery_num_bind_sites_ << std::endl;
         } else if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::FROM_FILE) {
           std::cout << "  bind_sites_type: FROM_FILE" << std::endl;
+          std::cout << "  num_bind_sites: " << periphery_num_bind_sites_ << std::endl;
           std::cout << "  bind_site_locations_filename: " << periphery_bind_site_locations_filename_ << std::endl;
         }
       }
@@ -1043,7 +1059,8 @@ class HP1 {
                  mundy::core::make_string_array(
                      "ELEMENT_RADIUS", "ELEMENT_RNG_COUNTER", "ELEMENT_REALIZED_BINDING_RATES",
                      "ELEMENT_REALIZED_UNBINDING_RATES", "ELEMENT_PERFORM_STATE_CHANGE", "EUCHROMATIN_STATE",
-                     "EUCHROMATIN_STATE_CHANGE_NEXT_TIME", "EUCHROMATIN_STATE_CHANGE_ELAPSED_TIME", "ELEMENT_CHAINID", "REQUIRES_ENDPOINT_CORRECTION"))
+                     "EUCHROMATIN_STATE_CHANGE_NEXT_TIME", "EUCHROMATIN_STATE_CHANGE_ELAPSED_TIME", "ELEMENT_CHAINID",
+                     "REQUIRES_ENDPOINT_CORRECTION"))
             .set("coordinate_field_name", "NODE_COORDS")
             .set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES")
             .set("exodus_database_output_filename", output_filename_)
@@ -1245,6 +1262,15 @@ class HP1 {
           Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("FENE_SPRINGS"));
       compute_constraint_forcing_fixed_params_.sublist("FENE_SPRINGS")
           .set("valid_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS", "HP1S"));
+    } else if (backbone_spring_type_ == BOND_TYPE::FENEWCA && crosslinker_spring_type_ == BOND_TYPE::FENEWCA) {
+      compute_constraint_forcing_fixed_params_ =
+          Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("FENEWCA_SPRINGS"));
+      compute_constraint_forcing_fixed_params_.sublist("FENEWCA_SPRINGS")
+          .set("valid_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS", "HP1S"));
+    } else {
+      MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                          std::string("Something went wrong with the combination of backbone and crosslinker spring "
+                                      "types, check the code for more details."));
     }
 
     // Compute the minimum distance for the SCS-SCS, HP1-H, HP1-BS interactions (SCS-SCS, S-SCS, S-SCS)
@@ -1396,7 +1422,8 @@ class HP1 {
     element_unbinding_rates_field_ptr_ = fetch_field<double>("ELEMENT_REALIZED_UNBINDING_RATES", element_rank_);
     element_perform_state_change_field_ptr_ = fetch_field<unsigned>("ELEMENT_PERFORM_STATE_CHANGE", element_rank_);
     element_chainid_field_ptr_ = fetch_field<unsigned>("ELEMENT_CHAINID", element_rank_);
-    element_requires_endpoint_correction_field_ptr_ = fetch_field<double>("REQUIRES_ENDPOINT_CORRECTION", element_rank_);
+    element_requires_endpoint_correction_field_ptr_ =
+        fetch_field<double>("REQUIRES_ENDPOINT_CORRECTION", element_rank_);
 
     euchromatin_state_field_ptr_ = fetch_field<unsigned>("EUCHROMATIN_STATE", element_rank_);
     euchromatin_perform_state_change_field_ptr_ =
@@ -1673,9 +1700,10 @@ class HP1 {
               bulk_data_ptr_->declare_relation(segment, right_node, 1);
               // Assign the chainID
               stk::mesh::field_data(*element_chainid_field_ptr_, segment)[0] = j;
-              
+
               // Assign if the segment is an endpoint or not
-              stk::mesh::field_data(*element_requires_endpoint_correction_field_ptr_, segment)[0] = is_first_or_last_element_in_chain(segment_local_idx);
+              stk::mesh::field_data(*element_requires_endpoint_correction_field_ptr_, segment)[0] =
+                  is_first_or_last_element_in_chain(segment_local_idx);
             }
           }
         }
@@ -2078,13 +2106,12 @@ class HP1 {
     // If the periphery is a sphere, then the lattice can have a side length of 2 * r_sphere * sqrt(3) / 3.
     // The same is true for the ellipsoid but with r_sphere replaced by the smallest axis radius of the ellipsoid.
     //
-    // Each chromosome is initialized as a hilbert curve with a random orientation and segment length initial_chromosome_separation_.
-    // All chromosomes are considered to have the same number of nodes.
+    // Each chromosome is initialized as a hilbert curve with a random orientation and segment length
+    // initial_chromosome_separation_. All chromosomes are considered to have the same number of nodes.
 
     if (bulk_data_ptr_->parallel_rank() == 0) {
-
       const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
-                                                  num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
       const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
       const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
 
@@ -2102,9 +2129,11 @@ class HP1 {
       hilbert_center /= static_cast<double>(num_nodes_per_chromosome);
       double hilbert_bounding_radius = 0.0;
       for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
-        hilbert_bounding_radius = std::max(hilbert_bounding_radius, mundy::math::two_norm(hilbert_center - hilbert_position_array[i]));
+        hilbert_bounding_radius =
+            std::max(hilbert_bounding_radius, mundy::math::two_norm(hilbert_center - hilbert_position_array[i]));
       }
-      std::cout << "Hilbert curve center: " << hilbert_center << " bounding radius: " << hilbert_bounding_radius << std::endl;
+      std::cout << "Hilbert curve center: " << hilbert_center << " bounding radius: " << hilbert_bounding_radius
+                << std::endl;
 
       // Assert that the periphery is large enough to fit the lattice.
       double max_lattice_side_length;
@@ -2112,7 +2141,8 @@ class HP1 {
         if (periphery_collision_shape_ == PERIPHERY_SHAPE::SPHERE) {
           max_lattice_side_length = 2.0 * periphery_collision_radius_ * std::sqrt(3.0) / 3.0;
         } else if (periphery_collision_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
-          const double min_axis_radius = std::min({periphery_collision_axis_radius1_, periphery_collision_axis_radius2_, periphery_collision_axis_radius3_});
+          const double min_axis_radius = std::min({periphery_collision_axis_radius1_, periphery_collision_axis_radius2_,
+                                                   periphery_collision_axis_radius3_});
           max_lattice_side_length = 2.0 * min_axis_radius * std::sqrt(3.0) / 3.0;
         } else {
           MUNDY_THROW_REQUIRE(false, std::invalid_argument, "Invalid periphery shape.");
@@ -2120,11 +2150,13 @@ class HP1 {
       } else {
         max_lattice_side_length = std::min({unit_cell_size_[0], unit_cell_size_[1], unit_cell_size_[2]});
       }
-      
+
       const size_t num_chromosomes_per_side = static_cast<size_t>(std::ceil(std::pow(num_chromosomes_, 1.0 / 3.0)));
       const double lattice_spacing = max_lattice_side_length / num_chromosomes_per_side;
-      MUNDY_THROW_REQUIRE(max_lattice_side_length >= num_chromosomes_per_side * hilbert_bounding_radius, std::invalid_argument,
-                         fmt::format("The lattice side length is too small to fit the chromosomes. The lattice side length is {} and the bounding radius is {}.",
+      MUNDY_THROW_REQUIRE(max_lattice_side_length >= num_chromosomes_per_side * hilbert_bounding_radius,
+                          std::invalid_argument,
+                          fmt::format("The lattice side length is too small to fit the chromosomes. The lattice side "
+                                      "length is {} and the bounding radius is {}.",
                                       max_lattice_side_length, num_chromosomes_per_side * hilbert_bounding_radius));
 
       std::vector<mundy::math::Vector3<double>> chromosome_centers_array;
@@ -2138,10 +2170,10 @@ class HP1 {
         const size_t ix = ichromosome % num_chromosomes_per_side;
         const size_t iy = (ichromosome / num_chromosomes_per_side) % num_chromosomes_per_side;
         const size_t iz = ichromosome / (num_chromosomes_per_side * num_chromosomes_per_side);
-        const mundy::math::Vector3<double> center = mundy::math::Vector3<double>(
-            (ix + 0.5) * lattice_spacing - 0.5 * max_lattice_side_length,
-            (iy + 0.5) * lattice_spacing - 0.5 * max_lattice_side_length,
-            (iz + 0.5) * lattice_spacing - 0.5 * max_lattice_side_length);
+        const mundy::math::Vector3<double> center =
+            mundy::math::Vector3<double>((ix + 0.5) * lattice_spacing - 0.5 * max_lattice_side_length,
+                                         (iy + 0.5) * lattice_spacing - 0.5 * max_lattice_side_length,
+                                         (iz + 0.5) * lattice_spacing - 0.5 * max_lattice_side_length);
 
         // Generate a random orientation for the chromosome
         openrand::Philox rng(ichromosome, 0);
@@ -2151,7 +2183,8 @@ class HP1 {
         mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
         mundy::math::Quaternion<double> quat = mundy::math::quat_from_parallel_transport(x_hat, u_hat);
 
-        std::cout << "Chromosome " << ichromosome << " center: " << center << " orientation: " << quat << " radius: " << hilbert_bounding_radius << std::endl;
+        std::cout << "Chromosome " << ichromosome << " center: " << center << " orientation: " << quat
+                  << " radius: " << hilbert_bounding_radius << std::endl;
 
         // Update the coordinates for this chromosome
         for (size_t i = start_node_index, idx = 0; i < end_node_index; ++i, ++idx) {
@@ -2172,57 +2205,51 @@ class HP1 {
   void initialize_chromosome_positions_hilbert_file() {
     // Initialize the chromosomes (hilbert curves) with centers given in a file.
     //
-    // Each chromosome is initialized as a hilbert curve with a random orientation and segment length initial_chromosome_separation_.
-    // All chromosomes are considered to have the same number of nodes.
-
+    // Each chromosome is initialized as a hilbert curve with a random orientation and segment length
+    // initial_chromosome_separation_. All chromosomes are considered to have the same number of nodes.
     if (bulk_data_ptr_->parallel_rank() == 0) {
       // Read in the chromosome centers from the file
-      auto read_centers = [](const std::string &filename, const size_t expected_num_elements, std::vector<double> &vector) {
+      auto read_centers = [](const std::string &filename, const size_t expected_num_elements,
+                             std::vector<double> &vector) {
         vector.resize(expected_num_elements);
         std::ifstream infile(filename);
         if (!infile) {
           MUNDY_THROW_REQUIRE(false, std::invalid_argument, fmt::format("Failed to open file: {}", filename));
         }
-
         // Parse the input
         size_t num_elements;
         if (!(infile >> num_elements)) {
-          MUNDY_THROW_REQUIRE(false, std::invalid_argument, fmt::format("Failed to read vector size from file: {}", filename));
+          MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                              fmt::format("Failed to read vector size from file: {}", filename));
           return;
         }
-
         if (num_elements != expected_num_elements) {
           MUNDY_THROW_REQUIRE(false, std::invalid_argument,
-                              fmt::format("Vector size mismatch: expected {} elements, got {} elements.", expected_num_elements, num_elements));
+                              fmt::format("Vector size mismatch: expected {} elements, got {} elements.",
+                                          expected_num_elements, num_elements));
           return;
         }
-
         for (size_t i = 0; i < num_elements; ++i) {
           if (!(infile >> vector[i])) {
             std::cerr << "Failed to read vector element at index " << i << std::endl;
             return;
           }
         }
-
         // Close the file
         infile.close();
       };
-
       std::string hilbert_centers_filename = hilbert_centers_filename_;
       std::vector<double> chromosome_centers;
       read_centers(hilbert_centers_filename, 3 * num_chromosomes_, chromosome_centers);
-
       const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
-                                                  num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
       const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
       const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
-
       // Because all chromosomes are the same, we can create a single hilbert curve and then place it in the lattice
       // for each chromosome.
       const mundy::math::Vector3<double> x_hat(1.0, 0.0, 0.0);
       auto [hilbert_position_array, hilbert_directors] = mundy::math::create_hilbert_positions_and_directors(
           num_nodes_per_chromosome, x_hat, initial_chromosome_separation_);
-
       // Determine the center and bounding radius of the hilbert curve
       mundy::math::Vector3<double> hilbert_center(0.0, 0.0, 0.0);
       for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
@@ -2231,19 +2258,18 @@ class HP1 {
       hilbert_center /= static_cast<double>(num_nodes_per_chromosome);
       double hilbert_bounding_radius = 0.0;
       for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
-        hilbert_bounding_radius = std::max(hilbert_bounding_radius, mundy::math::two_norm(hilbert_center - hilbert_position_array[i]));
+        hilbert_bounding_radius =
+            std::max(hilbert_bounding_radius, mundy::math::two_norm(hilbert_center - hilbert_position_array[i]));
       }
-      std::cout << "Hilbert curve center: " << hilbert_center << " bounding radius: " << hilbert_bounding_radius << std::endl;
-
+      std::cout << "Hilbert curve center: " << hilbert_center << " bounding radius: " << hilbert_bounding_radius
+                << std::endl;
       for (size_t ichromosome = 0; ichromosome < num_chromosomes_; ichromosome++) {
         // Figure out which nodes we are doing
         size_t start_node_index = num_nodes_per_chromosome * ichromosome + 1u;
         size_t end_node_index = num_nodes_per_chromosome * (ichromosome + 1) + 1u;
-
         const mundy::math::Vector3<double> center{chromosome_centers[3 * ichromosome],
                                                   chromosome_centers[3 * ichromosome + 1],
                                                   chromosome_centers[3 * ichromosome + 2]};
-
         // Generate a random orientation for the chromosome
         openrand::Philox rng(ichromosome, 0);
         const double zrand = rng.rand<double>() - 1.0;
@@ -2251,15 +2277,13 @@ class HP1 {
         const double trand = 2.0 * M_PI * rng.rand<double>();
         mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
         mundy::math::Quaternion<double> quat = mundy::math::quat_from_parallel_transport(x_hat, u_hat);
-
-        std::cout << "Chromosome " << ichromosome << " center: " << center << " orientation: " << quat << " radius: " << hilbert_bounding_radius << std::endl;
-
+        std::cout << "Chromosome " << ichromosome << " center: " << center << " orientation: " << quat
+                  << " radius: " << hilbert_bounding_radius << std::endl;
         // Update the coordinates for this chromosome
         for (size_t i = start_node_index, idx = 0; i < end_node_index; ++i, ++idx) {
           stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument,
                              fmt::format("Node {} is not valid", i));
-
           // Assign the node coordinates
           auto pos = quat * (hilbert_position_array[idx] - hilbert_center) + center;
           stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = pos[0];
@@ -2355,15 +2379,15 @@ class HP1 {
       } else if (initialization_type_ == INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL) {
         std::cout << "Initializing chromosomes in a hilbert random unit cell" << std::endl;
         initialize_chromosome_positions_hilbert_random_unit_cell();
+      } else if (initialization_type_ == INITIALIZATION_TYPE::HILBERT_FILE) {
+        std::cout << "Initializing chromosomes as a hilbert curve with given centers " << std::endl;
+        initialize_chromosome_positions_hilbert_file();
       } else if (initialization_type_ == INITIALIZATION_TYPE::USHAPE_TEST) {
         std::cout << "Initializing chromosomes as a U-shaped test" << std::endl;
         initialize_chromosome_positions_ushape_test();
       } else if (initialization_type_ == INITIALIZATION_TYPE::HILBERT_LATTICE) {
         std::cout << "Initializing chromosomes in a hilbert lattice" << std::endl;
         initialize_chromosome_positions_hilbert_lattice();
-      } else if (initialization_type_ == INITIALIZATION_TYPE::HILBERT_FILE) {
-        std::cout << "Initializing chromosomes as a hilbert curve with given centers " << std::endl;
-        initialize_chromosome_positions_hilbert_file();
       } else {
         MUNDY_THROW_REQUIRE(false, std::invalid_argument,
                             fmt::format("Unknown initialization type: {}", initialization_type_));
@@ -2456,6 +2480,7 @@ class HP1 {
 
   void declare_and_initialize_periphery_bind_sites() {
     // Declare first
+    std::cout << "Creating periphery bind site locations\n";
     bulk_data_ptr_->modification_begin();
     std::vector<std::size_t> requests(meta_data_ptr_->entity_rank_count(), 0);
     if (bulk_data_ptr_->parallel_rank() == 0) {
@@ -2474,6 +2499,7 @@ class HP1 {
       }
     }
     bulk_data_ptr_->modification_end();
+    std::cout << "..Finished creating periphery bind site locations\n";
 
     // Initialize second
     if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::RANDOM) {
@@ -2540,28 +2566,48 @@ class HP1 {
       }
     } else if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::FROM_FILE) {
       if (bulk_data_ptr_->parallel_rank() == 0) {
-        std::ifstream infile(periphery_bind_site_locations_filename_, std::ios::binary);
-        if (!infile) {
-          std::cerr << "Failed to open file: " << periphery_bind_site_locations_filename_ << std::endl;
-          return;
-        }
+        // std::ifstream infile(periphery_bind_site_locations_filename_, std::ios::binary);
+        // if (!infile) {
+        //   std::cerr << "Failed to open file: " << periphery_bind_site_locations_filename_ << std::endl;
+        //   return;
+        // }
 
-        // Parse the input
-        size_t num_elements;
-        infile.read(reinterpret_cast<char *>(&num_elements), sizeof(size_t));
-        MUNDY_THROW_REQUIRE(num_elements == 3 * periphery_num_bind_sites_, std::invalid_argument,
-                            fmt::format("Num bind sites mismatch: expected {} but got {}",
-                                        3 * periphery_num_bind_sites_, num_elements));
-        for (size_t i = 0; i < periphery_num_bind_sites_; ++i) {
-          const stk::mesh::Entity &node_i = requested_entities[i];
-          const stk::mesh::Entity &sphere_i = requested_entities[periphery_num_bind_sites_ + i];
-          double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node_i);
-          for (size_t j = 0; j < 3; ++j) {
-            infile.read(reinterpret_cast<char *>(&node_coords[3 * i + j]), sizeof(double));
+        // // Parse the input
+        // size_t num_elements;
+        // infile.read(reinterpret_cast<char *>(&num_elements), sizeof(size_t));
+        // MUNDY_THROW_REQUIRE(num_elements == 3 * periphery_num_bind_sites_, std::invalid_argument,
+        //                     fmt::format("Num bind sites mismatch: expected {} but got {}",
+        //                                 3 * periphery_num_bind_sites_, num_elements));
+        // for (size_t i = 0; i < periphery_num_bind_sites_; ++i) {
+        //   const stk::mesh::Entity &node_i = requested_entities[i];
+        //   const stk::mesh::Entity &sphere_i = requested_entities[periphery_num_bind_sites_ + i];
+        //   double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node_i);
+        //   for (size_t j = 0; j < 3; ++j) {
+        //     infile.read(reinterpret_cast<char *>(&node_coords[3 * i + j]), sizeof(double));
+        //   }
+        // }
+
+        // // Close the file
+        // infile.close();
+        std::cout << "..Reading " << periphery_num_bind_sites_
+                  << " bind site locations from ASCII file : " << periphery_bind_site_locations_filename_ << std::endl;
+        std::ifstream infile(periphery_bind_site_locations_filename_);
+        MUNDY_THROW_REQUIRE(infile.is_open(), std::invalid_argument,
+                            fmt::format("Could not open file {}", periphery_bind_site_locations_filename_));
+        std::string line;
+        while (std::getline(infile, line)) {
+          std::istringstream iss(line);
+          int bind_site_id;
+          double x, y, z;
+          if (!(iss >> bind_site_id >> x >> y >> z)) {
+            MUNDY_THROW_REQUIRE(false, std::invalid_argument, fmt::format("Could not parse line {}", line));
           }
+          const stk::mesh::Entity &node_i = requested_entities[bind_site_id];
+          double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node_i);
+          node_coords[0] = x;
+          node_coords[1] = y;
+          node_coords[2] = z;
         }
-
-        // Close the file
         infile.close();
       }
     } else {
@@ -2690,7 +2736,6 @@ class HP1 {
       zero_out_accumulator_fields();
 
       bool reghost = false;
-
 
       // Update the neighbor list
       if (enable_backbone_collision_ || enable_crosslinkers_ || enable_periphery_binding_) {
@@ -2882,7 +2927,7 @@ class HP1 {
               const double r0 = stk::mesh::field_data(crosslinker_spring_r0, crosslinker)[0];
               double Z = 0.0;
               if (dr_mag < r0) {
-                double Z = A * std::pow(1.0 - (dr_mag / r0) * (dr_mag / r0), 0.5 * inv_kt * k * r0 * r0);
+                Z = A * std::pow(1.0 - (dr_mag / r0) * (dr_mag / r0), 0.5 * inv_kt * k * r0 * r0);
               }
               stk::mesh::field_data(constraint_state_change_probability, neighbor_genx)[0] = Z;
             }
@@ -2941,7 +2986,7 @@ class HP1 {
                 const double r0 = periphery_spring_r0;
                 double Z = 0.0;
                 if (dr_mag < r0) {
-                  double Z = A * std::pow(1.0 - (dr_mag / r0) * (dr_mag / r0), 0.5 * inv_kt * k * r0 * r0);
+                  Z = A * std::pow(1.0 - (dr_mag / r0) * (dr_mag / r0), 0.5 * inv_kt * k * r0 * r0);
                 }
                 stk::mesh::field_data(constraint_state_change_probability, neighbor_genx)[0] = Z;
               }
@@ -3058,12 +3103,13 @@ class HP1 {
           if (randu01 < (1.0 - std::exp(-z_tot))) {
             // Binding occurs.
             // Loop back over the neighbor linkers to see if one of them binds in the running sum
-
             double cumsum = 0.0;
             for (unsigned j = 0; j < num_neighbor_genx_linkers; j++) {
               auto &constraint_rank_entity = neighbor_genx_linkers[j];
               bool is_hp1_h_neighbor_genx = bulk_data.bucket(constraint_rank_entity).member(hp1_h_neighbor_genx_part);
-              if (is_hp1_h_neighbor_genx) {
+              bool is_hp1_bs_neighbor_genx = bulk_data.bucket(constraint_rank_entity).member(hp1_bs_neighbor_genx_part);
+              // Check in both the periphery binding and hp1 binding parts
+              if (is_hp1_h_neighbor_genx || (enable_periphery_binding && is_hp1_bs_neighbor_genx)) {
                 const double binding_probability =
                     scale_factor * stk::mesh::field_data(constraint_state_change_rate_field, constraint_rank_entity)[0];
                 cumsum += binding_probability;
@@ -3154,9 +3200,12 @@ class HP1 {
 
     // Get the vector of entities to modify
     stk::mesh::EntityVector hp1_h_neighbor_genxs;
+    stk::mesh::EntityVector hp1_bs_neighbor_genxs;
     stk::mesh::EntityVector doubly_bound_hp1s;
     stk::mesh::get_selected_entities(stk::mesh::Selector(*hp1_h_neighbor_genx_part_ptr_),
                                      bulk_data_ptr_->buckets(constraint_rank_), hp1_h_neighbor_genxs);
+    stk::mesh::get_selected_entities(stk::mesh::Selector(*hp1_bs_neighbor_genx_part_ptr_),
+                                     bulk_data_ptr_->buckets(constraint_rank_), hp1_bs_neighbor_genxs);
     stk::mesh::get_selected_entities(stk::mesh::Selector(*doubly_hp1_h_part_ptr_),
                                      bulk_data_ptr_->buckets(element_rank_), doubly_bound_hp1s);
 
@@ -3206,8 +3255,52 @@ class HP1 {
         }
       }
     }
+    // Do the periphery binding as well
+    if (enable_periphery_binding_) {
+      for (const stk::mesh::Entity &hp1_bs_neighbor_genx : hp1_bs_neighbor_genxs) {
+        // Decode the binding type enum for this entity
+        auto state_change_action = static_cast<BINDING_STATE_CHANGE>(
+            stk::mesh::field_data(*constraint_perform_state_change_field_ptr_, hp1_bs_neighbor_genx)[0]);
+        const bool perform_state_change = state_change_action != BINDING_STATE_CHANGE::NONE;
+        if (perform_state_change) {
+          // Get our connections (as the genx)
+          const stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+              stk::mesh::field_data(*constraint_linked_entities_field_ptr_, hp1_bs_neighbor_genx));
+          const stk::mesh::Entity &crosslinker_hp1 = bulk_data_ptr_->get_entity(key_t_ptr[0]);
+          const stk::mesh::Entity &target_sphere = bulk_data_ptr_->get_entity(key_t_ptr[1]);
+
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(crosslinker_hp1), std::invalid_argument,
+                             "Encountered invalid crosslinker entity in state_change_crosslinkers.");
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(target_sphere), std::invalid_argument,
+                             "Encountered invalid sphere entity in state_change_crosslinkers.");
+
+          const stk::mesh::Entity &target_sphere_node = bulk_data_ptr_->begin_nodes(target_sphere)[0];
+          // Call the binding function
+          if (state_change_action == BINDING_STATE_CHANGE::LEFT_TO_DOUBLY) {
+            // Unbind the right side of the crosslinker from the left node and bind it to the target node
+            const bool bind_worked = ::mundy::alens::crosslinkers::bind_crosslinker_to_node_unbind_existing(
+                *bulk_data_ptr_, crosslinker_hp1, target_sphere_node, 1);
+            MUNDY_THROW_ASSERT(bind_worked, std::logic_error, "Failed to bind crosslinker to node.");
+
+            std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Periphery: Binding crosslinker "
+                      << bulk_data_ptr_->identifier(crosslinker_hp1) << " to node "
+                      << bulk_data_ptr_->identifier(target_sphere_node) << std::endl;
+
+            // Now change the part from left to doubly bound.
+            const bool is_crosslinker_locally_owned =
+                bulk_data_ptr_->parallel_owner_rank(crosslinker_hp1) == bulk_data_ptr_->parallel_rank();
+            if (is_crosslinker_locally_owned) {
+              auto add_parts = stk::mesh::PartVector{doubly_hp1_h_part_ptr_};
+              auto remove_parts = stk::mesh::PartVector{left_hp1_part_ptr_};
+              bulk_data_ptr_->change_entity_parts(crosslinker_hp1, add_parts, remove_parts);
+            }
+          }
+        }
+      }
+    }
 
     // Perform D->L
+    // This should handle both the HP1 and periphery crosslinkers
     for (const stk::mesh::Entity &crosslinker_hp1 : doubly_bound_hp1s) {
       // Decode the binding type enum for this entity
       auto state_change_action = static_cast<BINDING_STATE_CHANGE>(
@@ -3492,10 +3585,11 @@ class HP1 {
       Kokkos::deep_copy(surface_radii, 0.0);
 
       // Apply the RPY kernel from spheres to periphery
-      // mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, surface_positions,
+      // mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions,
+      // surface_positions,
       //                                           sphere_radii, surface_radii, sphere_forces, surface_velocities);
-      mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, surface_positions,
-                                                   sphere_forces, surface_velocities);
+      mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions,
+                                                   surface_positions, sphere_forces, surface_velocities);
 
       // Apply no-slip boundary conditions
       // This is done in two steps: first, we compute the forces on the periphery necessary to enforce no-slip
@@ -3708,21 +3802,18 @@ class HP1 {
 
   void compute_spherical_periphery_collision_forces_fast_approximate() {
     const double periphery_collision_radius = periphery_collision_radius_;
-
     // Fetch local references to the fields
     stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
     stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
     stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
-
     const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
     mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
         [&node_coord_field, &node_force_field, &element_aabb_field, &element_radius_field, &periphery_collision_radius](
-          const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+            const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
           const stk::mesh::Entity sphere_node = bulk_data.begin_nodes(sphere_element)[0];
           auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
-
           const double node_coords_norm = mundy::math::two_norm(node_coords);
           const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
           const double shared_normal_ssd = periphery_collision_radius - node_coords_norm - sphere_radius;
@@ -3764,6 +3855,7 @@ class HP1 {
     // F = f nhat
     // sigma = f * n --> f = sigma / n
     // F = sigma / n * nhat
+    // NOTE: CJE we are going to throw out a factor of 1/n to match what Achal did.
 
     // Selectors and aliases
     stk::mesh::Part &ee_springs_part = *ee_springs_part_ptr_;
@@ -3792,12 +3884,13 @@ class HP1 {
 
             // Calculate the force on each node from the above equation, which winds up
             // F = sigma / n / n * nvec ----> sigma / n^2 * nvec
+            // NOTE: CJE we are going to throw out a factor of 1/n to match what Achal did.
             const double nvec[3] = {node2_coord[0] - node1_coord[0], node2_coord[1] - node1_coord[1],
                                     node2_coord[2] - node1_coord[2]};
             const double nsqr = nvec[0] * nvec[0] + nvec[1] * nvec[1] + nvec[2] * nvec[2];
-            const double right_node_force[3] = {active_force_sigma / nsqr * nvec[0],
-                                                active_force_sigma / nsqr * nvec[1],
-                                                active_force_sigma / nsqr * nvec[2]};
+            const double right_node_force[3] = {active_force_sigma / std::sqrt(nsqr) * nvec[0],
+                                                active_force_sigma / std::sqrt(nsqr) * nvec[1],
+                                                active_force_sigma / std::sqrt(nsqr) * nvec[2]};
 
             // #pragma omp critical
             //             {
@@ -3873,53 +3966,54 @@ class HP1 {
          backbone_youngs_modulus - backbone_youngs_modulus * backbone_poissons_ratio * backbone_poissons_ratio);
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
     stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
-    stk::mesh::Field<double> &element_requires_endpoint_correction_field = *element_requires_endpoint_correction_field_ptr_;
+    stk::mesh::Field<double> &element_requires_endpoint_correction_field =
+        *element_requires_endpoint_correction_field_ptr_;
 
     mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEM_RANK, backbone_selector,
         [&backbone_excluded_volume_radius, &effective_radius, &effective_youngs_modulus, &node_coord_field,
-         &node_force_field, &element_requires_endpoint_correction_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                            const stk::mesh::Entity &seg) {
+         &node_force_field, &element_requires_endpoint_correction_field](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &seg) {
           if (static_cast<bool>(stk::mesh::field_data(element_requires_endpoint_correction_field, seg)[0])) {
-          // Get the segment length and tangent
-          const stk::mesh::Entity *nodes = bulk_data.begin_nodes(seg);
-          const stk::mesh::Entity &node1 = nodes[0];
-          const stk::mesh::Entity &node2 = nodes[1];
-          const double *node1_coords = stk::mesh::field_data(node_coord_field, node1);
-          const double *node2_coords = stk::mesh::field_data(node_coord_field, node2);
-          const double segment_length =
-              std::sqrt((node2_coords[0] - node1_coords[0]) * (node2_coords[0] - node1_coords[0]) +
-                        (node2_coords[1] - node1_coords[1]) * (node2_coords[1] - node1_coords[1]) +
-                        (node2_coords[2] - node1_coords[2]) * (node2_coords[2] - node1_coords[2]));
-          const double segment_tangent[3] = {(node2_coords[0] - node1_coords[0]) / segment_length,
-                                             (node2_coords[1] - node1_coords[1]) / segment_length,
-                                             (node2_coords[2] - node1_coords[2]) / segment_length};
+            // Get the segment length and tangent
+            const stk::mesh::Entity *nodes = bulk_data.begin_nodes(seg);
+            const stk::mesh::Entity &node1 = nodes[0];
+            const stk::mesh::Entity &node2 = nodes[1];
+            const double *node1_coords = stk::mesh::field_data(node_coord_field, node1);
+            const double *node2_coords = stk::mesh::field_data(node_coord_field, node2);
+            const double segment_length =
+                std::sqrt((node2_coords[0] - node1_coords[0]) * (node2_coords[0] - node1_coords[0]) +
+                          (node2_coords[1] - node1_coords[1]) * (node2_coords[1] - node1_coords[1]) +
+                          (node2_coords[2] - node1_coords[2]) * (node2_coords[2] - node1_coords[2]));
+            const double segment_tangent[3] = {(node2_coords[0] - node1_coords[0]) / segment_length,
+                                               (node2_coords[1] - node1_coords[1]) / segment_length,
+                                               (node2_coords[2] - node1_coords[2]) / segment_length};
 
-          // Get the amount of overlap
-          const double signed_sep = segment_length - 2.0 * backbone_excluded_volume_radius;
-          const bool particles_overlap = signed_sep < 0.0;
-          const double normal_force_magnitude =
-              particles_overlap
-                  ? (4.0 / 3.0) * effective_youngs_modulus * std::sqrt(effective_radius) * std::pow(-signed_sep, 1.5)
-                  : 0.0;
+            // Get the amount of overlap
+            const double signed_sep = segment_length - 2.0 * backbone_excluded_volume_radius;
+            const bool particles_overlap = signed_sep < 0.0;
+            const double normal_force_magnitude =
+                particles_overlap
+                    ? (4.0 / 3.0) * effective_youngs_modulus * std::sqrt(effective_radius) * std::pow(-signed_sep, 1.5)
+                    : 0.0;
 
-          // Apply the force to the nodes
-          double *node1_force = stk::mesh::field_data(node_force_field, node1);
-          double *node2_force = stk::mesh::field_data(node_force_field, node2);
-
-#pragma omp atomic
-          node1_force[0] -= normal_force_magnitude * segment_tangent[0];
-#pragma omp atomic
-          node1_force[1] -= normal_force_magnitude * segment_tangent[1];
-#pragma omp atomic
-          node1_force[2] -= normal_force_magnitude * segment_tangent[2];
+            // Apply the force to the nodes
+            double *node1_force = stk::mesh::field_data(node_force_field, node1);
+            double *node2_force = stk::mesh::field_data(node_force_field, node2);
 
 #pragma omp atomic
-          node2_force[0] += normal_force_magnitude * segment_tangent[0];
+            node1_force[0] -= normal_force_magnitude * segment_tangent[0];
 #pragma omp atomic
-          node2_force[1] += normal_force_magnitude * segment_tangent[1];
+            node1_force[1] -= normal_force_magnitude * segment_tangent[1];
 #pragma omp atomic
-          node2_force[2] += normal_force_magnitude * segment_tangent[2];
+            node1_force[2] -= normal_force_magnitude * segment_tangent[2];
+
+#pragma omp atomic
+            node2_force[0] += normal_force_magnitude * segment_tangent[0];
+#pragma omp atomic
+            node2_force[1] += normal_force_magnitude * segment_tangent[1];
+#pragma omp atomic
+            node2_force[2] += normal_force_magnitude * segment_tangent[2];
           }
         });
 
@@ -3959,13 +4053,12 @@ class HP1 {
     double &kt = brownian_kt_;
     double sphere_drag_coeff = 6.0 * M_PI * viscosity_ * backbone_sphere_hydrodynamic_radius_;
     double inv_drag_coeff = 1.0 / sphere_drag_coeff;
-    const double coeff = Kokkos::sqrt(2.0 * kt * sphere_drag_coeff / timestep_size) * inv_drag_coeff;
 
     // Compute the total velocity of the nonorientable spheres
     mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
-        [&node_velocity_field, &node_rng_field,
-         &coeff](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+        [&node_velocity_field, &node_rng_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff, &kt](
+            const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           // Get the specific values for each sphere
           double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
           const stk::mesh::EntityId sphere_node_gid = bulk_data.identifier(sphere_node);
@@ -3973,7 +4066,7 @@ class HP1 {
 
           // U_brown = sqrt(2 * kt * gamma / dt) * randn / gamma
           openrand::Philox rng(sphere_node_gid, node_rng_counter[0]);
-             
+          const double coeff = std::sqrt(2.0 * kt * sphere_drag_coeff / timestep_size) * inv_drag_coeff;
           node_velocity[0] += coeff * rng.randn<double>();
           node_velocity[1] += coeff * rng.randn<double>();
           node_velocity[2] += coeff * rng.randn<double>();
@@ -4208,7 +4301,8 @@ class HP1 {
                   hydro_velocity_change_norm += dx * dx + dy * dy + dz * dz;
                 });
 
-            size_t len_v = 3 * num_chromosomes_ * num_chromatin_repeats_ * (num_euchromatin_per_repeat_ + num_heterochromatin_per_repeat_);  
+            size_t len_v = 3 * num_chromosomes_ * num_chromatin_repeats_ *
+                           (num_euchromatin_per_repeat_ + num_heterochromatin_per_repeat_);
             hydro_velocity_change_norm = std::sqrt(hydro_velocity_change_norm / len_v);
             std::cout << "||v_new - v_old||_2 / sqrt(len(v_old)): " << hydro_velocity_change_norm << std::endl;
           }
