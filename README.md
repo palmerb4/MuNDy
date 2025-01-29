@@ -1,2 +1,1 @@
-# Mundy: Multi-body Nonlocal Dynamics
-
+# MuNDy: Multi-body Nonlocal Dynamics

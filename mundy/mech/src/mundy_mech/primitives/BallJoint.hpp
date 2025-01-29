@@ -92,7 +92,7 @@ class BallJoint {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~BallJoint() = default;
 
   /// \brief Deep copy constructor

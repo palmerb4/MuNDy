@@ -3,6 +3,9 @@ TPL_ROOT_DIR=$2
 MUNDY_SOURCE_DIR=$3
 
 # bash ../do-cmake.sh /mnt/sw/nix/store/ajfmwdjwipp5rrpkq8dj4aff23ar4cix-trilinos-14.2.0 ~/envs/MundyScratch/ ../
+
+# bash ../do-cmake.sh /mnt/ceph/users/bpalmer/envs/spack/opt/spack/linux-rocky8-cascadelake/gcc-11.4.0/trilinos-master-ek7lwb5ilssmazas2p3zhavykp6kiyf4 ~/envs/MundyScratch/ ../
+
 echo "Using Trilinos dir: $TRILINOS_ROOT_DIR"
 echo "Using TPL dir: $TPL_ROOT_DIR"
 echo "Using STK test-app dir: $MUNDY_SOURCE_DIR"
@@ -13,13 +16,13 @@ cmake \
 -DCMAKE_CXX_FLAGS="-O3 -march=native -Wall -Wextra -Wdouble-promotion -Wconversion" \
 -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR:-$HOME/envs/MundyScratch} \
 -DTPL_ENABLE_MPI=ON \
--DKokkos_ENABLE_SERIAL=ON \
--DKokkos_ENABLE_OPENMP=OFF \
+-DKokkos_ENABLE_SERIAL=OFF \
+-DKokkos_ENABLE_OPENMP=ON \
 -DKokkos_ENABLE_CUDA=OFF \
 -DMundy_ENABLE_MundyCore=ON \
 -DMundy_ENABLE_MundyMath=ON \
--DMundy_ENABLE_MundyGeom=ON \
 -DMundy_ENABLE_MundyMesh=ON \
+-DMundy_ENABLE_MundyGeom=ON \
 -DMundy_ENABLE_MundyMeta=ON \
 -DMundy_ENABLE_MundyAgents=ON \
 -DMundy_ENABLE_MundyShapes=ON \

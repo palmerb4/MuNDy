@@ -87,7 +87,7 @@ class StridedAccessor<T, stride, Accessor, Ownership::Owns> {
 
   /// \brief Default constructor.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
-  KOKKOS_INLINE_FUNCTION StridedAccessor()
+  KOKKOS_DEFAULTED_FUNCTION StridedAccessor()
     requires HasDefaultConstructor<Accessor>
   = default;
 

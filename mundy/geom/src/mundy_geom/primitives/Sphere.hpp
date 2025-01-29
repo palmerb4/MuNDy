@@ -93,7 +93,7 @@ class Sphere {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~Sphere() = default;
 
   /// \brief Deep copy constructor

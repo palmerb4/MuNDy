@@ -112,7 +112,7 @@ class Spherocylinder {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~Spherocylinder() = default;
 
   /// \brief Deep copy constructor

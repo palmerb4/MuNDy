@@ -24,7 +24,7 @@
 /// \brief Declaration of the MetaFactory class
 
 // External
-#include <fmt/core.h>  // for fmt::format
+#include <fmt/format.h>  // for fmt::format
 
 // C++ core libs
 #include <functional>  // for std::function

@@ -139,14 +139,51 @@ void generate_particles(stk::mesh::BulkData &bulk_data, const size_t num_particl
   bulk_data.modification_end();
 }
 
+
+// void randomize_positions_and_radii(stk::mesh::NgpMesh &ngp_mesh, const stk::mesh::Selector &spheres,
+//                                    const double radius_min, const double radius_max,
+//                                    const Kokkos::Array<double, 3> &bottom_left,
+//                                    const Kokkos::Array<double, 3> &top_right,
+//                                    stk::mesh::NgpField<double> &node_coords_field,
+//                                    stk::mesh::NgpField<double> &elem_radius_field) {
+//   node_coords_field.sync_to_device();
+//   elem_radius_field.sync_to_device();
+
+//   stk::mesh::for_each_entity_run(
+//       ngp_mesh, stk::topology::ELEMENT_RANK, spheres, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
+//         stk::mesh::Entity sphere = ngp_mesh.get_entity(stk::topology::ELEM_RANK, sphere_index);
+//         stk::mesh::EntityId sphere_id = ngp_mesh.identifier(sphere);
+//         openrand::Philox rng(sphere_id, 0);
+
+//         const size_t grid_i = sphere_id % 4;          // x-coordinate
+//         const size_t grid_j = (sphere_id / 4) % 4;    // y-coordinate
+//         const size_t grid_k = sphere_id / (4 * 4);    // z-coordinate
+
+//         // Random radius
+//         elem_radius_field(sphere_index, 0) = radius_max;
+
+//         // Random position
+//         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+//         stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(nodes[0]);
+//         stk::mesh::EntityFieldData<double> node_coords = node_coords_field(node_index);
+//         node_coords[0] = 0.5 * grid_i * radius_max;
+//         node_coords[1] = 0.5 * grid_j * radius_max;
+//         node_coords[2] = 0.5 * grid_k * radius_max;
+//       });
+
+//   node_coords_field.modify_on_device();
+//   elem_radius_field.modify_on_device();
+// }
+
+
 void randomize_positions_and_radii(stk::mesh::NgpMesh &ngp_mesh, const stk::mesh::Selector &spheres,
                                    const double radius_min, const double radius_max,
                                    const Kokkos::Array<double, 3> &bottom_left,
                                    const Kokkos::Array<double, 3> &top_right,
-                                   stk::mesh::NgpField<double> &node_coordinates,
-                                   stk::mesh::NgpField<double> &element_radius) {
-  node_coordinates.sync_to_device();
-  element_radius.sync_to_device();
+                                   stk::mesh::NgpField<double> &node_coords_field,
+                                   stk::mesh::NgpField<double> &elem_radius_field) {
+  node_coords_field.sync_to_device();
+  elem_radius_field.sync_to_device();
 
   stk::mesh::for_each_entity_run(
       ngp_mesh, stk::topology::ELEMENT_RANK, spheres, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
@@ -155,19 +192,19 @@ void randomize_positions_and_radii(stk::mesh::NgpMesh &ngp_mesh, const stk::mesh
         openrand::Philox rng(sphere_id, 0);
 
         // Random radius
-        element_radius(sphere_index, 0) = rng.rand<double>() * (radius_max - radius_min) + radius_min;
+        elem_radius_field(sphere_index, 0) = rng.rand<double>() * (radius_max - radius_min) + radius_min;
 
         // Random position
         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
         stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(nodes[0]);
-        stk::mesh::EntityFieldData<double> node_coords = node_coordinates(node_index);
+        stk::mesh::EntityFieldData<double> node_coords = node_coords_field(node_index);
         node_coords[0] = rng.rand<double>() * (top_right[0] - bottom_left[0]) + bottom_left[0];
         node_coords[1] = rng.rand<double>() * (top_right[1] - bottom_left[1]) + bottom_left[1];
         node_coords[2] = rng.rand<double>() * (top_right[2] - bottom_left[2]) + bottom_left[2];
       });
 
-  node_coordinates.modify_on_device();
-  element_radius.modify_on_device();
+  node_coords_field.modify_on_device();
+  elem_radius_field.modify_on_device();
 }
 //@}
 
@@ -226,9 +263,13 @@ LocalResultViewType get_local_neighbor_indices(const stk::mesh::BulkData &bulk_d
 }
 
 SearchSpheresViewType create_search_spheres(const stk::mesh::BulkData &bulk_data, const stk::mesh::NgpMesh &ngp_mesh,
+                                            const double search_buffer,
                                             const stk::mesh::Selector &spheres,
-                                            const stk::mesh::NgpField<double> &node_coordinates,
-                                            const stk::mesh::NgpField<double> &element_radius) {
+                                            stk::mesh::NgpField<double> &node_coords_field,
+                                            stk::mesh::NgpField<double> &elem_radius_field) {
+  node_coords_field.sync_to_device();
+  elem_radius_field.sync_to_device();
+
   auto locally_owned_spheres = spheres & bulk_data.mesh_meta_data().locally_owned_part();
   const unsigned num_local_spheres =
       stk::mesh::count_entities(bulk_data, stk::topology::ELEMENT_RANK, locally_owned_spheres);
@@ -246,11 +287,11 @@ SearchSpheresViewType create_search_spheres(const stk::mesh::BulkData &bulk_data
 
         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
         stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(nodes[0]);
-        stk::mesh::EntityFieldData<double> node_coords = node_coordinates(node_index);
+        stk::mesh::EntityFieldData<double> node_coords = node_coords_field(node_index);
 
         stk::search::Point<double> center(node_coords[0], node_coords[1], node_coords[2]);
-        double radius = element_radius(sphere_index, 0);
-        search_spheres(i) = SphereIdentProc{stk::search::Sphere<double>(center, radius),
+        double search_radius = elem_radius_field(sphere_index, 0) + search_buffer;
+        search_spheres(i) = SphereIdentProc{stk::search::Sphere<double>(center, search_radius),
                                             IdentProc(ngp_mesh.identifier(sphere), my_rank)};
       });
 
@@ -258,6 +299,10 @@ SearchSpheresViewType create_search_spheres(const stk::mesh::BulkData &bulk_data
 }
 
 void ghost_neighbors(stk::mesh::BulkData &bulk_data, const ResultViewType &search_results) {
+  if (bulk_data.parallel_size() == 1) {
+    return;
+  }
+
   auto host_search_results = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultHostExecutionSpace{}, search_results);
   bulk_data.modification_begin();
   stk::mesh::Ghosting &neighbor_ghosting = bulk_data.create_ghosting("neighbors");
@@ -292,15 +337,15 @@ void ghost_neighbors(stk::mesh::BulkData &bulk_data, const ResultViewType &searc
 
 void compute_signed_separation_distance_and_contact_normal(
     stk::mesh::NgpMesh &ngp_mesh, const LocalResultViewType &local_search_results,
-    stk::mesh::NgpField<double> &node_coordinates, stk::mesh::NgpField<double> &element_radius,
+    stk::mesh::NgpField<double> &node_coords_field, stk::mesh::NgpField<double> &elem_radius_field,
     const Kokkos::View<double *, DeviceMemorySpace> &signed_sep_dist,
     const Kokkos::View<double **, DeviceMemorySpace> &con_normals_ij) {
   // Each neighbor pair will generate a constraint between the two spheres
   // Loop over each neighbor id pair, fetch each sphere's position, and compute the signed separation distance
   // defined by \|x_i - x_j\| - (r_i + r_j) where x_i and x_j are the sphere positions and r_i and r_j are the sphere
   // radii
-  node_coordinates.sync_to_device();
-  element_radius.sync_to_device();
+  node_coords_field.sync_to_device();
+  elem_radius_field.sync_to_device();
 
   // Loop over the neighbor pairs
   using range_policy = Kokkos::RangePolicy<DeviceExecutionSpace>;
@@ -308,19 +353,33 @@ void compute_signed_separation_distance_and_contact_normal(
       "GenerateCollisionConstraints", range_policy(0, local_search_results.extent(0)), KOKKOS_LAMBDA(const int i) {
         const stk::mesh::FastMeshIndex source_index = local_search_results(i).domainIdentProc.id();
         const stk::mesh::FastMeshIndex target_index = local_search_results(i).rangeIdentProc.id();
-        if (source_index == target_index) {
+        
+        // Skip self interaction and avoid double counting
+        if (target_index < source_index || target_index == source_index) {
+          signed_sep_dist(i) = 0.0;
+          con_normals_ij(i, 0) = 0.0;
+          con_normals_ij(i, 1) = 0.0;
+          con_normals_ij(i, 2) = 0.0;
           return;
         }
 
+        // Fetch the center node indices
+        const stk::mesh::NgpMesh::ConnectedNodes source_nodes =
+            ngp_mesh.get_nodes(stk::topology::ELEM_RANK, source_index);
+        const stk::mesh::NgpMesh::ConnectedNodes target_nodes =
+            ngp_mesh.get_nodes(stk::topology::ELEM_RANK, target_index);
+        stk::mesh::FastMeshIndex source_node_index = ngp_mesh.fast_mesh_index(source_nodes[0]);
+        stk::mesh::FastMeshIndex target_node_index = ngp_mesh.fast_mesh_index(target_nodes[0]);
+
         // Fetch the sphere positions and radii
-        const double x_i = node_coordinates(source_index, 0);
-        const double y_i = node_coordinates(source_index, 1);
-        const double z_i = node_coordinates(source_index, 2);
-        const double x_j = node_coordinates(target_index, 0);
-        const double y_j = node_coordinates(target_index, 1);
-        const double z_j = node_coordinates(target_index, 2);
-        const double radius_i = element_radius(source_index, 0);
-        const double radius_j = element_radius(target_index, 0);
+        const double x_i = node_coords_field(source_node_index, 0);
+        const double y_i = node_coords_field(source_node_index, 1);
+        const double z_i = node_coords_field(source_node_index, 2);
+        const double x_j = node_coords_field(target_node_index, 0);
+        const double y_j = node_coords_field(target_node_index, 1);
+        const double z_j = node_coords_field(target_node_index, 2);
+        const double radius_i = elem_radius_field(source_index, 0);
+        const double radius_j = elem_radius_field(target_index, 0);
 
         // Compute the signed separation distance
         const double source_to_target_x = x_j - x_i;
@@ -431,7 +490,7 @@ void compute_diff_dots(const stk::ParallelMachine parallel,
   using range_policy = Kokkos::RangePolicy<DeviceExecutionSpace>;
   Kokkos::parallel_reduce(
       "ComputeDiffDots", range_policy(0, lagrange_multipliers.extent(0)),
-      KOKKOS_LAMBDA(const int i, mundy::math::Vector3<double> &acc_xx_xg_gg_diff) {
+      KOKKOS_LAMBDA(const int i, mundy::math::Vector3<double> &acc_xx_xg_gg_diff) {        
         const double lag_mult = lagrange_multipliers(i);
         const double lag_mult_tmp = lagrange_multipliers_tmp(i);
         const double sep_dot = signed_sep_dot(i);
@@ -471,9 +530,19 @@ void sum_collision_force(stk::mesh::NgpMesh &ngp_mesh, const LocalResultViewType
       "SumCollisionForce", range_policy(0, local_search_results.extent(0)), KOKKOS_LAMBDA(const int i) {
         const stk::mesh::FastMeshIndex source_index = local_search_results(i).domainIdentProc.id();
         const stk::mesh::FastMeshIndex target_index = local_search_results(i).rangeIdentProc.id();
-        if (source_index == target_index) {
+        
+        // Skip self interaction and avoid double counting
+        if (target_index < source_index || target_index == source_index) {
           return;
         }
+
+        // Fetch the center node indices
+        const stk::mesh::NgpMesh::ConnectedNodes source_nodes =
+            ngp_mesh.get_nodes(stk::topology::ELEM_RANK, source_index);
+        const stk::mesh::NgpMesh::ConnectedNodes target_nodes =
+            ngp_mesh.get_nodes(stk::topology::ELEM_RANK, target_index);
+        stk::mesh::FastMeshIndex source_node_index = ngp_mesh.fast_mesh_index(source_nodes[0]);
+        stk::mesh::FastMeshIndex target_node_index = ngp_mesh.fast_mesh_index(target_nodes[0]);
 
         // Fetch the lagrange multiplier
         const double lag_mult = lagrange_multipliers(i);
@@ -495,40 +564,46 @@ void sum_collision_force(stk::mesh::NgpMesh &ngp_mesh, const LocalResultViewType
         //
         // Actually, so long as auto_swap_domain_and_range = true, we don't need to worry about this
         // because the pair not be swapped if both are owned allowing us to always add into the source
-        Kokkos::atomic_add(&sphere_force(source_index, 0), -lag_mult * normal_x);
-        Kokkos::atomic_add(&sphere_force(source_index, 1), -lag_mult * normal_y);
-        Kokkos::atomic_add(&sphere_force(source_index, 2), -lag_mult * normal_z);
+        Kokkos::atomic_add(&sphere_force(source_node_index, 0), -lag_mult * normal_x);
+        Kokkos::atomic_add(&sphere_force(source_node_index, 1), -lag_mult * normal_y);
+        Kokkos::atomic_add(&sphere_force(source_node_index, 2), -lag_mult * normal_z);
+        Kokkos::atomic_add(&sphere_force(target_node_index, 0), lag_mult * normal_x);
+        Kokkos::atomic_add(&sphere_force(target_node_index, 1), lag_mult * normal_y);
+        Kokkos::atomic_add(&sphere_force(target_node_index, 2), lag_mult * normal_z);
       });
 
   sphere_force.modify_on_device();
 }
 
 void compute_the_mobility_problem(stk::mesh::NgpMesh &ngp_mesh, const double viscosity,
-                                  stk::mesh::NgpField<double> &element_radius,
+                                  stk::mesh::NgpField<double> &elem_radius_field,
                                   stk::mesh::NgpField<double> &sphere_force,
                                   stk::mesh::NgpField<double> &sphere_velocity) {
-  element_radius.sync_to_device();
+  elem_radius_field.sync_to_device();
   sphere_force.sync_to_device();
   sphere_velocity.sync_to_device();
 
-  const stk::mesh::Selector selector(*element_radius.get_field_base());
+  const stk::mesh::Selector selector(*elem_radius_field.get_field_base());
 
   // Self-interaction term
   const double pi = Kokkos::numbers::pi_v<double>;
   const double coeff = 1.0 / (6.0 * pi * viscosity);
   stk::mesh::for_each_entity_run(
       ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
+        const stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(nodes[0]);
+
         // Fetch the radius
-        const double radius = element_radius(sphere_index, 0);
-        const double force_x = sphere_force(sphere_index, 0);
-        const double force_y = sphere_force(sphere_index, 1);
-        const double force_z = sphere_force(sphere_index, 2);
+        const double radius = elem_radius_field(sphere_index, 0);
+        const double force_x = sphere_force(node_index, 0);
+        const double force_y = sphere_force(node_index, 1);
+        const double force_z = sphere_force(node_index, 2);
 
         // Compute the velocity
         const double inv_radius = 1.0 / radius;
-        sphere_velocity(sphere_index, 0) = coeff * inv_radius * force_x;
-        sphere_velocity(sphere_index, 1) = coeff * inv_radius * force_y;
-        sphere_velocity(sphere_index, 2) = coeff * inv_radius * force_z;
+        sphere_velocity(node_index, 0) = coeff * inv_radius * force_x;
+        sphere_velocity(node_index, 1) = coeff * inv_radius * force_y;
+        sphere_velocity(node_index, 2) = coeff * inv_radius * force_z;
       });
 
   sphere_velocity.modify_on_device();
@@ -546,9 +621,20 @@ void compute_rate_of_change_of_sep(stk::mesh::NgpMesh &ngp_mesh, const LocalResu
       "ComputeRateOfChangeOfSep", range_policy(0, local_search_results.extent(0)), KOKKOS_LAMBDA(const int i) {
         const stk::mesh::FastMeshIndex source_index = local_search_results(i).domainIdentProc.id();
         const stk::mesh::FastMeshIndex target_index = local_search_results(i).rangeIdentProc.id();
-        if (source_index == target_index) {
+        
+        // Skip self interaction and avoid double counting
+        if (target_index < source_index || target_index == source_index) {
+          signed_sep_dot(i) = 0.0;
           return;
         }
+
+        // Fetch the center node indices
+        const stk::mesh::NgpMesh::ConnectedNodes source_nodes =
+            ngp_mesh.get_nodes(stk::topology::ELEM_RANK, source_index);
+        const stk::mesh::NgpMesh::ConnectedNodes target_nodes =
+            ngp_mesh.get_nodes(stk::topology::ELEM_RANK, target_index);
+        stk::mesh::FastMeshIndex source_node_index = ngp_mesh.fast_mesh_index(source_nodes[0]);
+        stk::mesh::FastMeshIndex target_node_index = ngp_mesh.fast_mesh_index(target_nodes[0]);
 
         // Fetch the normal vector (goes from source to target)
         const double normal_x = con_normal_ij(i, 0);
@@ -556,12 +642,12 @@ void compute_rate_of_change_of_sep(stk::mesh::NgpMesh &ngp_mesh, const LocalResu
         const double normal_z = con_normal_ij(i, 2);
 
         // Fetch the velocity of the source and target spheres
-        const double source_velocity_x = sphere_velocity(source_index, 0);
-        const double source_velocity_y = sphere_velocity(source_index, 1);
-        const double source_velocity_z = sphere_velocity(source_index, 2);
-        const double target_velocity_x = sphere_velocity(target_index, 0);
-        const double target_velocity_y = sphere_velocity(target_index, 1);
-        const double target_velocity_z = sphere_velocity(target_index, 2);
+        const double source_velocity_x = sphere_velocity(source_node_index, 0);
+        const double source_velocity_y = sphere_velocity(source_node_index, 1);
+        const double source_velocity_z = sphere_velocity(source_node_index, 2);
+        const double target_velocity_x = sphere_velocity(target_node_index, 0);
+        const double target_velocity_y = sphere_velocity(target_node_index, 1);
+        const double target_velocity_z = sphere_velocity(target_node_index, 2);
 
         // Compute the rate of change in separation
         signed_sep_dot(i) = -normal_x * (source_velocity_x - target_velocity_x) -
@@ -630,35 +716,52 @@ double get_max_speed(Mesh &ngp_mesh, Field &vel_field) {
 CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh, const double viscosity, const double dt,
                                    const double max_allowable_overlap, const int max_col_iterations,
                                    const LocalResultViewType &local_search_results,
-                                   stk::mesh::NgpField<double> &element_radius,
+                                   stk::mesh::NgpField<double> &elem_radius_field,
                                    stk::mesh::NgpField<double> &sphere_force,
                                    stk::mesh::NgpField<double> &sphere_velocity,
+                                   stk::mesh::NgpField<double> &sphere_collision_force,
+                                   stk::mesh::NgpField<double> &sphere_collision_velocity,
                                    const Kokkos::View<double *, DeviceMemorySpace> &signed_sep_dist,
                                    const Kokkos::View<double **, DeviceMemorySpace> &con_normal_ij,
-                                   const Kokkos::View<double *, DeviceMemorySpace> &lagrange_multipliers) {
+                                   const Kokkos::View<double *, DeviceMemorySpace> &lagrange_multipliers,
+                                   const Kokkos::View<double *, DeviceMemorySpace> &lagrange_multipliers_tmp,
+                                   const Kokkos::View<double *, DeviceMemorySpace> &signed_sep_dot,
+                                   const Kokkos::View<double *, DeviceMemorySpace> &signed_sep_dot_tmp) {
   // Matrix-free BBPGD
   int ite_count = 0;
   int num_collisions = local_search_results.extent(0);
-  Kokkos::View<double *, DeviceMemorySpace> lagrange_multipliers_tmp("lagrange_multipliers_tmp", num_collisions);
-  Kokkos::View<double *, DeviceMemorySpace> signed_sep_dot("signed_sep_dot", num_collisions);
-  Kokkos::View<double *, DeviceMemorySpace> signed_sep_dot_tmp("signed_sep_dot_tmp", num_collisions);
   const stk::ParallelMachine parallel = sphere_force.get_field_base()->get_mesh().parallel();
 
   // Use the given lagrange_multipliers as the initial guess
   Kokkos::deep_copy(lagrange_multipliers_tmp, lagrange_multipliers);
-  Kokkos::deep_copy(signed_sep_dot, 0.0);
   Kokkos::deep_copy(signed_sep_dot_tmp, 0.0);
+
+  // To account for external forces and external velocities, use them to update the initial signed_sep_dist
+  // phi_0_corrected = phi_0 + dt * D^T U_ext
+
+  // D^T U_ext
+  compute_rate_of_change_of_sep(ngp_mesh, local_search_results, sphere_velocity, con_normal_ij, signed_sep_dot);
+
+  // signed_sep_dist += dt * signed_sep_dot
+  Kokkos::parallel_for(
+      "UpdateSignedSepDist", Kokkos::RangePolicy<DeviceExecutionSpace>(0, num_collisions),
+      KOKKOS_LAMBDA(const int i) { signed_sep_dist(i) += dt * signed_sep_dot(i); });
+
+  ///////////////////////
+  Kokkos::deep_copy(signed_sep_dot, 0.0);
 
   // Compute gkm1 = D^T M D xkm1
 
   // Compute F = D xkm1
-  sum_collision_force(ngp_mesh, local_search_results, con_normal_ij, lagrange_multipliers_tmp, sphere_force);
+  sum_collision_force(ngp_mesh, local_search_results, con_normal_ij, lagrange_multipliers_tmp, sphere_collision_force);
 
   // Compute U = M F
-  compute_the_mobility_problem(ngp_mesh, viscosity, element_radius, sphere_force, sphere_velocity);
+  compute_the_mobility_problem(ngp_mesh, viscosity, elem_radius_field, sphere_collision_force,
+                               sphere_collision_velocity);
 
   // Compute gkm1 = dt D^T U
-  compute_rate_of_change_of_sep(ngp_mesh, local_search_results, sphere_velocity, con_normal_ij, signed_sep_dot_tmp);
+  compute_rate_of_change_of_sep(ngp_mesh, local_search_results, sphere_collision_velocity, con_normal_ij,
+                                signed_sep_dot_tmp);
 
   ///////////////////////
   // Check convergence //
@@ -686,13 +789,14 @@ CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh, const double vi
 
       // Compute new grad with xk: gk = dt D^T M D xk
       //   Compute F = D xk
-      sum_collision_force(ngp_mesh, local_search_results, con_normal_ij, lagrange_multipliers, sphere_force);
+      sum_collision_force(ngp_mesh, local_search_results, con_normal_ij, lagrange_multipliers, sphere_collision_force);
 
       // Compute U = M F
-      compute_the_mobility_problem(ngp_mesh, viscosity, element_radius, sphere_force, sphere_velocity);
+      compute_the_mobility_problem(ngp_mesh, viscosity, elem_radius_field, sphere_collision_force,
+                                   sphere_collision_velocity);
 
       //   Compute gk = dt D^T U
-      compute_rate_of_change_of_sep(ngp_mesh, local_search_results, sphere_velocity, con_normal_ij, signed_sep_dot);
+      compute_rate_of_change_of_sep(ngp_mesh, local_search_results, sphere_collision_velocity, con_normal_ij, signed_sep_dot);
 
       // check convergence via res = max(abs(projectPhi(gk)));
       compute_maximum_abs_projected_sep(parallel, lagrange_multipliers, signed_sep_dist, signed_sep_dot, dt,
@@ -700,8 +804,8 @@ CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh, const double vi
 
       if (maximum_abs_projected_sep < max_allowable_overlap) {
         // con_gammas worked.
-        std::cout << "Convergence reached: " << maximum_abs_projected_sep << " < " << max_allowable_overlap
-                  << std::endl;
+        // std::cout << "Convergence reached: " << maximum_abs_projected_sep << " < " << max_allowable_overlap
+        //           << std::endl;
         break;
       }
 
@@ -750,14 +854,30 @@ CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh, const double vi
     throw std::runtime_error("Collision resolution did not converge!");
   }
 
+  // Sum the collision forces and velocities into the total forces and velocities
+  stk::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::NODE_RANK, stk::mesh::Selector(*sphere_force.get_field_base()),
+      KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &node_index) {
+        sphere_force(node_index, 0) += sphere_collision_force(node_index, 0);
+        sphere_force(node_index, 1) += sphere_collision_force(node_index, 1);
+        sphere_force(node_index, 2) += sphere_collision_force(node_index, 2);
+
+        sphere_velocity(node_index, 0) += sphere_collision_velocity(node_index, 0);
+        sphere_velocity(node_index, 1) += sphere_collision_velocity(node_index, 1);
+        sphere_velocity(node_index, 2) += sphere_collision_velocity(node_index, 2);
+
+      });
+  sphere_force.modify_on_device();
+  sphere_velocity.modify_on_device();
+
   // Compute the maximum speed
   double max_speed = get_max_speed(ngp_mesh, sphere_velocity);
   CollisionResult result = {maximum_abs_projected_sep, ite_count, max_speed * dt};
   return result;
 }
 
-void check_overlap(const stk::mesh::BulkData &bulk_data, const stk::mesh::Field<double> &node_coordinates,
-                   const stk::mesh::Field<double> &element_radius, const double max_allowable_overlap) {
+void check_overlap(const stk::mesh::BulkData &bulk_data, const stk::mesh::Field<double> &node_coords_field,
+                   const stk::mesh::Field<double> &elem_radius_field, const double max_allowable_overlap) {
   // Do the check on host for easier printing
   // Loop over all pairs of spheres via the element buckets
   bool no_overlap = true;
@@ -771,37 +891,44 @@ void check_overlap(const stk::mesh::BulkData &bulk_data, const stk::mesh::Field<
 
     for (size_t source_bucket_ord = 0; source_bucket_ord < source_bucket_size; ++source_bucket_ord) {
       const stk::mesh::Entity &source_sphere = source_bucket[source_bucket_ord];
-      const double *source_coords = stk::mesh::field_data(node_coordinates, source_sphere);
-      const double source_radius = *stk::mesh::field_data(element_radius, source_sphere);
+      const stk::mesh::Entity &source_node = bulk_data.begin_nodes(source_sphere)[0];
+      const double *source_coords = stk::mesh::field_data(node_coords_field, source_node);
+      const double source_radius = *stk::mesh::field_data(elem_radius_field, source_sphere);
 
       for (size_t target_bucket_idx = 0; target_bucket_idx < num_buckets; ++target_bucket_idx) {
         stk::mesh::Bucket &target_bucket = *all_sphere_buckets[target_bucket_idx];
         const size_t target_bucket_size = target_bucket.size();
 
         for (size_t target_bucket_ord = 0; target_bucket_ord < target_bucket_size; ++target_bucket_ord) {
+          if (source_bucket_idx == target_bucket_idx && source_bucket_ord == target_bucket_ord) {
+            continue;
+          }
+
           const stk::mesh::Entity &target_sphere = target_bucket[target_bucket_ord];
-          const double *target_coords = stk::mesh::field_data(node_coordinates, target_sphere);
-          const double target_radius = *stk::mesh::field_data(element_radius, target_sphere);
+          const stk::mesh::Entity &target_node = bulk_data.begin_nodes(target_sphere)[0];
+          const double *target_coords = stk::mesh::field_data(node_coords_field, target_node);
+          const double target_radius = *stk::mesh::field_data(elem_radius_field, target_sphere);
 
           // Compute the distance between the centers of the spheres
-          const double source_to_target_x = source_coords[0] - target_coords[0];
-          const double source_to_target_y = source_coords[1] - target_coords[1];
-          const double source_to_target_z = source_coords[2] - target_coords[2];
+          const double source_to_target_x = target_coords[0] - source_coords[0];
+          const double source_to_target_y = target_coords[1] - source_coords[1];
+          const double source_to_target_z = target_coords[2] - source_coords[2];
           const double distance_between_centers =
               Kokkos::sqrt(source_to_target_x * source_to_target_x + source_to_target_y * source_to_target_y +
                            source_to_target_z * source_to_target_z);
 
           // Compute the overlap
-          const double ssd = distance_between_centers - 2.0 * source_radius;
-          if (ssd < -max_allowable_overlap) {
+          const double ssd = distance_between_centers - source_radius - target_radius;
+          if (ssd < -max_allowable_overlap  + 1e-12) {
             // The spheres are overlapping too much
             no_overlap = false;
-            // std::cout << "Overlap detected between spheres " << t << " and " << s << std::endl;
+            // std::cout << "Overlap detected between spheres " << target_sphere << " and " << source_sphere << std::endl;
             // std::cout << "Distance between centers: " << distance_between_centers << std::endl;
+            // std::cout << "Radii: " << source_radius << " and " << target_radius << std::endl;
             // std::cout << "Overlap: " << ssd << std::endl;
-            // std::cout << "Sphere positions: (" << x_i << ", " << y_i << ", " << z_i << ") and (" << x_j << ", " <<
-            // y_j
-            //           << ", " << z_j << ")" << std::endl;
+            // std::cout << "Sphere positions: (" << source_coords[0] << ", " << source_coords[1] << ", "
+            //           << source_coords[2] << ") and (" << target_coords[0] << ", " << target_coords[1] << ", "
+            //           << target_coords[2] << ")" << std::endl;
           }
         }
       }
@@ -815,39 +942,52 @@ void check_overlap(const stk::mesh::BulkData &bulk_data, const stk::mesh::Field<
   }
 }
 
-void update_sphere_positions(stk::mesh::NgpMesh &ngp_mesh, const double time_step,
-                             stk::mesh::NgpField<double> &node_coordinates,
-                             stk::mesh::NgpField<double> &node_velocity) {
-  node_coordinates.sync_to_device();
-  node_velocity.sync_to_device();
-  auto selector = stk::mesh::Selector(*node_coordinates.get_field_base());
+void update_sphere_positions(stk::mesh::NgpMesh &ngp_mesh, const double time_step_size,
+                             stk::mesh::NgpField<double> &node_coords_field,
+                             stk::mesh::NgpField<double> &node_velocity_field) {
+  node_coords_field.sync_to_device();
+  node_velocity_field.sync_to_device();
+  auto selector = stk::mesh::Selector(*node_coords_field.get_field_base());
   stk::mesh::for_each_entity_run(
       ngp_mesh, stk::topology::NODE_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &node_index) {
-        stk::mesh::Entity node = ngp_mesh.get_entity(stk::topology::NODE_RANK, node_index);
-        stk::mesh::EntityFieldData<double> node_coords = node_coordinates(node_index);
-        stk::mesh::EntityFieldData<double> node_vel = node_velocity(node_index);
+        stk::mesh::EntityFieldData<double> node_coords = node_coords_field(node_index);
+        stk::mesh::EntityFieldData<double> node_vel = node_velocity_field(node_index);
 
-        node_coords[0] += time_step * node_vel[0];
-        node_coords[1] += time_step * node_vel[1];
-        node_coords[2] += time_step * node_vel[2];
+        node_coords[0] += time_step_size * node_vel[0];
+        node_coords[1] += time_step_size * node_vel[1];
+        node_coords[2] += time_step_size * node_vel[2];
       });
 
-  node_coordinates.modify_on_device();
+  node_coords_field.modify_on_device();
 }
 
-void add_external_force(stk::mesh::NgpMesh &ngp_mesh, stk::mesh::NgpField<double> &node_coordinates,
-                        stk::mesh::NgpField<double> &node_force) {
-  node_coordinates.sync_to_device();
-  node_force.sync_to_device();
-  auto selector = stk::mesh::Selector(*node_force.get_field_base());
+void apply_attractive_abc_flow(stk::mesh::NgpMesh &ngp_mesh, stk::mesh::NgpField<double> &node_coords_field,
+                               stk::mesh::NgpField<double> &node_force_field) {
+  node_coords_field.sync_to_device();
+  node_force_field.sync_to_device();
+
+  const double a = 1.0;
+  const double b = Kokkos::sqrt(2.0);
+  const double c = Kokkos::sqrt(3.0);
+  const double attraction_coeff = 2.0;
+  auto selector = stk::mesh::Selector(*node_coords_field.get_field_base());
   stk::mesh::for_each_entity_run(
       ngp_mesh, stk::topology::NODE_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &node_index) {
-        node_force(node_index, 0) -= node_coordinates(node_index, 0);
-        node_force(node_index, 1) -= node_coordinates(node_index, 1);
-        node_force(node_index, 2) -= node_coordinates(node_index, 2);
+        stk::mesh::EntityFieldData<double> node_coords = node_coords_field(node_index);
+        stk::mesh::EntityFieldData<double> node_force = node_force_field(node_index);
+
+        const double coords_x = node_coords[0];
+        const double coords_y = node_coords[1];
+        const double coords_z = node_coords[2];
+        const double r = Kokkos::sqrt(coords_x * coords_x + coords_y * coords_y + coords_z * coords_z);
+        const double inv_r = 1.0 / r;
+
+        node_force[0] += a * Kokkos::sin(coords_z) + c * Kokkos::cos(coords_y) - attraction_coeff * coords_x * inv_r;
+        node_force[1] += b * Kokkos::sin(coords_x) + a * Kokkos::cos(coords_z) - attraction_coeff * coords_y * inv_r;
+        node_force[2] += c * Kokkos::sin(coords_y) + b * Kokkos::cos(coords_x) - attraction_coeff * coords_z * inv_r;
       });
 
-  node_force.modify_on_device();
+  node_force_field.modify_on_device();
 }
 //@}
 
@@ -877,14 +1017,6 @@ class RcbSettings : public stk::balance::BalanceSettings {
 //@}
 
 int main(int argc, char **argv) {
-  if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " <box_size> <num_spheres>" << std::endl;
-    return 1;
-  }
-
-  double box_size = std::stod(argv[1]);
-  int num_spheres = std::stoi(argv[2]);
-
   // Initialize MPI
   stk::parallel_machine_init(&argc, &argv);
   Kokkos::initialize(argc, argv);
@@ -892,19 +1024,19 @@ int main(int argc, char **argv) {
 
   {
     // Simulation of N spheres in a cube
-    const double viscosity = 1.0;
-    const double youngs_modulus = 10.0;
-    const double poisson_ratio = 0.3;
     const double sphere_radius_min = 1.0;
     const double sphere_radius_max = 1.0;
-    const int max_col_iterations = 10000;
-    const double max_allowable_overlap = 1e-5;
+    const double num_spheres = 100000;
+    const double viscosity = 1.0 / (6.0 * Kokkos::numbers::pi * sphere_radius_max);
 
-    const Kokkos::Array<double, 3> unit_cell_bottom_left = {0.0, 0.0, 0.0};
-    const Kokkos::Array<double, 3> unit_cell_top_right = {box_size, box_size, box_size};
-    const double time_step_size = 0.00001;
-    const size_t num_time_steps = 10;
-    const size_t io_frequency = 1;
+    const Kokkos::Array<double, 3> unit_cell_bottom_left = {-50.0, -50.0, -50.0};
+    const Kokkos::Array<double, 3> unit_cell_top_right = {50.0, 50.0, 50.0};
+    const double time_step_size = 0.0001;
+    const size_t num_time_steps = 1000 / time_step_size;
+    const size_t io_frequency = std::round(0.1 / time_step_size);
+    const double search_buffer = sphere_radius_max;
+    const int max_col_iterations = 10000;
+    const double max_allowable_overlap = 1e-3;
 
     const double volume_fraction =
         4.0 / 3.0 * M_PI * sphere_radius_max * sphere_radius_max * sphere_radius_max * num_spheres /
@@ -915,6 +1047,7 @@ int main(int argc, char **argv) {
     std::cout << "  Sphere radius min: " << sphere_radius_min << std::endl;
     std::cout << "  Sphere radius max: " << sphere_radius_max << std::endl;
     std::cout << "  Volume fraction: " << volume_fraction << std::endl;
+    std::cout << "  IO frequency: " << io_frequency << std::endl;
 
     // Setup the STK mesh
     stk::mesh::MeshBuilder mesh_builder(MPI_COMM_WORLD);
@@ -923,7 +1056,7 @@ int main(int argc, char **argv) {
     std::shared_ptr<stk::mesh::MetaData> meta_data_ptr = mesh_builder.create_meta_data();
     meta_data_ptr->use_simple_fields();  // Depreciated in newer versions of STK as they have finished the transition to
                                          // all fields are simple.
-    meta_data_ptr->set_coordinate_field_name("COORDS");
+    meta_data_ptr->set_coordinate_field_name("NODE_COORDS");
     std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = mesh_builder.create(meta_data_ptr);
     stk::mesh::MetaData &meta_data = *meta_data_ptr;
     stk::mesh::BulkData &bulk_data = *bulk_data_ptr;
@@ -931,84 +1064,118 @@ int main(int argc, char **argv) {
     // Create the spheres
     auto &spheres_part = meta_data.declare_part_with_topology("SPHERES", stk::topology::PARTICLE);
     stk::io::put_io_part_attribute(spheres_part);
-    auto &node_coordinates = meta_data.declare_field<double>(stk::topology::NODE_RANK, "COORDS");
-    auto &node_force = meta_data.declare_field<double>(stk::topology::NODE_RANK, "FORCE");
-    auto &node_velocity = meta_data.declare_field<double>(stk::topology::NODE_RANK, "VELOCITY");
-    auto &element_radius = meta_data.declare_field<double>(stk::topology::ELEMENT_RANK, "RADIUS");
-
-    // Create the sphere-sphere linkers
-    auto &sphere_sphere_linkers_part = meta_data.declare_part("SPHERE_SPHERE_LINKERS", stk::topology::CONSTRAINT_RANK);
-    auto &linked_entities_field = meta_data.declare_field<double>(stk::topology::CONSTRAINT_RANK, "LINKED_ENTITIES");
-    auto &linked_entity_owners_field =
-        meta_data.declare_field<int>(stk::topology::CONSTRAINT_RANK, "LINKED_ENTITY_OWNERS");
+    auto &node_coords_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
+    auto &node_displacement_since_last_rebuild_field =
+        meta_data.declare_field<double>(stk::topology::NODE_RANK, "OUR_DISP");
+    auto &node_force_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "FORCE");
+    auto &node_velocity_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "VELOCITY");
+    auto &node_collision_force_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "COLLISION_FORCE");
+    auto &node_collision_velocity_field =
+        meta_data.declare_field<double>(stk::topology::NODE_RANK, "COLLISION_VELOCITY");
+    auto &elem_radius_field = meta_data.declare_field<double>(stk::topology::ELEMENT_RANK, "RADIUS");
 
     // Assign fields to parts
-    stk::mesh::put_field_on_mesh(node_coordinates, meta_data.universal_part(), 3, nullptr);
-    stk::mesh::put_field_on_mesh(node_force, spheres_part, 3, nullptr);
-    stk::mesh::put_field_on_mesh(node_velocity, spheres_part, 3, nullptr);
-    stk::mesh::put_field_on_mesh(element_radius, spheres_part, 1, nullptr);
-    stk::mesh::put_field_on_mesh(linked_entities_field, sphere_sphere_linkers_part, 2, nullptr);
-    stk::mesh::put_field_on_mesh(linked_entity_owners_field, sphere_sphere_linkers_part, 1, nullptr);
+    double zero3[3] = {0.0, 0.0, 0.0};
+    stk::mesh::put_field_on_mesh(node_coords_field, meta_data.universal_part(), 3, nullptr);
+    stk::mesh::put_field_on_mesh(node_displacement_since_last_rebuild_field, spheres_part, 3, zero3);
+    stk::mesh::put_field_on_mesh(node_force_field, spheres_part, 3, nullptr);
+    stk::mesh::put_field_on_mesh(node_velocity_field, spheres_part, 3, nullptr);
+    stk::mesh::put_field_on_mesh(node_collision_force_field, spheres_part, 3, nullptr);
+    stk::mesh::put_field_on_mesh(node_collision_velocity_field, spheres_part, 3, nullptr);
+    stk::mesh::put_field_on_mesh(elem_radius_field, spheres_part, 1, nullptr);
 
     // Concretize the mesh
     meta_data.commit();
 
+    // Get the NGP stuff
+    stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
+    auto &ngp_node_coords_field = stk::mesh::get_updated_ngp_field<double>(node_coords_field);
+    auto &ngp_node_displacement_since_last_rebuild_field =
+        stk::mesh::get_updated_ngp_field<double>(node_displacement_since_last_rebuild_field);
+    auto &ngp_node_force_field = stk::mesh::get_updated_ngp_field<double>(node_force_field);
+    auto &ngp_node_velocity_field = stk::mesh::get_updated_ngp_field<double>(node_velocity_field);
+    auto &ngp_node_collision_force_field = stk::mesh::get_updated_ngp_field<double>(node_collision_force_field);
+    auto &ngp_node_collision_velocity_field = stk::mesh::get_updated_ngp_field<double>(node_collision_velocity_field);
+    auto &ngp_elem_radius_field = stk::mesh::get_updated_ngp_field<double>(elem_radius_field);
+
     // Generate the particles
     generate_particles(bulk_data, num_spheres, spheres_part);
 
+    // Randomize the positions and radii
+    randomize_positions_and_radii(ngp_mesh, spheres_part, sphere_radius_min, sphere_radius_max, unit_cell_bottom_left,
+                                  unit_cell_top_right, ngp_node_coords_field, ngp_elem_radius_field);
+
     // Balance the mesh
     stk::balance::balanceStkMesh(RcbSettings{}, bulk_data);
-
-    // Get the NGP stuff
-    stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
-    auto &ngp_node_coordinates = stk::mesh::get_updated_ngp_field<double>(node_coordinates);
-    auto &ngp_node_force = stk::mesh::get_updated_ngp_field<double>(node_force);
-    auto &ngp_node_velocity = stk::mesh::get_updated_ngp_field<double>(node_velocity);
-    auto &ngp_element_radius = stk::mesh::get_updated_ngp_field<double>(element_radius);
 
     // Collision constraint memory
     size_t num_neighbor_pairs;
     Kokkos::View<double *, DeviceMemorySpace> signed_sep_dist;
     Kokkos::View<double **, DeviceMemorySpace> con_normal_ij;
     Kokkos::View<double *, DeviceMemorySpace> lagrange_multipliers;
-    Kokkos::View<double *, DeviceMemorySpace> inv_stiffness;
+    Kokkos::View<double *, DeviceMemorySpace> lagrange_multipliers_tmp;
+    Kokkos::View<double *, DeviceMemorySpace> signed_sep_dot;
+    Kokkos::View<double *, DeviceMemorySpace> signed_sep_dot_tmp;
 
     // Timeloop
     bool rebuild_neighbors = true;
     ResultViewType search_results;
     LocalResultViewType local_search_results;
     SearchSpheresViewType search_spheres;
+
+    Kokkos::Timer overall_timer;
     Kokkos::Timer tps_timer;
-    for (size_t time_step = 0; time_step < num_time_steps; ++time_step) {
-      // Randomize the positions and radii
-      randomize_positions_and_radii(ngp_mesh, spheres_part, sphere_radius_min, sphere_radius_max, unit_cell_bottom_left,
-                                    unit_cell_top_right, ngp_node_coordinates, ngp_element_radius);
-
-      if (time_step % io_frequency == 0) {
-        std::cout << "Time step: " << time_step << " running at "
-                  << static_cast<double>(io_frequency) / tps_timer.seconds() << " tps "
-                  << " or " << tps_timer.seconds() / static_cast<double>(io_frequency) << " spt" << std::endl;
+    for (size_t time_step_index = 0; time_step_index < num_time_steps; ++time_step_index) {
+      if (time_step_index % io_frequency == 0) {
+        std::cout << "Time step: " << time_step_index << " | Total time: " << time_step_index * time_step_size << std::endl;
+        std::cout << "  Time elapsed: " << overall_timer.seconds() << " s" << std::endl;
+        std::cout << "  Running avg tps: " << static_cast<double>(io_frequency) / tps_timer.seconds() << std::endl;
         tps_timer.reset();
-        // Comm fields to host
-        // ngp_node_coordinates.sync_to_host();
-        // ngp_node_force.sync_to_host();
-        // ngp_node_velocity.sync_to_host();
-        // ngp_element_radius.sync_to_host();
 
-        // Write to file
-        // stk::io::write_mesh("spheres_" + std::to_string(time_step) + ".e", bulk_data, stk::io::WRITE_RESULTS);
+        // Comm fields to host
+        // ngp_node_coords_field.sync_to_host();
+        // ngp_node_force_field.sync_to_host();
+        // ngp_node_velocity_field.sync_to_host();
+        // ngp_elem_radius_field.sync_to_host();
+
+        // // Write to file using Paraview compatable naming
+        // stk::io::write_mesh_with_fields("lcp_spheres.e-s." + std::to_string(time_step_index), bulk_data,
+        //                                 time_step_index + 1, time_step_index * time_step_size, stk::io::WRITE_RESULTS);
+      }
+
+      // Update the displacement since the last rebuild
+      ngp_node_displacement_since_last_rebuild_field.sync_to_device();
+      ngp_node_velocity_field.sync_to_device();
+      stk::mesh::for_each_entity_run(
+          ngp_mesh, stk::topology::NODE_RANK,
+          stk::mesh::Selector(*ngp_node_displacement_since_last_rebuild_field.get_field_base()),
+          KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &node_index) {
+            ngp_node_displacement_since_last_rebuild_field(node_index, 0) +=
+                time_step_size * ngp_node_velocity_field(node_index, 0);
+            ngp_node_displacement_since_last_rebuild_field(node_index, 1) +=
+                time_step_size * ngp_node_velocity_field(node_index, 1);
+            ngp_node_displacement_since_last_rebuild_field(node_index, 2) +=
+                time_step_size * ngp_node_velocity_field(node_index, 2);
+          });
+      ngp_node_displacement_since_last_rebuild_field.modify_on_device();
+      double max_disp = get_max_speed(ngp_mesh, ngp_node_displacement_since_last_rebuild_field);
+      if (max_disp > search_buffer) {
+        rebuild_neighbors = true;
       }
 
       if (rebuild_neighbors) {
+        std::cout << "Rebuilding neighbors." << std::endl;
+
         Kokkos::Timer create_search_timer;
-        search_spheres =
-            create_search_spheres(bulk_data, ngp_mesh, spheres_part, ngp_node_coordinates, ngp_element_radius);
-        std::cout << "Create search spheres time: " << create_search_timer.seconds() << std::endl;
+        search_spheres = create_search_spheres(bulk_data, ngp_mesh, search_buffer, spheres_part, ngp_node_coords_field,
+                                               ngp_elem_radius_field);
+        // std::cout << "Create search spheres time: " << create_search_timer.seconds() << std::endl;
 
         Kokkos::Timer search_timer;
         stk::search::SearchMethod search_method = stk::search::MORTON_LBVH;
 
         // WARNING: auto_swap_domain_and_range must be true to avoid double counting forces.
+        stk::ngp::ExecSpace exec_space{};
         const bool results_parallel_symmetry = true;      // create source -> target and target -> source pairs
         const bool auto_swap_domain_and_range = true;     // swap source and target if target is owned and source is not
         const bool sort_search_results = true;            // sort the search results by source id
@@ -1016,39 +1183,89 @@ int main(int argc, char **argv) {
                                    search_spheres,        //
                                    search_method,         //
                                    bulk_data.parallel(),  //
-                                   search_results, DeviceExecutionSpace{},  //
+                                   search_results, exec_space,  //
                                    results_parallel_symmetry);
         num_neighbor_pairs = search_results.extent(0);
-        std::cout << "Search time: " << search_timer.seconds() << " with " << num_neighbor_pairs << " results."
-                  << std::endl;
+        // std::cout << "Search time: " << search_timer.seconds() << " with " << num_neighbor_pairs << " results."
+        //           << std::endl;
 
         // Ghost the non-owned spheres
         Kokkos::Timer ghost_timer;
         ghost_neighbors(bulk_data, search_results);
-        std::cout << "Ghost time: " << ghost_timer.seconds() << std::endl;
+        // std::cout << "Ghost time: " << ghost_timer.seconds() << std::endl;
 
         // Create local neighbor indices
         Kokkos::Timer local_index_conversion_timer;
         local_search_results = get_local_neighbor_indices(bulk_data, stk::topology::ELEMENT_RANK, search_results);
-        std::cout << "Local index conversion time: " << local_index_conversion_timer.seconds() << std::endl;
+        // std::cout << "Local index conversion time: " << local_index_conversion_timer.seconds() << std::endl;
+
+        // Only resize the collision views if the number of neighbor pairs has changed
+        // Otherwise we can reuse the previous lagrange multipliers as the initial guess
+        signed_sep_dist = Kokkos::View<double *, DeviceMemorySpace>("signed_sep_dist", num_neighbor_pairs);
+        con_normal_ij = Kokkos::View<double **, DeviceMemorySpace>("con_normal_ij", num_neighbor_pairs, 3);
+        lagrange_multipliers = Kokkos::View<double *, DeviceMemorySpace>("lagrange_multipliers", num_neighbor_pairs);
+        lagrange_multipliers_tmp =
+            Kokkos::View<double *, DeviceMemorySpace>("lagrange_multipliers_tmp", num_neighbor_pairs);
+        signed_sep_dot = Kokkos::View<double *, DeviceMemorySpace>("signed_sep_dot", num_neighbor_pairs);
+        signed_sep_dot_tmp = Kokkos::View<double *, DeviceMemorySpace>("signed_sep_dot_tmp", num_neighbor_pairs);
+        Kokkos::deep_copy(lagrange_multipliers, 0.0);  // initial guess
+
+        // Reset the accumulated displacements and the rebuild flag
+        ngp_node_displacement_since_last_rebuild_field.sync_to_device();
+        ngp_node_displacement_since_last_rebuild_field.set_all(ngp_mesh, 0.0);
+        ngp_node_displacement_since_last_rebuild_field.modify_on_device();
+        rebuild_neighbors = false;
       }
+
+      // Setup/reset the forces and velocities
+      ngp_node_force_field.sync_to_device();
+      ngp_node_velocity_field.sync_to_device();
+      ngp_node_collision_force_field.sync_to_device();
+      ngp_node_collision_velocity_field.sync_to_device();
+
+      ngp_node_force_field.set_all(ngp_mesh, 0.0);
+      ngp_node_velocity_field.set_all(ngp_mesh, 0.0);
+      ngp_node_collision_force_field.set_all(ngp_mesh, 0.0);
+      ngp_node_collision_velocity_field.set_all(ngp_mesh, 0.0);
+
+      ngp_node_force_field.modify_on_device();
+      ngp_node_velocity_field.modify_on_device();
+      ngp_node_collision_force_field.modify_on_device();
+      ngp_node_collision_velocity_field.modify_on_device();
+
+      // Evaluate external velocities
+      Kokkos::Timer flow_timer;
+      apply_attractive_abc_flow(ngp_mesh, ngp_node_coords_field, ngp_node_force_field);
+      compute_the_mobility_problem(ngp_mesh, viscosity, ngp_elem_radius_field, ngp_node_force_field,
+                                   ngp_node_velocity_field);
+      // std::cout << "Flow time: " << flow_timer.seconds() << std::endl;
 
       // Initialize the constraints
       Kokkos::Timer init_constraints_timer;
-      signed_sep_dist = Kokkos::View<double *, DeviceMemorySpace>("signed_sep_dist", num_neighbor_pairs);
-      con_normal_ij = Kokkos::View<double **, DeviceMemorySpace>("con_normal_ij", num_neighbor_pairs, 3);
-      lagrange_multipliers = Kokkos::View<double *, DeviceMemorySpace>("lagrange_multipliers", num_neighbor_pairs);
-      Kokkos::deep_copy(lagrange_multipliers, 0.0);  // initial guess
-      compute_signed_separation_distance_and_contact_normal(ngp_mesh, local_search_results, ngp_node_coordinates,
-                                                            ngp_element_radius, signed_sep_dist, con_normal_ij);
-      std::cout << "Init constraints time: " << init_constraints_timer.seconds() << std::endl;
+      compute_signed_separation_distance_and_contact_normal(ngp_mesh, local_search_results, ngp_node_coords_field,
+                                                            ngp_elem_radius_field, signed_sep_dist, con_normal_ij);
+      // std::cout << "Init constraints time: " << init_constraints_timer.seconds() << std::endl;
 
       Kokkos::Timer contact_timer;
-      CollisionResult result = resolve_collisions(
-          ngp_mesh, viscosity, time_step_size, max_allowable_overlap, max_col_iterations, local_search_results,
-          ngp_element_radius, ngp_node_force, ngp_node_velocity, signed_sep_dist, con_normal_ij, lagrange_multipliers);
-      std::cout << std::setprecision(8) << "Contact time: " << contact_timer.seconds() << std::endl;
-
+      Kokkos::deep_copy(lagrange_multipliers, 0.0);                             // initial guess
+      CollisionResult result = resolve_collisions(ngp_mesh,                     //
+                                                  viscosity,                    //
+                                                  time_step_size,               //
+                                                  max_allowable_overlap,        //
+                                                  max_col_iterations,           //
+                                                  local_search_results,         //
+                                                  ngp_elem_radius_field,     //
+                                                  ngp_node_force_field,         //
+                                                  ngp_node_velocity_field,      //
+                                                  ngp_node_collision_force_field,     //
+                                                  ngp_node_collision_velocity_field,  //
+                                                  signed_sep_dist,              //
+                                                  con_normal_ij,                //
+                                                  lagrange_multipliers,         //
+                                                  lagrange_multipliers_tmp,     //
+                                                  signed_sep_dot,               //
+                                                  signed_sep_dot_tmp);
+      // std::cout << std::setprecision(8) << "Contact time: " << contact_timer.seconds() << std::endl;
       std::cout << "Result: " << std::endl;
       std::cout << "  Max abs projected sep: " << result.max_abs_projected_sep << std::endl;
       std::cout << "  Number of iterations: " << result.ite_count << std::endl;
@@ -1056,8 +1273,14 @@ int main(int argc, char **argv) {
 
       // Take an Euler step
       Kokkos::Timer update_timer;
-      update_sphere_positions(ngp_mesh, time_step_size, ngp_node_coordinates, ngp_node_velocity);
-      std::cout << "Update time: " << update_timer.seconds() << std::endl;
+      update_sphere_positions(ngp_mesh, time_step_size, ngp_node_coords_field, ngp_node_velocity_field);
+      // std::cout << "Update time: " << update_timer.seconds() << std::endl;
+
+      // N^2 check for overlap
+      // ngp_node_coords_field.sync_to_host();
+      // ngp_elem_radius_field.sync_to_host();
+      // check_overlap(bulk_data, node_coords_field, elem_radius_field, max_allowable_overlap);
+    
     }
   }
 
@@ -1070,8 +1293,7 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-#else 
-
+#else
 
 int main() {
   std::cout << "This example requires Trilinos 16.0.0 or greater." << std::endl;

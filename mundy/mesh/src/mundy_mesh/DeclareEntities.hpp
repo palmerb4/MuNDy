@@ -166,8 +166,8 @@ class DeclareEntitiesHelper {
 
     // Print Parts
     os << "  Parts: ";
-    int part_counter = 0;
-    int num_parts = info.parts.size();
+    size_t part_counter = 0;
+    size_t num_parts = info.parts.size();
     if (num_parts == 0) {
       os << "None";
     } else {
@@ -190,8 +190,8 @@ class DeclareEntitiesHelper {
 
     // Print Field Data
     os << "  Field Data: ";
-    int field_data_counter = 0;
-    int num_field_data = info.field_data.size();
+    size_t field_data_counter = 0;
+    size_t num_field_data = info.field_data.size();
     if (num_field_data == 0) {
       os << "None";
     } else {
@@ -224,8 +224,8 @@ class DeclareEntitiesHelper {
     // Print Node IDs
     os << "  Number of Node IDs: " << info.node_ids.size() << "\n";
     os << "  Node IDs: ";
-    int node_id_counter = 0;
-    int num_node_ids = info.node_ids.size();
+    size_t node_id_counter = 0;
+    size_t num_node_ids = info.node_ids.size();
     if (num_node_ids == 0) {
       os << "None";
     } else {
@@ -245,8 +245,8 @@ class DeclareEntitiesHelper {
     // Print Parts
     os << "  Number of Parts: " << info.parts.size() << "\n";
     os << "  Parts: ";
-    int part_counter = 0;
-    int num_parts = info.parts.size();
+    size_t part_counter = 0;
+    size_t num_parts = info.parts.size();
     if (num_parts == 0) {
       os << "None";
     } else {
@@ -270,8 +270,8 @@ class DeclareEntitiesHelper {
     // Print Field Data
     os << "  Number of Field Data: " << info.field_data.size() << "\n";
     os << "  Field Data: ";
-    int field_data_counter = 0;
-    int num_field_data = info.field_data.size();
+    size_t field_data_counter = 0;
+    size_t num_field_data = info.field_data.size();
     if (num_field_data == 0) {
       os << "None";
     } else {
@@ -598,8 +598,8 @@ class DeclareEntitiesHelper {
     //
     // for upper bound search use the maximum key for a bucket in the partition.
     const unsigned max = static_cast<unsigned>(-1);
-    (*key_ptr)[0] = part_count + 1;
-    (*key_ptr)[(*key_ptr)[0]] = max;
+    (*key_ptr)[0] = static_cast<stk::mesh::PartOrdinal>(part_count + 1);
+    (*key_ptr)[(*key_ptr)[0]] = static_cast<stk::mesh::PartOrdinal>(max);
 
     {
       for (unsigned i = 0; i < part_count; ++i) {

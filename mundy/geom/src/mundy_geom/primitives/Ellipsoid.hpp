@@ -139,7 +139,7 @@ class Ellipsoid {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~Ellipsoid() = default;
 
   /// \brief Deep copy constructor
@@ -426,7 +426,7 @@ std::ostream& operator<<(std::ostream& os, const EllipsoidType& ellipsoid) {
 }
 
 template <ValidEllipsoidType EllipsoidType>
-KOKKOS_FUNCTION mundy::geom::Point<typename EllipsoidType::scalar_t> map_body_frame_normal_to_ellipsoid(
+KOKKOS_FUNCTION Point<typename EllipsoidType::scalar_t> map_body_frame_normal_to_ellipsoid(
     const mundy::math::Vector3<typename EllipsoidType::scalar_t>& body_frame_nhat, const EllipsoidType& ellipsoid) {
   using Scalar = typename EllipsoidType::scalar_t;
   constexpr Scalar half = static_cast<Scalar>(0.5);
@@ -464,7 +464,7 @@ KOKKOS_FUNCTION mundy::geom::Point<typename EllipsoidType::scalar_t> map_body_fr
   const Scalar y = half * sign1 * ((one + sign1) * r2 + (one - sign1) * r2) * Kokkos::sqrt(one - alpha1) * sqrt_alpha2;
   const Scalar z = half * sign2 * ((one + sign2) * r3 + (one - sign2) * r3) * Kokkos::sqrt(one - alpha2);
 
-  return mundy::geom::Point<Scalar>(x, y, z);
+  return Point<Scalar>(x, y, z);
 }
 
 template <typename Scalar, typename Accessor1, typename OwnershipType1, ValidEllipsoidType EllipsoidType>

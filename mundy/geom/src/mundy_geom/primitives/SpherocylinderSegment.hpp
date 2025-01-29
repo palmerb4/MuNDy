@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_GEOM_PRIMITIVES_SSPHEROCYLINDERSEGMENT_HPP_
-#define MUNDY_GEOM_PRIMITIVES_SSPHEROCYLINDERSEGMENT_HPP_
+#ifndef MUNDY_GEOM_PRIMITIVES_SPHEROCYLINDERSEGMENT_HPP_
+#define MUNDY_GEOM_PRIMITIVES_SPHEROCYLINDERSEGMENT_HPP_
 
 // External libs
 #include <Kokkos_Core.hpp>
@@ -95,7 +95,7 @@ class SpherocylinderSegment {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~SpherocylinderSegment() = default;
 
   /// \brief Deep copy constructor
@@ -292,20 +292,20 @@ concept ValidSpherocylinderSegmentType = requires(
   typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t;
   {
     spherocylinder_segment.start()
-  } -> std::convertible_to<mundy::geom::Point<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t>>;
+  } -> std::convertible_to<Point<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t>>;
   {
     spherocylinder_segment.end()
-  } -> std::convertible_to<mundy::geom::Point<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t>>;
+  } -> std::convertible_to<Point<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t>>;
   {
     spherocylinder_segment.radius()
   } -> std::convertible_to<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t&>;
 
   {
     const_spherocylinder_segment.start()
-  } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t>>;
+  } -> std::convertible_to<const Point<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t>>;
   {
     const_spherocylinder_segment.end()
-  } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t>>;
+  } -> std::convertible_to<const Point<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t>>;
   {
     const_spherocylinder_segment.radius()
   } -> std::convertible_to<const typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t&>;
@@ -352,4 +352,4 @@ std::ostream& operator<<(std::ostream& os, const SpherocylinderSegmentType& sphe
 
 }  // namespace mundy
 
-#endif  // MUNDY_GEOM_PRIMITIVES_SSPHEROCYLINDERSEGMENT_HPP_
+#endif  // MUNDY_GEOM_PRIMITIVES_SPHEROCYLINDERSEGMENT_HPP_

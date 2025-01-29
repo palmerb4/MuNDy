@@ -90,7 +90,7 @@ class LineSegment {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~LineSegment() = default;
 
   /// \brief Deep copy constructor
@@ -256,11 +256,11 @@ concept ValidLineSegmentType =
     requires(std::remove_cv_t<LineSegmentType> line, const std::remove_cv_t<LineSegmentType> const_line) {
       is_line_segment_v<std::remove_cv_t<LineSegmentType>>;
       typename std::remove_cv_t<LineSegmentType>::scalar_t;
-      { line.start() } -> std::convertible_to<mundy::geom::Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
-      { line.end() } -> std::convertible_to<mundy::geom::Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
+      { line.start() } -> std::convertible_to<Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
+      { line.end() } -> std::convertible_to<Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
 
-      { const_line.start() } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
-      { const_line.end() } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
+      { const_line.start() } -> std::convertible_to<const Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
+      { const_line.end() } -> std::convertible_to<const Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
   };  // ValidLineSegmentType
 
 static_assert(ValidLineSegmentType<LineSegment<float>> && ValidLineSegmentType<const LineSegment<float>> &&

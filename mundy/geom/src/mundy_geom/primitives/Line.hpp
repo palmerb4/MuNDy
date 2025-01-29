@@ -96,7 +96,7 @@ class Line {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~Line() = default;
 
   /// \brief Deep copy constructor
@@ -262,10 +262,10 @@ concept ValidLineType =
     requires(std::remove_cv_t<LineType> line, const std::remove_cv_t<LineType> const_line) {
       is_line_v<LineType>;
       typename std::remove_cv_t<LineType>::scalar_t;
-      { line.center() } -> std::convertible_to<mundy::geom::Point<typename std::remove_cv_t<LineType>::scalar_t>>;
+      { line.center() } -> std::convertible_to<Point<typename std::remove_cv_t<LineType>::scalar_t>>;
       { line.direction() } -> std::convertible_to<mundy::math::Vector3<typename std::remove_cv_t<LineType>::scalar_t>>;
 
-      { const_line.center() } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<LineType>::scalar_t>>;
+      { const_line.center() } -> std::convertible_to<const Point<typename std::remove_cv_t<LineType>::scalar_t>>;
       {
         const_line.direction()
       } -> std::convertible_to<const mundy::math::Vector3<typename std::remove_cv_t<LineType>::scalar_t>>;

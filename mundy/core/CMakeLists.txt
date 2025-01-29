@@ -20,6 +20,7 @@ SET(NOINSTALLHEADERS
   src/mundy_core/OurAnyNumberParameterEntryValidator.hpp
   src/mundy_core/StringLiteral.hpp
   src/mundy_core/throw_assert.hpp
+  src/mundy_core/tuple.hpp
   )
 
 SET(SOURCES 

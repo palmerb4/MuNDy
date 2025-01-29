@@ -91,7 +91,7 @@ class HookeanSpring {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~HookeanSpring() = default;
 
   /// \brief Deep copy constructor

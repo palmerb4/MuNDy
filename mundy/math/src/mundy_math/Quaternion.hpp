@@ -913,7 +913,7 @@ class Quaternion {
   }
 
   /// \brief Destructor
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~Quaternion() = default;
 
   /// \brief Deep copy constructor

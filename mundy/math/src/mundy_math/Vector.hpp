@@ -435,7 +435,7 @@ class Vector<T, N, Accessor, Ownership::Views> {
   }
 
   /// \brief Destructor
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   ~Vector() = default;
 
   /// \brief Shallow copy constructor. Stores a reference to the accessor in the other vector.
@@ -795,7 +795,7 @@ class Vector {
 
   /// \brief Default constructor. Assume elements are uninitialized.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
-  KOKKOS_INLINE_FUNCTION constexpr Vector()
+  KOKKOS_DEFAULTED_FUNCTION constexpr Vector()
     requires HasDefaultConstructor<Accessor>
   = default;
 
@@ -841,7 +841,7 @@ class Vector {
   }
 
   /// \brief Destructor
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   constexpr ~Vector() = default;
 
   /// \brief Deep copy constructor

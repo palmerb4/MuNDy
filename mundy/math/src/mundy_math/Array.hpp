@@ -80,7 +80,7 @@ class Array {
   //@{
 
   /// \brief Default constructor. Elements are uninitialized.
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_DEFAULTED_FUNCTION
   constexpr Array() = default;
 
   /// \brief Constructor to initialize all elements explicitly.
@@ -115,7 +115,7 @@ class Array {
   }
 
   /// \brief Destructor
-  KOKKOS_INLINE_FUNCTION constexpr ~Array() = default;
+  KOKKOS_DEFAULTED_FUNCTION constexpr ~Array() = default;
 
   /// \brief Deep copy constructor
   // Deep copy constructor

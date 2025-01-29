@@ -93,7 +93,7 @@ class ShiftedAccessor<T, shift, Accessor, Ownership::Owns> {
 
   /// \brief Default constructor.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
-  KOKKOS_INLINE_FUNCTION constexpr ShiftedAccessor()
+  KOKKOS_DEFAULTED_FUNCTION constexpr ShiftedAccessor()
     requires HasDefaultConstructor<Accessor>
   = default;
 
