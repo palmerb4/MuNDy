@@ -65,3 +65,11 @@ tribits_add_executable_and_test(
   UnitTestFieldBLAS.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
   )
+
+  tribits_add_executable_and_test(
+    UnitTestAggregate
+    SOURCES
+    UnitTestAggregate.cpp
+      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+    NUM_MPI_PROCS 1
+  )

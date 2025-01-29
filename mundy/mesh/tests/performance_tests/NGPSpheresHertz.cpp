@@ -29,7 +29,7 @@
 // Trilinos libs
 #include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
 
-// #if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
 
 // Kokkos and Kokkos-Kernels
 #include <KokkosBlas.hpp>
@@ -668,11 +668,11 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-// #else
+#else
 
-// int main() {
-//   std::cout << "TEST DISABLED. Trilinos version must be at least 16.0.0." << std::endl;
-//   return 0;
-// }
+int main() {
+  std::cout << "TEST DISABLED. Trilinos version must be at least 16.0.0." << std::endl;
+  return 0;
+}
 
-// #endif  // TRILINOS_MAJOR_MINOR_VERSION
+#endif  // TRILINOS_MAJOR_MINOR_VERSION

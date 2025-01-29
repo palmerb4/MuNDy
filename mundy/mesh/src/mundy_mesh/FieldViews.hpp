@@ -47,6 +47,14 @@ namespace mesh {
 //! \name stk::mesh::Field data views
 ///@{
 
+/// \brief A helper function for getting a view of a field's data as a scalar
+template <class FieldType, typename StkDebugger = stk::mesh::DefaultStkFieldSyncDebugger>
+inline auto& scalar_field_data(
+    const FieldType& f, stk::mesh::Entity e, stk::mesh::DummyOverload dummyArg = stk::mesh::DummyOverload(),
+    const char* fileName = HOST_DEBUG_FILE_NAME, int lineNumber = HOST_DEBUG_LINE_NUMBER) {
+  return stk::mesh::field_data(f, e, dummyArg, fileName, lineNumber)[0];
+}
+
 /// \brief A helper function for getting a view of a field's data as a Vector3
 template <class FieldType, typename StkDebugger = stk::mesh::DefaultStkFieldSyncDebugger>
 inline auto vector3_field_data(
