@@ -15,36 +15,6 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find src/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 SET(NOINSTALLHEADERS 
-  src/mundy_geom/aggregates/EllipsoidDataConcepts.hpp
-  src/mundy_geom/aggregates/EllipsoidData.hpp
-  src/mundy_geom/aggregates/EllipsoidEntityView.hpp
-  src/mundy_geom/aggregates/EntityView.hpp
-  src/mundy_geom/aggregates.hpp
-  src/mundy_geom/aggregates/LineDataConcepts.hpp
-  src/mundy_geom/aggregates/LineData.hpp
-  src/mundy_geom/aggregates/LineEntityView.hpp
-  src/mundy_geom/aggregates/LineSegmentDataConcepts.hpp
-  src/mundy_geom/aggregates/LineSegmentData.hpp
-  src/mundy_geom/aggregates/LineSegmentEntityView.hpp
-  src/mundy_geom/aggregates/PointDataConcepts.hpp
-  src/mundy_geom/aggregates/PointData.hpp
-  src/mundy_geom/aggregates/PointEntityView.hpp
-  src/mundy_geom/aggregates/SphereDataConcepts.hpp
-  src/mundy_geom/aggregates/SphereData.hpp
-  src/mundy_geom/aggregates/SphereEntityView.hpp
-  src/mundy_geom/aggregates/SpherocylinderDataConcepts.hpp
-  src/mundy_geom/aggregates/SpherocylinderData.hpp
-  src/mundy_geom/aggregates/SpherocylinderEntityView.hpp
-  src/mundy_geom/aggregates/SpherocylinderSegmentDataConcepts.hpp
-  src/mundy_geom/aggregates/SpherocylinderSegmentData.hpp
-  src/mundy_geom/aggregates/SpherocylinderSegmentEntityView.hpp
-  src/mundy_geom/aggregates/VSegmentDataConcepts.hpp
-  src/mundy_geom/aggregates/VSegmentData.hpp
-  src/mundy_geom/aggregates/VSegmentEntityView.hpp
-  src/mundy_geom/augments/AABBDataConcepts.hpp
-  src/mundy_geom/augments/AABBData.hpp
-  src/mundy_geom/augments/AABBEntityView.hpp
-  src/mundy_geom/augments.hpp
   src/mundy_geom/distance/EllipsoidEllipsoid.hpp
   src/mundy_geom/distance.hpp
   src/mundy_geom/distance/LineEllipsoid.hpp
