@@ -32,7 +32,13 @@
 
 // Trilinos libs
 #include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part
-#include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
+#include <stk_mesh/base/Entity.hpp>
+#include <stk_mesh/base/MetaData.hpp>
+#include <stk_mesh/base/NgpField.hpp>
+#include <stk_mesh/base/BulkData.hpp>
+#include <stk_mesh/base/MetaData.hpp>
+#include <stk_mesh/base/NgpMesh.hpp>
+#include <stk_mesh/base/Selector.hpp>
 
 // Mundy libs
 #include <mundy_math/Vector3.hpp>      // for mundy::math::Vector3
@@ -40,6 +46,7 @@
 #include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>  // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
+
 
 namespace mundy {
 
@@ -77,6 +84,10 @@ namespace {
 // };
 
 TEST(UnitTestAggregate, BasicUsageIsAsExpected) {
+  if (stk::parallel_machine_size(MPI_COMM_WORLD) != 1) {
+    GTEST_SKIP();
+  }
+
   // Setup
   stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_spatial_dimension(3);
@@ -114,8 +125,8 @@ TEST(UnitTestAggregate, BasicUsageIsAsExpected) {
   auto radius_accessor = ScalarFieldComponent(elem_radius_field);
 
   // Fetch the data for the entity via the accessor's operator()
-  auto center = center_accessor(elem1);
-  double& radius = radius_accessor(node1);
+  auto center = center_accessor(node1);
+  double& radius = radius_accessor(elem1);
   EXPECT_DOUBLE_EQ(center[0], expected_center[0]);
   EXPECT_DOUBLE_EQ(center[1], expected_center[1]);
   EXPECT_DOUBLE_EQ(center[2], expected_center[2]);
@@ -125,6 +136,15 @@ TEST(UnitTestAggregate, BasicUsageIsAsExpected) {
   const auto collision_sphere_data = make_aggregate<stk::topology::PARTICLE>(bulk_data, sphere_part)
                                          .add_component<CENTER, stk::topology::NODE_RANK>(center_accessor)
                                          .add_component<COLLISION_RADIUS, stk::topology::ELEM_RANK>(radius_accessor);
+
+  // Validate our get_component() method
+  EXPECT_EQ(collision_sphere_data.get_component<CENTER>().component().field().mesh_meta_data_ordinal(),
+            node_center_field.mesh_meta_data_ordinal());
+  EXPECT_EQ(collision_sphere_data.get_component<COLLISION_RADIUS>().component().field().mesh_meta_data_ordinal(),
+            elem_radius_field.mesh_meta_data_ordinal());
+
+  // Validate our selector
+  EXPECT_EQ(collision_sphere_data.selector(), stk::mesh::Selector(sphere_part));
 
   // Get an accessor-independent view of the entity's data
   auto sphere_view = collision_sphere_data.get_view(elem1);
@@ -155,6 +175,10 @@ TEST(UnitTestAggregate, BasicUsageIsAsExpected) {
 }
 
 TEST(UnitTestAggregate, CanonicalExample) {
+  if (stk::parallel_machine_size(MPI_COMM_WORLD) != 1) {
+    GTEST_SKIP();
+  }
+
   // Setup
   stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_spatial_dimension(3);
@@ -184,21 +208,21 @@ TEST(UnitTestAggregate, CanonicalExample) {
   unsigned num_spheres = 10;
   for (unsigned i = 0; i < num_spheres; ++i) {
     // STK is 1 indexed for EntityIds
-    stk::mesh::Entity node = bulk_data.declare_node(i+1);
-    stk::mesh::Entity elem = bulk_data.declare_element(i+1, stk::mesh::PartVector{&sphere_part});
+    stk::mesh::Entity node = bulk_data.declare_node(i + 1);
+    stk::mesh::Entity elem = bulk_data.declare_element(i + 1, stk::mesh::PartVector{&sphere_part});
     bulk_data.declare_relation(elem, node, 0);
 
-    // Populate the fields
-    vector3_field_data(node_center_field, node).set(1.1 * i, 2.2 * i, 3.3);
-    vector3_field_data(node_force_field, node).set(5.0, 6.0, 7.0);
-    vector3_field_data(node_velocity_field, node).set(1.0, 2.0, 3.0);
-    scalar_field_data(elem_radius_field, elem) = 0.5;
-    scalar_field_data(elem_mass_field, elem) = 1.0;
+    // // Populate the fields
+    // vector3_field_data(node_center_field, node).set(1.1 * i, 2.2 * i, 3.3);
+    // vector3_field_data(node_force_field, node).set(5.0, 6.0, 7.0);
+    // vector3_field_data(node_velocity_field, node).set(1.0, 2.0, 3.0);
+    // scalar_field_data(elem_radius_field, elem) = 0.5;
+    // scalar_field_data(elem_mass_field, elem) = 1.0;
   }
   bulk_data.modification_end();
 
   // Create the accessors
-  auto center_accessor = Vector3FieldComponent(node_center_field);  
+  auto center_accessor = Vector3FieldComponent(node_center_field);
   auto force_accessor = Vector3FieldComponent(node_force_field);
   auto velocity_accessor = Vector3FieldComponent(node_velocity_field);
   auto radius_accessor = ScalarFieldComponent(elem_radius_field);
@@ -206,16 +230,16 @@ TEST(UnitTestAggregate, CanonicalExample) {
 
   // Create an aggregate for the spheres
   const auto sphere_data = make_aggregate<stk::topology::PARTICLE>(bulk_data, sphere_part)
-                                         .add_component<CENTER, stk::topology::NODE_RANK>(center_accessor)
-                                          .add_component<FORCE, stk::topology::NODE_RANK>(force_accessor)
-                                          .add_component<VELOCITY, stk::topology::NODE_RANK>(velocity_accessor)
-                                          .add_component<COLLISION_RADIUS, stk::topology::ELEM_RANK>(radius_accessor)
-                                          .add_component<MASS, stk::topology::ELEM_RANK>(mass_accessor);
- 
+                               .add_component<CENTER, stk::topology::NODE_RANK>(center_accessor)
+                               .add_component<FORCE, stk::topology::NODE_RANK>(force_accessor)
+                               .add_component<VELOCITY, stk::topology::NODE_RANK>(velocity_accessor)
+                               .add_component<COLLISION_RADIUS, stk::topology::ELEM_RANK>(radius_accessor)
+                               .add_component<MASS, stk::topology::ELEM_RANK>(mass_accessor);
+
   // Move the spheres on the CPU
   // Note, data that is not fetched via .get is neither accessed nor modified
   double dt = 1e-5;
-  sphere_data.for_each([dt](auto& sphere_view) {
+  sphere_data.for_each([dt](auto &sphere_view) {
     // Note: The zero is the center node connectivity ordinal.
     //  If you had, say, a BEAM_2 you could use .get<VELOCITY>(0) and .get<VELOCITY>(1)
     //  For the velocity of the left and right nodes, respectively.
@@ -224,11 +248,33 @@ TEST(UnitTestAggregate, CanonicalExample) {
     c += dt * v;
   });
 
-  // Same but on GPU
-  auto ngp_sphere_data = get_updated_ngp_aggregate(sphere_data);
-  
-  ngp_sphere_data.sync_to_device<CENTER, VELOCITY>();
-  // ngp_sphere_data.for_each(KOKKOS_LAMBDA(auto& sphere_view) {
+  //////////////////////////
+  // In testing. No touch //
+  //////////////////////////
+  // auto ngp_mesh = get_updated_ngp_mesh(bulk_data);
+  // std::cout << "First" << std::endl;
+  // std::cout << "Num NODE buckets: " << ngp_mesh.num_buckets(stk::topology::NODE_RANK) << std::endl;
+  // std::cout << "Num ELEM buckets: " << ngp_mesh.num_buckets(stk::topology::ELEM_RANK) << std::endl;
+
+  // stk::mesh::for_each_entity_run(ngp_mesh, stk::topology::NODE_RANK, sphere_part, 
+  //   [&center_accessor, &velocity_accessor, dt](const stk::mesh::BulkData& bulk_data, const stk::mesh::Entity& sphere_node) {
+  //   auto c = center_accessor(sphere_node);
+  //   auto v = velocity_accessor(sphere_node);
+  //   c += dt * v;
+  // });
+
+  // // Same but on GPU
+  // auto ngp_sphere_data = get_updated_ngp_aggregate(sphere_data);
+
+  // std::cout << "Made it out" << std::endl;
+  // EXPECT_TRUE(ngp_sphere_data.ngp_mesh().is_up_to_date());
+  // EXPECT_TRUE(ngp_sphere_data.ngp_mesh().get_spatial_dimension() == 3) << "If this works, we know that the NgpMesh was not default constructed";
+  // std::cout << "Last" << std::endl;
+  // std::cout << "Num NODE buckets: " << ngp_sphere_data.ngp_mesh().num_buckets(stk::topology::NODE_RANK) << std::endl;
+  // std::cout << "Num ELEM buckets: " << ngp_sphere_data.ngp_mesh().num_buckets(stk::topology::ELEM_RANK) << std::endl;
+
+  // ngp_sphere_data.sync_to_device<CENTER, VELOCITY>();
+  // ngp_sphere_data.for_each(KOKKOS_LAMBDA(auto &sphere_view) {
   //   auto c = sphere_view.template get<CENTER>(0);
   //   auto v = sphere_view.template get<VELOCITY>(0);
   //   c += dt * v;

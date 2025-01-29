@@ -58,8 +58,6 @@ int main(int argc, char** argv) {
   testing::InitGoogleMock(&argc, argv);
   int return_val = RUN_ALL_TESTS();
 
-  std::cout << return_val << std::endl;
-
   Kokkos::finalize();
   stk::parallel_machine_finalize();
 

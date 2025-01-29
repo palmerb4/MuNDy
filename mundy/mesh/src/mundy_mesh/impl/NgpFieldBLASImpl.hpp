@@ -31,6 +31,7 @@
 
 // External
 #include <openrand/philox.h>  // for openrand::Philox
+#include <fmt/format.h>       // for fmt::format
 
 // Kokkos
 #include <Kokkos_Core.hpp>
@@ -98,7 +99,7 @@ struct FieldFillComponent {
   void operator()(const stk::mesh::FastMeshIndex& f) const {
     const int num_components = field_.get_num_components_per_entity(f);
     MUNDY_THROW_ASSERT(component_ < num_components, std::out_of_range,
-                       "Component index " << component_ << " is out of bounds for field " << field_.get_name());
+      fmt::format("Component index {} is out of bounds for field {}", component_, field_.get_name()));
     field_(f, component_) = alpha_;
   }
 
@@ -183,7 +184,7 @@ struct FieldRandomizeComponent {
   void operator()(const stk::mesh::FastMeshIndex& f) const {
     const int num_components = field_.get_num_components_per_entity(f);
     MUNDY_THROW_ASSERT(component_ < num_components, std::out_of_range,
-                       "Component index " << component_ << " is out of bounds for field " << field_.get_name());
+                        fmt::format("Component index {} is out of bounds for field {}", component_, field_.get_name()));
 
     auto& counter = counter_field_(f, 0);
     openrand::Philox rng(seed_, counter);
@@ -214,7 +215,7 @@ struct FieldRandomizeComponentMinMax {
   void operator()(const stk::mesh::FastMeshIndex& f) const {
     const int num_components = field_.get_num_components_per_entity(f);
     MUNDY_THROW_ASSERT(component_ < num_components, std::out_of_range,
-                       "Component index " << component_ << " is out of bounds for field " << field_.get_name());
+                        fmt::format("Component index {} is out of bounds for field {}", component_, field_.get_name()));
 
     auto& counter = counter_field_(f, 0);
     openrand::Philox rng(seed_, counter);

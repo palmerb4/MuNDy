@@ -38,9 +38,11 @@
 #include <stk_topology/topology.hpp>      // for stk::topology::topology_t
 
 // Mundy
-#include <mundy_core/tuple.hpp>       // for mundy::core::tuple
-#include <mundy_mesh/BulkData.hpp>    // for mundy::mesh::BulkData
-#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_mesh/fmt_stk_types.hpp> // for STK-compatible fmt::format
+#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_core/tuple.hpp>         // for mundy::core::tuple
+#include <mundy_mesh/BulkData.hpp>      // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>    // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
 
 namespace mundy {
 
@@ -164,17 +166,17 @@ class NgpScalarFieldComponent : public NgpFieldComponentBase {
   }
 
   /// \brief Fetch the value of the field at the given entity index
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
     return ngp_field_(entity_index, 0);
   }
 
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   NgpFieldType& ngp_field() {
     return ngp_field_;
   }
 
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   const NgpFieldType& ngp_field() const {
     return ngp_field_;
   }
@@ -235,17 +237,17 @@ class NgpVector3FieldComponent : public NgpFieldComponentBase {
         ngp_field_(ngp_field) {
   }
 
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
     return vector3_field_data(ngp_field_, entity_index);
   }
 
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   NgpFieldType& ngp_field() {
     return ngp_field_;
   }
 
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   const NgpFieldType& ngp_field() const {
     return ngp_field_;
   }
@@ -307,12 +309,12 @@ class NgpQuaternionFieldComponent : public NgpFieldComponentBase {
         ngp_field_(ngp_field) {
   }
 
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
     return quaternion_field_data(ngp_field_, entity_index);
   }
 
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   NgpFieldType& ngp_field() {
     return ngp_field_;
   }
@@ -394,17 +396,17 @@ class NgpTaggedComponent {
   NgpTaggedComponent(component_type component) : component_(component) {
   }
 
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
     return component_(entity_index);
   }
 
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   const component_type& component() const {
     return component_;
   }
 
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   component_type& component() {
     return component_;
   }
@@ -471,7 +473,7 @@ namespace impl {
 /// \brief Helper function to locate the component that matches a Tag
 /// We assume each tag occurs only once and perform a simple linear search.
 template <typename Tag, typename First, typename... Rest>
-KOKKOS_INLINE_FUNCTION static constexpr const auto& find_const_component_recurse_impl(const First& first,
+KOKKOS_FUNCTION static constexpr const auto& find_const_component_recurse_impl(const First& first,
                                                                                       const Rest&... rest) {
   if constexpr (std::is_same_v<typename First::tag_type, Tag>) {
     return first;
@@ -482,7 +484,7 @@ KOKKOS_INLINE_FUNCTION static constexpr const auto& find_const_component_recurse
 
 /// \brief Fetch the component corresponding to the given Tag using an index sequence
 template <typename Tag, typename... Components, std::size_t... Is>
-KOKKOS_INLINE_FUNCTION static constexpr auto& find_const_component_impl(const core::tuple<Components...>& tuple,
+KOKKOS_FUNCTION static constexpr auto& find_const_component_impl(const core::tuple<Components...>& tuple,
                                                                         std::index_sequence<Is...>) {
   // Unpack into the
   return find_const_component_recurse_impl<Tag>(core::get<Is>(tuple)...);
@@ -491,7 +493,7 @@ KOKKOS_INLINE_FUNCTION static constexpr auto& find_const_component_impl(const co
 /// \brief Helper function to locate the component that matches a Tag
 /// We assume each tag occurs only once and perform a simple linear search.
 template <typename Tag, typename First, typename... Rest>
-KOKKOS_INLINE_FUNCTION static constexpr auto& find_component_recurse_impl(First& first, Rest&... rest) {
+KOKKOS_FUNCTION static constexpr auto& find_component_recurse_impl(First& first, Rest&... rest) {
   if constexpr (std::is_same_v<typename First::tag_type, Tag>) {
     return first;
   } else {
@@ -501,7 +503,7 @@ KOKKOS_INLINE_FUNCTION static constexpr auto& find_component_recurse_impl(First&
 
 /// \brief Fetch the component corresponding to the given Tag using an index sequence
 template <typename Tag, typename... Components, std::size_t... Is>
-KOKKOS_INLINE_FUNCTION static constexpr auto& find_component_impl(core::tuple<Components...>& tuple,
+KOKKOS_FUNCTION static constexpr auto& find_component_impl(core::tuple<Components...>& tuple,
                                                                   std::index_sequence<Is...>) {
   // Unpack into the
   return find_component_recurse_impl<Tag>(core::get<Is>(tuple)...);
@@ -509,7 +511,7 @@ KOKKOS_INLINE_FUNCTION static constexpr auto& find_component_impl(core::tuple<Co
 
 /// \brief Helper function to determine if any components in a tuple have a given rank
 template <stk::topology::rank_t rank, typename First, typename... Rest>
-KOKKOS_INLINE_FUNCTION static constexpr bool has_rank_recurse_impl(const First& first, const Rest&... rest) {
+KOKKOS_FUNCTION static constexpr bool has_rank_recurse_impl(const First& first, const Rest&... rest) {
   if constexpr (First::rank == rank) {
     return true;
   } else {
@@ -519,14 +521,14 @@ KOKKOS_INLINE_FUNCTION static constexpr bool has_rank_recurse_impl(const First& 
 
 /// \brief Determine if any components in a tuple have a given rank using an index sequence
 template <stk::topology::rank_t rank, typename... Components, std::size_t... Is>
-KOKKOS_INLINE_FUNCTION static constexpr bool has_rank_impl(const core::tuple<Components...>& tuple,
+KOKKOS_FUNCTION static constexpr bool has_rank_impl(const core::tuple<Components...>& tuple,
                                                            std::index_sequence<Is...>) {
   return has_rank_recurse_impl<rank>(core::get<Is>(tuple)...);
 }
 
 /// \brief Helper function to determine if ~all~ components in a tuple have a given rank
 template <stk::topology::rank_t rank, typename First, typename... Rest>
-KOKKOS_INLINE_FUNCTION static constexpr bool all_have_rank_recurse_impl(const First& first, const Rest&... rest) {
+KOKKOS_FUNCTION static constexpr bool all_have_rank_recurse_impl(const First& first, const Rest&... rest) {
   if constexpr (First::rank == rank) {
     return all_have_rank_recurse_impl<rank>(rest...);
   } else {
@@ -536,7 +538,7 @@ KOKKOS_INLINE_FUNCTION static constexpr bool all_have_rank_recurse_impl(const Fi
 
 /// \brief Determine if ~all~ components in a tuple have a given rank
 template <stk::topology::rank_t rank, typename... Components, std::size_t... Is>
-KOKKOS_INLINE_FUNCTION static constexpr bool all_have_rank_impl(const core::tuple<Components...>& tuple,
+KOKKOS_FUNCTION static constexpr bool all_have_rank_impl(const core::tuple<Components...>& tuple,
                                                                 std::index_sequence<Is...>) {
   return all_have_rank_recurse_impl<rank>(core::get<Components>(tuple)...);
 }
@@ -569,7 +571,7 @@ static constexpr bool has_component_v = has_component<Tag, Components...>::value
 
 /// \brief Fetch the component corresponding to the given Tag (returns a const reference since the tuple is const)
 template <typename Tag, typename... Components>
-KOKKOS_INLINE_FUNCTION static constexpr const auto& find_component(const core::tuple<Components...>& tuple) {
+KOKKOS_FUNCTION static constexpr const auto& find_component(const core::tuple<Components...>& tuple) {
   static_assert(all_have_tags<Components...>, "All of the given components must have tags.");
   static_assert(has_component_v<Tag, Components...>,
                 "Attempting to find a component that does not exist in the given tuple");
@@ -578,7 +580,7 @@ KOKKOS_INLINE_FUNCTION static constexpr const auto& find_component(const core::t
 
 /// \brief Fetch the component corresponding to the given Tag
 template <typename Tag, typename... Components>
-KOKKOS_INLINE_FUNCTION static constexpr auto& find_component(core::tuple<Components...>& tuple) {
+KOKKOS_FUNCTION static constexpr auto& find_component(core::tuple<Components...>& tuple) {
   static_assert(all_have_tags<Components...>, "All of the given components must have tags.");
   static_assert(has_component_v<Tag, Components...>,
                 "Attempting to find a component that does not exist in the given tuple");
@@ -587,13 +589,13 @@ KOKKOS_INLINE_FUNCTION static constexpr auto& find_component(core::tuple<Compone
 
 /// \brief Determine if any components in a tuple have a given rank
 template <stk::topology::rank_t rank, typename... Components>
-KOKKOS_INLINE_FUNCTION static constexpr bool has_rank(const core::tuple<Components...>& tuple) {
+KOKKOS_FUNCTION static constexpr bool has_rank(const core::tuple<Components...>& tuple) {
   static_assert(all_have_tags<Components...>, "All of the given components must have tags.");
   return impl::has_rank_impl<rank>(tuple, std::make_index_sequence<sizeof...(Components)>{});
 }
 /// \brief Determine if ~all~ components in a tuple have a given rank
 template <stk::topology::rank_t rank, typename... Components>
-KOKKOS_INLINE_FUNCTION static constexpr bool all_have_rank(const core::tuple<Components...>& tuple) {
+KOKKOS_FUNCTION static constexpr bool all_have_rank(const core::tuple<Components...>& tuple) {
   static_assert(all_have_tags<Components...>, "All of the given components must have tags.");
   return impl::all_have_rank_impl<rank>(tuple, std::make_index_sequence<sizeof...(Components)>{});
 }
@@ -888,6 +890,11 @@ class Aggregate {
     /// \brief Construct an EntityView for the given entity
     /// TODO(palmerb4) Optimize for reuse of connectivity.
     EntityView(const Aggregate& parent, stk::mesh::Entity entity) : parent_(parent), entity_(entity) {
+      MUNDY_THROW_ASSERT(parent.bulk_data().is_valid(entity), std::runtime_error,
+                         "EntityView created with invalid entity");
+      MUNDY_THROW_ASSERT(parent.bulk_data().entity_rank(entity) == OurRank, std::runtime_error,
+                         fmt::format("EntityView created with entity of rank {} but aggregate has rank {}",
+                                     parent.bulk_data().entity_rank(entity), OurRank));
     }
 
    private:
@@ -937,9 +944,21 @@ class Aggregate {
       static constexpr auto comp_rank = TaggedComponentType::rank;
       auto& comp = parent_.get_component<Tag>();
 
+      MUNDY_THROW_ASSERT(
+          parent_.bulk_data().num_connectivity(entity_, comp_rank) > connectivity_ordinal, std::runtime_error,
+          fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
+                      "connectivities of rank {}",
+                      connectivity_ordinal, parent_.bulk_data().num_connectivity(entity_, comp_rank), comp_rank));
+
       // TODO: The following assumes that the entity is connected to all of its possible lower rank entities
       // such that the list of connected entities can be indexed by the connectivity_ordinal.
       const stk::mesh::Entity& connected_entity = parent_.bulk_data().begin(entity_, comp_rank)[connectivity_ordinal];
+
+      MUNDY_THROW_ASSERT(
+          parent_.bulk_data().is_valid(connected_entity), std::runtime_error,
+          fmt::format("EntityView::get() called with connectivity_ordinal {} but connected entity is invalid",
+                      connectivity_ordinal));
+
       return comp(connected_entity);
     }
 
@@ -951,7 +970,20 @@ class Aggregate {
       using TaggedComponentType = std::decay_t<decltype(parent_.get_component<Tag>())>;
       static constexpr auto comp_rank = TaggedComponentType::rank;
       auto& comp = parent_.get_component<Tag>();
+
+      MUNDY_THROW_ASSERT(
+          parent_.bulk_data().num_connectivity(entity_, comp_rank) > connectivity_ordinal, std::runtime_error,
+          fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
+                      "connectivities of rank {}",
+                      connectivity_ordinal, parent_.bulk_data().num_connectivity(entity_, comp_rank), comp_rank));
+
       const stk::mesh::Entity& connected_entity = parent_.bulk_data().begin(entity_, comp_rank)[connectivity_ordinal];
+
+      MUNDY_THROW_ASSERT(
+          parent_.bulk_data().is_valid(connected_entity), std::runtime_error,
+          fmt::format("EntityView::get() called with connectivity_ordinal {} but connected entity is invalid",
+                      connectivity_ordinal));
+
       return comp(connected_entity);
     }
   };  // EntityView
@@ -1020,24 +1052,33 @@ class NgpAggregate {
   NgpAggregate(const stk::mesh::NgpMesh& ngp_mesh, stk::mesh::Selector selector, NgpComponentsTuple ngp_components)
     requires(sizeof...(NgpComponents) > 0)
       : ngp_mesh_(ngp_mesh), host_selector_(std::move(selector)), ngp_components_(std::move(ngp_components)) {
+ 
+   std::cout << "inside NgpAggregate" << std::endl;
+  std::cout << "Num NODE buckets: " << ngp_mesh_.num_buckets(stk::topology::NODE_RANK) << std::endl;
+  std::cout << "Num ELEM buckets: " << ngp_mesh_.num_buckets(stk::topology::ELEM_RANK) << std::endl;
+
   }
   //@}
 
   //! \name Accessors
   //@{
 
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   static constexpr stk::topology::topology_t topology() {
     return OurTopology;
   }
 
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   static constexpr stk::topology::rank_t rank() {
     return OurRank;
   }
 
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   const stk::mesh::NgpMesh& ngp_mesh() const {
+    std::cout << "inside ngp_mesh" << std::endl;
+  std::cout << "Num NODE buckets: " << ngp_mesh_.num_buckets(stk::topology::NODE_RANK) << std::endl;
+  std::cout << "Num ELEM buckets: " << ngp_mesh_.num_buckets(stk::topology::ELEM_RANK) << std::endl;
+
     return ngp_mesh_;
   }
 
@@ -1062,13 +1103,13 @@ class NgpAggregate {
 
   /// \brief Fetch the component corresponding to the given Tag
   template <typename Tag>
-  KOKKOS_INLINE_FUNCTION const auto& get_component() const {
+  KOKKOS_FUNCTION const auto& get_component() const {
     return find_component<Tag>(ngp_components_);
   }
 
   /// \brief Fetch the component corresponding to the given Tag
   template <typename Tag>
-  KOKKOS_INLINE_FUNCTION auto& get_component() {
+  KOKKOS_FUNCTION auto& get_component() {
     return find_component<Tag>(ngp_components_);
   }
 
@@ -1101,7 +1142,7 @@ class NgpAggregate {
    public:
     /// \brief Construct an EntityView for the given entity
     /// TODO(palmerb4) Optimize for reuse of connectivity.
-    KOKKOS_INLINE_FUNCTION
+    KOKKOS_FUNCTION
     NgpEntityView(const stk::mesh::NgpMesh& ngp_mesh, const NgpComponentsTuple& components,
                   stk::mesh::FastMeshIndex entity_index)
         : ngp_mesh_(ngp_mesh), ngp_components_(components), entity_index_(entity_index) {
@@ -1114,19 +1155,19 @@ class NgpAggregate {
 
    public:
     /// \brief Fetch the entity that we view
-    KOKKOS_INLINE_FUNCTION
+    KOKKOS_FUNCTION
     stk::mesh::FastMeshIndex entity_index() const {
       return entity_index_;
     }
 
     /// \brief Fetch the rank of the entity that we view
-    KOKKOS_INLINE_FUNCTION
+    KOKKOS_FUNCTION
     static constexpr stk::topology::rank_t rank() {
       return OurRank;
     }
 
     /// \brief Fetch the topology of the entity that we view
-    KOKKOS_INLINE_FUNCTION
+    KOKKOS_FUNCTION
     static constexpr stk::topology::topology_t topology() {
       return OurTopology;
     }
@@ -1135,7 +1176,7 @@ class NgpAggregate {
     /// Only works for components of the same rank as the entity
     template <typename Tag>
       requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank == OurRank)
-    KOKKOS_INLINE_FUNCTION decltype(auto) get() {
+    KOKKOS_FUNCTION decltype(auto) get() {
       auto& comp = find_component<Tag>(ngp_components_);
       return comp(entity_index_);
     }
@@ -1144,7 +1185,7 @@ class NgpAggregate {
     /// Only works for components of the same rank as the entity
     template <typename Tag>
       requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank == OurRank)
-    KOKKOS_INLINE_FUNCTION decltype(auto) get() const {
+    KOKKOS_FUNCTION decltype(auto) get() const {
       auto& comp = find_component<Tag>(ngp_components_);
       return comp(entity_index_);
     }
@@ -1153,7 +1194,7 @@ class NgpAggregate {
     /// Only works for components of a different rank then the entity
     template <typename Tag>
       requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank != OurRank)
-    KOKKOS_INLINE_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) {
+    KOKKOS_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) {
       using TaggedComponentType = std::decay_t<decltype(find_component<Tag>(ngp_components_))>;
       static constexpr auto comp_rank = TaggedComponentType::rank;
       auto& comp = find_component<Tag>(ngp_components_);
@@ -1161,6 +1202,13 @@ class NgpAggregate {
       // TODO: The following assumes that the entity is connected to all of its possible lower rank entities
       // such that the list of connected entities can be indexed by the connectivity_ordinal.
       const auto connected_entities = ngp_mesh_.get_connected_entities(OurRank, entity_index_, comp_rank);
+
+      MUNDY_THROW_ASSERT(
+          connected_entities.size() > connectivity_ordinal, std::runtime_error,
+          fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
+                      "connectivities of rank {}",
+                      connectivity_ordinal, connected_entities.size(), comp_rank));
+
       const stk::mesh::FastMeshIndex connected_entity_index =
           ngp_mesh_.fast_mesh_index(connected_entities[connectivity_ordinal]);
       return comp(connected_entity_index);
@@ -1170,11 +1218,18 @@ class NgpAggregate {
     /// Only works for components of a different rank then the entity
     template <typename Tag>
       requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank != OurRank)
-    KOKKOS_INLINE_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) const {
+    KOKKOS_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) const {
       using TaggedComponentType = std::decay_t<decltype(find_component<Tag>(ngp_components_))>;
       static constexpr auto comp_rank = TaggedComponentType::rank;
       auto& comp = find_component<Tag>(ngp_components_);
       const auto connected_entities = ngp_mesh_.get_connected_entities(OurRank, entity_index_, comp_rank);
+      
+      MUNDY_THROW_ASSERT(
+          connected_entities.size() > connectivity_ordinal, std::runtime_error,
+          fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
+                      "connectivities of rank {}",
+                      connectivity_ordinal, connected_entities.size(), comp_rank));
+      
       const stk::mesh::FastMeshIndex connected_entity_index =
           ngp_mesh_.fast_mesh_index(connected_entities[connectivity_ordinal]);
       return comp(connected_entity_index);
@@ -1182,7 +1237,7 @@ class NgpAggregate {
   };  // NgpEntityView
 
   /// \brief Get an EntityView for the given entity
-  KOKKOS_INLINE_FUNCTION
+  KOKKOS_FUNCTION
   NgpEntityView get_view(stk::mesh::FastMeshIndex entity_index) const {
     return NgpEntityView(ngp_mesh_, ngp_components_, entity_index);
   }
@@ -1238,10 +1293,14 @@ auto make_ranked_aggregate(const stk::mesh::BulkData& bulk_data, stk::mesh::Sele
 /// \brief A helper function for getting the NGP aggregate from a regular aggregate
 template <stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... TaggedComponents>
 auto get_updated_ngp_aggregate(const Aggregate<OurTopology, OurRank, TaggedComponents...>& aggregate) {
+  auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(aggregate.bulk_data());
+  
+  std::cout << "inside get_updated_ngp_aggregate" << std::endl;
+  std::cout << "Num NODE buckets: " << ngp_mesh.num_buckets(stk::topology::NODE_RANK) << std::endl;
+  std::cout << "Num ELEM buckets: " << ngp_mesh.num_buckets(stk::topology::ELEM_RANK) << std::endl;
+  
   auto ngp_components = core::make_tuple(
       get_updated_ngp_component(aggregate.template get_component<typename TaggedComponents::tag_type>())...);
-
-  auto ngp_mesh = get_updated_ngp_mesh(aggregate.bulk_data());
 
   return NgpAggregate<OurTopology, OurRank,
                       std::decay_t<decltype(get_updated_ngp_component(
