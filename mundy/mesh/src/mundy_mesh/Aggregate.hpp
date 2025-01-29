@@ -1043,20 +1043,15 @@ class NgpAggregate {
   //@{
 
   /// \brief Construct an Aggregate that has no components
-  NgpAggregate(const stk::mesh::NgpMesh& ngp_mesh, stk::mesh::Selector selector)
+  NgpAggregate(stk::mesh::NgpMesh ngp_mesh, stk::mesh::Selector selector)
     requires(sizeof...(NgpComponents) == 0)
       : ngp_mesh_(ngp_mesh), host_selector_(std::move(selector)), ngp_components_{} {
   }
 
   /// \brief Construct an Aggregate that has the given components
-  NgpAggregate(const stk::mesh::NgpMesh& ngp_mesh, stk::mesh::Selector selector, NgpComponentsTuple ngp_components)
+  NgpAggregate(stk::mesh::NgpMesh ngp_mesh, stk::mesh::Selector selector, NgpComponentsTuple ngp_components)
     requires(sizeof...(NgpComponents) > 0)
       : ngp_mesh_(ngp_mesh), host_selector_(std::move(selector)), ngp_components_(std::move(ngp_components)) {
- 
-   std::cout << "inside NgpAggregate" << std::endl;
-  std::cout << "Num NODE buckets: " << ngp_mesh_.num_buckets(stk::topology::NODE_RANK) << std::endl;
-  std::cout << "Num ELEM buckets: " << ngp_mesh_.num_buckets(stk::topology::ELEM_RANK) << std::endl;
-
   }
   //@}
 
@@ -1075,10 +1070,6 @@ class NgpAggregate {
 
   KOKKOS_FUNCTION
   const stk::mesh::NgpMesh& ngp_mesh() const {
-    std::cout << "inside ngp_mesh" << std::endl;
-  std::cout << "Num NODE buckets: " << ngp_mesh_.num_buckets(stk::topology::NODE_RANK) << std::endl;
-  std::cout << "Num ELEM buckets: " << ngp_mesh_.num_buckets(stk::topology::ELEM_RANK) << std::endl;
-
     return ngp_mesh_;
   }
 
@@ -1271,7 +1262,7 @@ class NgpAggregate {
   //! \name Private members
   //@{
 
-  const stk::mesh::NgpMesh& ngp_mesh_;
+  stk::mesh::NgpMesh ngp_mesh_;
   stk::mesh::Selector host_selector_;
   NgpComponentsTuple ngp_components_;
   //@}
@@ -1294,10 +1285,6 @@ auto make_ranked_aggregate(const stk::mesh::BulkData& bulk_data, stk::mesh::Sele
 template <stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... TaggedComponents>
 auto get_updated_ngp_aggregate(const Aggregate<OurTopology, OurRank, TaggedComponents...>& aggregate) {
   auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(aggregate.bulk_data());
-  
-  std::cout << "inside get_updated_ngp_aggregate" << std::endl;
-  std::cout << "Num NODE buckets: " << ngp_mesh.num_buckets(stk::topology::NODE_RANK) << std::endl;
-  std::cout << "Num ELEM buckets: " << ngp_mesh.num_buckets(stk::topology::ELEM_RANK) << std::endl;
   
   auto ngp_components = core::make_tuple(
       get_updated_ngp_component(aggregate.template get_component<typename TaggedComponents::tag_type>())...);

@@ -31,13 +31,12 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part
+#include <stk_mesh/base/BulkData.hpp>
 #include <stk_mesh/base/Entity.hpp>
 #include <stk_mesh/base/MetaData.hpp>
 #include <stk_mesh/base/NgpField.hpp>
-#include <stk_mesh/base/BulkData.hpp>
-#include <stk_mesh/base/MetaData.hpp>
 #include <stk_mesh/base/NgpMesh.hpp>
+#include <stk_mesh/base/Part.hpp>  // for stk::mesh::Part
 #include <stk_mesh/base/Selector.hpp>
 
 // Mundy libs
@@ -46,7 +45,6 @@
 #include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>  // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
-
 
 namespace mundy {
 
@@ -239,7 +237,7 @@ TEST(UnitTestAggregate, CanonicalExample) {
   // Move the spheres on the CPU
   // Note, data that is not fetched via .get is neither accessed nor modified
   double dt = 1e-5;
-  sphere_data.for_each([dt](auto &sphere_view) {
+  sphere_data.for_each([dt](auto& sphere_view) {
     // Note: The zero is the center node connectivity ordinal.
     //  If you had, say, a BEAM_2 you could use .get<VELOCITY>(0) and .get<VELOCITY>(1)
     //  For the velocity of the left and right nodes, respectively.
@@ -248,38 +246,21 @@ TEST(UnitTestAggregate, CanonicalExample) {
     c += dt * v;
   });
 
-  //////////////////////////
-  // In testing. No touch //
-  //////////////////////////
-  // auto ngp_mesh = get_updated_ngp_mesh(bulk_data);
-  // std::cout << "First" << std::endl;
-  // std::cout << "Num NODE buckets: " << ngp_mesh.num_buckets(stk::topology::NODE_RANK) << std::endl;
-  // std::cout << "Num ELEM buckets: " << ngp_mesh.num_buckets(stk::topology::ELEM_RANK) << std::endl;
+  // Same but on GPU
+  auto ngp_mesh = get_updated_ngp_mesh(bulk_data);
+  auto ngp_sphere_data = get_updated_ngp_aggregate(sphere_data);
 
-  // stk::mesh::for_each_entity_run(ngp_mesh, stk::topology::NODE_RANK, sphere_part, 
-  //   [&center_accessor, &velocity_accessor, dt](const stk::mesh::BulkData& bulk_data, const stk::mesh::Entity& sphere_node) {
-  //   auto c = center_accessor(sphere_node);
-  //   auto v = velocity_accessor(sphere_node);
-  //   c += dt * v;
-  // });
+  EXPECT_TRUE(ngp_sphere_data.ngp_mesh().is_up_to_date());
+  EXPECT_TRUE(ngp_sphere_data.ngp_mesh().get_spatial_dimension() == 3)
+      << "If this works, we know that the NgpMesh was not default constructed";
 
-  // // Same but on GPU
-  // auto ngp_sphere_data = get_updated_ngp_aggregate(sphere_data);
-
-  // std::cout << "Made it out" << std::endl;
-  // EXPECT_TRUE(ngp_sphere_data.ngp_mesh().is_up_to_date());
-  // EXPECT_TRUE(ngp_sphere_data.ngp_mesh().get_spatial_dimension() == 3) << "If this works, we know that the NgpMesh was not default constructed";
-  // std::cout << "Last" << std::endl;
-  // std::cout << "Num NODE buckets: " << ngp_sphere_data.ngp_mesh().num_buckets(stk::topology::NODE_RANK) << std::endl;
-  // std::cout << "Num ELEM buckets: " << ngp_sphere_data.ngp_mesh().num_buckets(stk::topology::ELEM_RANK) << std::endl;
-
-  // ngp_sphere_data.sync_to_device<CENTER, VELOCITY>();
-  // ngp_sphere_data.for_each(KOKKOS_LAMBDA(auto &sphere_view) {
-  //   auto c = sphere_view.template get<CENTER>(0);
-  //   auto v = sphere_view.template get<VELOCITY>(0);
-  //   c += dt * v;
-  // });
-  // ngp_sphere_data.modify_on_device<CENTER>();
+  ngp_sphere_data.sync_to_device<CENTER, VELOCITY>();
+  ngp_sphere_data.for_each(KOKKOS_LAMBDA(auto& sphere_view) {
+    auto c = sphere_view.template get<CENTER>(0);
+    auto v = sphere_view.template get<VELOCITY>(0);
+    c += dt * v;
+  });
+  ngp_sphere_data.modify_on_device<CENTER>();
 }
 
 }  // namespace
