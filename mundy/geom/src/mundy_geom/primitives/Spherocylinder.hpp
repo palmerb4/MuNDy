@@ -336,23 +336,24 @@ constexpr bool is_spherocylinder_v = is_spherocylinder<T>::value;
 
 /// @brief Concept to check if a type is a valid Spherocylinder type
 template <typename SpherocylinderType>
-concept ValidSpherocylinderType = requires(std::decay_t<SpherocylinderType> spherocylinder,
-                                           const std::decay_t<SpherocylinderType> const_spherocylinder) {
-  is_spherocylinder_v<std::decay_t<SpherocylinderType>>;
-  typename std::decay_t<SpherocylinderType>::scalar_t;
-  typename std::decay_t<SpherocylinderType>::point_t;
-  typename std::decay_t<SpherocylinderType>::orientation_t;
-  is_point_v<typename std::decay_t<SpherocylinderType>::point_t>;
-  is_point_v<decltype(spherocylinder.center())>;
-  is_point_v<decltype(const_spherocylinder.center())>;
-  mundy::math::is_quaternion_v<typename std::decay_t<SpherocylinderType>::orientation_t>;
-  mundy::math::is_quaternion_v<decltype(spherocylinder.orientation())>;
-  mundy::math::is_quaternion_v<decltype(const_spherocylinder.orientation())>;
-  { spherocylinder.radius() } -> std::convertible_to<typename std::decay_t<SpherocylinderType>::scalar_t&>;
-  { const_spherocylinder.radius() } -> std::convertible_to<const typename std::decay_t<SpherocylinderType>::scalar_t&>;
-  { spherocylinder.length() } -> std::convertible_to<typename std::decay_t<SpherocylinderType>::scalar_t&>;
-  { const_spherocylinder.length() } -> std::convertible_to<const typename std::decay_t<SpherocylinderType>::scalar_t&>;
-};  // ValidSpherocylinderType
+concept ValidSpherocylinderType =
+    is_spherocylinder_v<std::decay_t<SpherocylinderType>> &&
+    is_point_v<typename std::decay_t<SpherocylinderType>::point_t> &&
+    mundy::math::is_quaternion_v<typename std::decay_t<SpherocylinderType>::orientation_t> &&
+    is_point_v<decltype(std::declval<std::decay_t<SpherocylinderType>>().center())> &&
+    is_point_v<decltype(std::declval<const std::decay_t<SpherocylinderType>>().center())> &&
+    mundy::math::is_quaternion_v<decltype(std::declval<std::decay_t<SpherocylinderType>>().orientation())> &&
+    mundy::math::is_quaternion_v<decltype(std::declval<const std::decay_t<SpherocylinderType>>().orientation())> &&
+    requires(std::decay_t<SpherocylinderType> spherocylinder,
+             const std::decay_t<SpherocylinderType> const_spherocylinder) {
+      typename std::decay_t<SpherocylinderType>::scalar_t;
+      typename std::decay_t<SpherocylinderType>::point_t;
+      typename std::decay_t<SpherocylinderType>::orientation_t;
+      { spherocylinder.radius() } -> std::same_as<typename std::decay_t<SpherocylinderType>::scalar_t&>;
+      { const_spherocylinder.radius() } -> std::same_as<const typename std::decay_t<SpherocylinderType>::scalar_t&>;
+      { spherocylinder.length() } -> std::same_as<typename std::decay_t<SpherocylinderType>::scalar_t&>;
+      { const_spherocylinder.length() } -> std::same_as<const typename std::decay_t<SpherocylinderType>::scalar_t&>;
+    };  // ValidSpherocylinderType
 
 static_assert(ValidSpherocylinderType<Spherocylinder<float>> && ValidSpherocylinderType<const Spherocylinder<float>> &&
                   ValidSpherocylinderType<Spherocylinder<double>> &&

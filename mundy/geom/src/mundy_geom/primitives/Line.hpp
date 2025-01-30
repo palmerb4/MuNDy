@@ -29,15 +29,16 @@
 #include <utility>
 
 // Our libs
-#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_geom/primitives/Point.hpp>         // for mundy::geom::Point
-#include <mundy_math/Vector3.hpp>       // for mundy::math::Vector3
+#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
+#include <mundy_geom/primitives/Point.hpp>  // for mundy::geom::Point
+#include <mundy_math/Vector3.hpp>           // for mundy::math::Vector3
 
 namespace mundy {
 
 namespace geom {
 
-template <typename Scalar, ValidPointType PointType = Point<Scalar>, typename OwnershipType = mundy::math::Ownership::Owns>
+template <typename Scalar, ValidPointType PointType = Point<Scalar>,
+          typename OwnershipType = mundy::math::Ownership::Owns>
 class Line {
   static_assert(std::is_same_v<typename PointType::scalar_t, Scalar>,
                 "The scalar_t of the PointType must match the Scalar type.");
@@ -69,14 +70,15 @@ class Line {
   /// \brief Default constructor for owning Lines. Default initialize the
   KOKKOS_FUNCTION
   Line()
-  requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
+    requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
       : center_(scalar_t(), scalar_t(), scalar_t()), direction_(scalar_t(), scalar_t(), scalar_t()) {
   }
 
   /// \brief No default constructor for viewing Lines.
   KOKKOS_FUNCTION
   Line()
-  requires std::is_same_v<OwnershipType, mundy::math::Ownership::Views> = delete;
+    requires std::is_same_v<OwnershipType, mundy::math::Ownership::Views>
+  = delete;
 
   /// \brief Constructor to initialize the center and radius.
   /// \param[in] center The center of the Line.
@@ -89,10 +91,9 @@ class Line {
   /// \param[in] center The center of the Line.
   /// \param[in] direction The direction of the Line.
   template <ValidPointType OtherPointType, mundy::math::ValidVectorType OtherVectorType>
-  KOKKOS_FUNCTION
-  Line(const OtherPointType& center, const OtherVectorType& direction) 
-      requires(!std::is_same_v<OtherPointType, point_t> || !std::is_same_v<OtherVectorType, vector_t>)
-  : center_(center), direction_(direction) {
+  KOKKOS_FUNCTION Line(const OtherPointType& center, const OtherVectorType& direction)
+    requires(!std::is_same_v<OtherPointType, point_t> || !std::is_same_v<OtherVectorType, vector_t>)
+      : center_(center), direction_(direction) {
   }
 
   /// \brief Destructor
@@ -113,7 +114,8 @@ class Line {
 
   /// \brief Deep move constructor
   KOKKOS_FUNCTION
-  Line(Line<scalar_t, point_t, ownership_t>&& other) : center_(std::move(other.center_)), direction_(std::move(other.direction_)) {
+  Line(Line<scalar_t, point_t, ownership_t>&& other)
+      : center_(std::move(other.center_)), direction_(std::move(other.direction_)) {
   }
 
   /// \brief Deep move constructor
@@ -202,8 +204,7 @@ class Line {
   /// \brief Set the center
   /// \param[in] center The new center.
   template <ValidPointType OtherPointType>
-  KOKKOS_FUNCTION
-  void set_center(const OtherPointType& center) {
+  KOKKOS_FUNCTION void set_center(const OtherPointType& center) {
     center_ = center;
   }
 
@@ -221,8 +222,7 @@ class Line {
   /// \brief Set the direction
   /// \param[in] direction The new direction.
   template <mundy::math::ValidVectorType OtherVectorType>
-  KOKKOS_FUNCTION
-  void set_direction(const OtherVectorType& direction) {
+  KOKKOS_FUNCTION void set_direction(const OtherVectorType& direction) {
     direction_ = direction;
   }
 
@@ -258,21 +258,17 @@ inline constexpr bool is_line_v = is_line<T>::value;
 
 /// @brief Concept to check if a type is a valid Line type
 template <typename LineType>
-concept ValidLineType = 
-    requires(std::remove_cv_t<LineType> line, const std::remove_cv_t<LineType> const_line) {
-      is_line_v<LineType>;
-      typename std::remove_cv_t<LineType>::scalar_t;
-      { line.center() } -> std::convertible_to<Point<typename std::remove_cv_t<LineType>::scalar_t>>;
-      { line.direction() } -> std::convertible_to<mundy::math::Vector3<typename std::remove_cv_t<LineType>::scalar_t>>;
+concept ValidLineType =
+    is_line_v<std::remove_cv_t<LineType>> &&
+    is_point_v<decltype(std::declval<std::remove_cv_t<LineType>>().center())> &&
+    mundy::math::is_vector3_v<decltype(std::declval<std::remove_cv_t<LineType>>().direction())> &&
+    is_point_v<decltype(std::declval<const std::remove_cv_t<LineType>>().center())> &&
+    mundy::math::is_vector3_v<decltype(std::declval<const std::remove_cv_t<LineType>>().direction())> &&
+    requires(std::remove_cv_t<LineType> line) { typename std::remove_cv_t<LineType>::scalar_t; };
+// ValidLineType
 
-      { const_line.center() } -> std::convertible_to<const Point<typename std::remove_cv_t<LineType>::scalar_t>>;
-      {
-        const_line.direction()
-      } -> std::convertible_to<const mundy::math::Vector3<typename std::remove_cv_t<LineType>::scalar_t>>;
-    };  // ValidLineType
-
-static_assert(ValidLineType<Line<float>> && ValidLineType<const Line<float>> &&
-              ValidLineType<Line<double>> && ValidLineType<const Line<double>>,
+static_assert(ValidLineType<Line<float>> && ValidLineType<const Line<float>> && ValidLineType<Line<double>> &&
+                  ValidLineType<const Line<double>>,
               "Line should satisfy the ValidLineType concept");
 
 //! \name Non-member functions for ValidLineType objects
@@ -280,15 +276,13 @@ static_assert(ValidLineType<Line<float>> && ValidLineType<const Line<float>> &&
 
 /// \brief Equality operator
 template <ValidLineType LineType1, ValidLineType LineType2>
-KOKKOS_FUNCTION
-bool operator==(const LineType1& line1, const LineType2& line2) {
+KOKKOS_FUNCTION bool operator==(const LineType1& line1, const LineType2& line2) {
   return (line1.center() == line2.center()) && (line1.direction() == line2.direction());
 }
 
 /// \brief Inequality operator
 template <ValidLineType LineType1, ValidLineType LineType2>
-KOKKOS_FUNCTION
-bool operator!=(const LineType1& line1, const LineType2& line2) {
+KOKKOS_FUNCTION bool operator!=(const LineType1& line1, const LineType2& line2) {
   return (line1.center() != line2.center()) || (line1.direction() != line2.direction());
 }
 

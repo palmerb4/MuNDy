@@ -56,7 +56,7 @@ using PointView = Point<Scalar, Accessor, mundy::math::Ownership::Views>;
 
 /// @brief Type trait to determine if a type is a Point
 template <typename T>
-using is_point = mundy::math::is_vector<T>;
+using is_point = mundy::math::is_vector3<T>;
 //
 template <typename T>
 constexpr bool is_point_v = is_point<T>::value;

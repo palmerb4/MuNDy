@@ -29,22 +29,23 @@
 #include <utility>
 
 // Our libs
-#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_geom/primitives/Point.hpp>         // for mundy::geom::Point
+#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
+#include <mundy_geom/primitives/Point.hpp>  // for mundy::geom::Point
 
 namespace mundy {
 
 namespace geom {
 
-template <typename Scalar, ValidPointType PointType = Point<Scalar>, typename OwnershipType = mundy::math::Ownership::Owns>
+template <typename Scalar, ValidPointType PointType = Point<Scalar>,
+          typename OwnershipType = mundy::math::Ownership::Owns>
 class LineSegment {
-   static_assert(std::is_same_v<typename PointType::scalar_t, Scalar>,
+  static_assert(std::is_same_v<typename PointType::scalar_t, Scalar>,
                 "The scalar_t of the PointType must match the Scalar type.");
   static_assert(std::is_same_v<typename PointType::ownership_t, OwnershipType>,
                 "The ownership type of the PointType must match the OwnershipType.\n"
                 "This is somewhat restrictive, and we may want to relax this constraint in the future.\n"
                 "If you need to use a different ownership type, please let us know and we'll remove this restriction.");
- 
+
  public:
   //! \name Type aliases
   //@{
@@ -65,14 +66,15 @@ class LineSegment {
   /// \brief Default constructor for owning LineSegments. Default initialize the start and end points.
   KOKKOS_FUNCTION
   LineSegment()
-  requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
+    requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
       : start_(scalar_t(), scalar_t(), scalar_t()), end_(scalar_t(), scalar_t(), scalar_t()) {
   }
 
   /// \brief No default constructor for viewing LineSegmentss.
   KOKKOS_FUNCTION
   LineSegment()
-  requires std::is_same_v<OwnershipType, mundy::math::Ownership::Views> = delete;
+    requires std::is_same_v<OwnershipType, mundy::math::Ownership::Views>
+  = delete;
 
   /// \brief Constructor to initialize the start and end points.
   /// \param[in] start The start of the LineSegment.
@@ -85,8 +87,7 @@ class LineSegment {
   /// \param[in] start The start of the LineSegment.
   /// \param[in] end The end of the LineSegment.
   template <ValidPointType OtherPointType>
-  KOKKOS_FUNCTION
-  LineSegment(const OtherPointType& start, const OtherPointType& end) : start_(start), end_(end) {
+  KOKKOS_FUNCTION LineSegment(const OtherPointType& start, const OtherPointType& end) : start_(start), end_(end) {
   }
 
   /// \brief Destructor
@@ -107,7 +108,8 @@ class LineSegment {
 
   /// \brief Deep move constructor
   KOKKOS_FUNCTION
-  LineSegment(LineSegment<scalar_t, point_t, ownership_t>&& other) : start_(std::move(other.start_)), end_(std::move(other.end_)) {
+  LineSegment(LineSegment<scalar_t, point_t, ownership_t>&& other)
+      : start_(std::move(other.start_)), end_(std::move(other.end_)) {
   }
 
   /// \brief Deep move constructor
@@ -132,9 +134,9 @@ class LineSegment {
 
   /// \brief Copy assignment operator
   template <typename OtherLineSegmentType>
-  KOKKOS_FUNCTION
-  LineSegment<scalar_t, point_t, ownership_t>& operator=(const OtherLineSegmentType& other) 
-    requires(!std::is_same_v<OtherLineSegmentType, LineSegment<scalar_t, point_t, ownership_t>>){
+  KOKKOS_FUNCTION LineSegment<scalar_t, point_t, ownership_t>& operator=(const OtherLineSegmentType& other)
+    requires(!std::is_same_v<OtherLineSegmentType, LineSegment<scalar_t, point_t, ownership_t>>)
+  {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     start_ = other.start_;
     end_ = other.end_;
@@ -152,9 +154,9 @@ class LineSegment {
 
   /// \brief Move assignment operator
   template <typename OtherLineSegmentType>
-  KOKKOS_FUNCTION
-  LineSegment<scalar_t, point_t, ownership_t>& operator=(OtherLineSegmentType&& other) 
-    requires(!std::is_same_v<OtherLineSegmentType, LineSegment<scalar_t, point_t, ownership_t>>) {
+  KOKKOS_FUNCTION LineSegment<scalar_t, point_t, ownership_t>& operator=(OtherLineSegmentType&& other)
+    requires(!std::is_same_v<OtherLineSegmentType, LineSegment<scalar_t, point_t, ownership_t>>)
+  {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     start_ = std::move(other.start_);
     end_ = std::move(other.end_);
@@ -196,8 +198,7 @@ class LineSegment {
   /// \brief Set the start point
   /// \param[in] start The new start point.
   template <ValidPointType OtherPointType>
-  KOKKOS_FUNCTION
-  void set_start(const OtherPointType& start) {
+  KOKKOS_FUNCTION void set_start(const OtherPointType& start) {
     start_ = start;
   }
 
@@ -215,8 +216,7 @@ class LineSegment {
   /// \brief Set the end point
   /// \param[in] end The new end point.
   template <ValidPointType OtherPointType>
-  KOKKOS_FUNCTION
-  void set_end(const OtherPointType& end) {
+  KOKKOS_FUNCTION void set_end(const OtherPointType& end) {
     end_ = end;
   }
 
@@ -252,19 +252,17 @@ inline constexpr bool is_line_segment_v = is_line_segment<T>::value;
 
 /// @brief Concept to check if a type is a valid LineSegment type
 template <typename LineSegmentType>
-concept ValidLineSegmentType = 
-    requires(std::remove_cv_t<LineSegmentType> line, const std::remove_cv_t<LineSegmentType> const_line) {
-      is_line_segment_v<std::remove_cv_t<LineSegmentType>>;
-      typename std::remove_cv_t<LineSegmentType>::scalar_t;
-      { line.start() } -> std::convertible_to<Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
-      { line.end() } -> std::convertible_to<Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
-
-      { const_line.start() } -> std::convertible_to<const Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
-      { const_line.end() } -> std::convertible_to<const Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
-  };  // ValidLineSegmentType
+concept ValidLineSegmentType = is_line_segment_v<std::remove_cv_t<LineSegmentType>> &&
+                               is_point_v<decltype(std::declval<std::remove_cv_t<LineSegmentType>>().start())> &&
+                               is_point_v<decltype(std::declval<std::remove_cv_t<LineSegmentType>>().end())> &&
+                               is_point_v<decltype(std::declval<const std::remove_cv_t<LineSegmentType>>().start())> &&
+                               is_point_v<decltype(std::declval<const std::remove_cv_t<LineSegmentType>>().end())> &&
+                               requires(std::remove_cv_t<LineSegmentType> line) {
+                                 typename std::remove_cv_t<LineSegmentType>::scalar_t;
+                               };  // ValidLineSegmentType
 
 static_assert(ValidLineSegmentType<LineSegment<float>> && ValidLineSegmentType<const LineSegment<float>> &&
-              ValidLineSegmentType<LineSegment<double>> && ValidLineSegmentType<const LineSegment<double>>,
+                  ValidLineSegmentType<LineSegment<double>> && ValidLineSegmentType<const LineSegment<double>>,
               "LineSegment should satisfy the ValidLineSegmentType concept");
 
 //! \name Non-member functions for ValidLineSegmentType objects
@@ -272,15 +270,13 @@ static_assert(ValidLineSegmentType<LineSegment<float>> && ValidLineSegmentType<c
 
 /// \brief Equality operator
 template <ValidLineSegmentType LineSegmentType1, ValidLineSegmentType LineSegmentType2>
-KOKKOS_FUNCTION
-bool operator==(const LineSegmentType1& line_segment1, const LineSegmentType2& line_segment2) {
+KOKKOS_FUNCTION bool operator==(const LineSegmentType1& line_segment1, const LineSegmentType2& line_segment2) {
   return (line_segment1.start() == line_segment2.start()) && (line_segment1.end() == line_segment2.end());
 }
 
 /// \brief Inequality operator
 template <ValidLineSegmentType LineSegmentType1, ValidLineSegmentType LineSegmentType2>
-KOKKOS_FUNCTION
-bool operator!=(const LineSegmentType1& line_segment1, const LineSegmentType2& line_segment2) {
+KOKKOS_FUNCTION bool operator!=(const LineSegmentType1& line_segment1, const LineSegmentType2& line_segment2) {
   return (line_segment1.start() != line_segment2.start()) || (line_segment1.end() != line_segment2.end());
 }
 

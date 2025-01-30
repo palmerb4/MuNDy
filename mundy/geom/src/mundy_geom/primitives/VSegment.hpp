@@ -294,24 +294,16 @@ inline constexpr bool is_v_segment_v = is_v_segment<T>::value;
 
 /// @brief Concept to check if a type is a valid VSegment type
 template <typename VSegmentType>
-concept ValidVSegmentType =
-    requires(std::remove_cv_t<VSegmentType> line, const std::remove_cv_t<VSegmentType> const_line) {
-      is_v_segment_v<std::remove_cv_t<VSegmentType>>;
-      typename std::remove_cv_t<VSegmentType>::scalar_t;
-      { line.start() } -> std::convertible_to<Point<typename std::remove_cv_t<VSegmentType>::scalar_t>>;
-      { line.middle() } -> std::convertible_to<Point<typename std::remove_cv_t<VSegmentType>::scalar_t>>;
-      { line.end() } -> std::convertible_to<Point<typename std::remove_cv_t<VSegmentType>::scalar_t>>;
-
-      {
-        const_line.start()
-      } -> std::convertible_to<const Point<typename std::remove_cv_t<VSegmentType>::scalar_t>>;
-      {
-        const_line.middle()
-      } -> std::convertible_to<const Point<typename std::remove_cv_t<VSegmentType>::scalar_t>>;
-      {
-        const_line.end()
-      } -> std::convertible_to<const Point<typename std::remove_cv_t<VSegmentType>::scalar_t>>;
-    };  // ValidVSegmentType
+concept ValidVSegmentType = is_v_segment_v<std::remove_cv_t<VSegmentType>> &&
+                            is_point_v<decltype(std::declval<std::remove_cv_t<VSegmentType>>().start())> &&
+                            is_point_v<decltype(std::declval<std::remove_cv_t<VSegmentType>>().middle())> &&
+                            is_point_v<decltype(std::declval<std::remove_cv_t<VSegmentType>>().end())> &&
+                            is_point_v<decltype(std::declval<const std::remove_cv_t<VSegmentType>>().start())> &&
+                            is_point_v<decltype(std::declval<const std::remove_cv_t<VSegmentType>>().middle())> &&
+                            is_point_v<decltype(std::declval<const std::remove_cv_t<VSegmentType>>().end())> &&
+                            requires(std::remove_cv_t<VSegmentType> line) {
+                              typename std::remove_cv_t<VSegmentType>::scalar_t;
+                            };  // ValidVSegmentType
 
 static_assert(ValidVSegmentType<VSegment<float>> && ValidVSegmentType<const VSegment<float>> &&
                   ValidVSegmentType<VSegment<double>> && ValidVSegmentType<const VSegment<double>>,

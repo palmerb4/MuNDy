@@ -28,7 +28,7 @@
 #include <concepts>
 #include <initializer_list>
 #include <iostream>
-#include <type_traits>
+#include <type_traits>  // for std::decay_t
 #include <utility>
 
 // Mundy
@@ -82,15 +82,16 @@ template <typename T, size_t N, ValidAccessor<T> Accessor = Array<T, N>, typenam
   requires std::is_arithmetic_v<T>
 class Vector;
 
-/// \brief Type trait to determine if a type is a Vector
+/// \brief (Implementation) Type trait to determine if a type is a Vector
 template <typename TypeToCheck>
-struct is_vector : std::false_type {};
+struct is_vector_impl : std::false_type {};
 //
 template <typename T, size_t N, typename Accessor, typename OwnershipType>
-struct is_vector<Vector<T, N, Accessor, OwnershipType>> : std::true_type {};
-//
-template <typename T, size_t N, typename Accessor, typename OwnershipType>
-struct is_vector<const Vector<T, N, Accessor, OwnershipType>> : std::true_type {};
+struct is_vector_impl<Vector<T, N, Accessor, OwnershipType>> : std::true_type {};
+
+/// \brief Type trait to determine if a type is a Vector
+template <typename T>
+struct is_vector : public is_vector_impl<std::decay_t<T>> {};
 //
 template <typename TypeToCheck>
 constexpr bool is_vector_v = is_vector<TypeToCheck>::value;
@@ -98,14 +99,15 @@ constexpr bool is_vector_v = is_vector<TypeToCheck>::value;
 /// \brief A temporary concept to check if a type is a valid Vector type
 /// TODO(palmerb4): Extend this concept to contain all shared setters and getters for our vectors.
 template <typename VectorType>
-concept ValidVectorType = requires(std::decay_t<VectorType> vector, const std::decay_t<VectorType> const_vector, size_t i) {
-  is_vector_v<std::decay_t<VectorType>>;
-  typename std::decay_t<VectorType>::scalar_t;
-  { vector[i] } -> std::convertible_to<typename std::decay_t<VectorType>::scalar_t>;
-  { vector(i) } -> std::convertible_to<typename std::decay_t<VectorType>::scalar_t>;
-  { const_vector[i] } -> std::convertible_to<const typename std::decay_t<VectorType>::scalar_t>;
-  { const_vector(i) } -> std::convertible_to<const typename std::decay_t<VectorType>::scalar_t>;
-};  // ValidVectorType
+concept ValidVectorType =
+    is_vector_v<std::decay_t<VectorType>> &&
+    requires(std::decay_t<VectorType> vector, const std::decay_t<VectorType> const_vector, size_t i) {
+      typename std::decay_t<VectorType>::scalar_t;
+      { vector[i] } -> std::convertible_to<typename std::decay_t<VectorType>::scalar_t>;
+      { vector(i) } -> std::convertible_to<typename std::decay_t<VectorType>::scalar_t>;
+      { const_vector[i] } -> std::convertible_to<const typename std::decay_t<VectorType>::scalar_t>;
+      { const_vector(i) } -> std::convertible_to<const typename std::decay_t<VectorType>::scalar_t>;
+    };  // ValidVectorType
 
 namespace impl {
 //! \name Helper functions for generic vector operators applied to an abstract accessor.
@@ -172,9 +174,10 @@ KOKKOS_INLINE_FUNCTION Vector<T, N> unary_minus_impl(std::index_sequence<Is...>,
 /// \param[in] other The other vector.
 template <size_t... Is, typename U, typename T, size_t N, ValidAccessor<T> Accessor, typename OwnershipType,
           ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
-KOKKOS_INLINE_FUNCTION auto vector_vector_add_impl(
-    std::index_sequence<Is...>, const Vector<T, N, Accessor, OwnershipType>& vec,
-    const Vector<U, N, OtherAccessor, OtherOwnershipType>& other) -> Vector<std::common_type_t<T, U>, N> {
+KOKKOS_INLINE_FUNCTION auto vector_vector_add_impl(std::index_sequence<Is...>,
+                                                   const Vector<T, N, Accessor, OwnershipType>& vec,
+                                                   const Vector<U, N, OtherAccessor, OtherOwnershipType>& other)
+    -> Vector<std::common_type_t<T, U>, N> {
   using CommonType = std::common_type_t<T, U>;
   Vector<CommonType, N> result;
   ((result[Is] = static_cast<CommonType>(vec[Is]) + static_cast<CommonType>(other[Is])), ...);
@@ -196,9 +199,10 @@ KOKKOS_INLINE_FUNCTION void self_vector_add_impl(std::index_sequence<Is...>, Vec
 /// \param[in] other The other vector.
 template <size_t... Is, typename T, size_t N, typename U, ValidAccessor<T> Accessor, typename OwnershipType,
           ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
-KOKKOS_INLINE_FUNCTION auto vector_vector_subtraction_impl(
-    std::index_sequence<Is...>, const Vector<T, N, Accessor, OwnershipType>& vec,
-    const Vector<U, N, OtherAccessor, OtherOwnershipType>& other) -> Vector<std::common_type_t<T, U>, N> {
+KOKKOS_INLINE_FUNCTION auto vector_vector_subtraction_impl(std::index_sequence<Is...>,
+                                                           const Vector<T, N, Accessor, OwnershipType>& vec,
+                                                           const Vector<U, N, OtherAccessor, OtherOwnershipType>& other)
+    -> Vector<std::common_type_t<T, U>, N> {
   using CommonType = std::common_type_t<T, U>;
   Vector<CommonType, N> result;
   ((result[Is] = static_cast<CommonType>(vec[Is]) - static_cast<CommonType>(other[Is])), ...);
@@ -221,8 +225,8 @@ KOKKOS_INLINE_FUNCTION void self_vector_subtraction_impl(std::index_sequence<Is.
 /// \param[in] scalar The scalar.
 template <size_t... Is, typename T, size_t N, typename U, ValidAccessor<T> Accessor, typename OwnershipType>
 KOKKOS_INLINE_FUNCTION auto vector_scalar_add_impl(std::index_sequence<Is...>,
-                                                   const Vector<T, N, Accessor, OwnershipType>& vec,
-                                                   const U& scalar) -> Vector<std::common_type_t<T, U>, N> {
+                                                   const Vector<T, N, Accessor, OwnershipType>& vec, const U& scalar)
+    -> Vector<std::common_type_t<T, U>, N> {
   using CommonType = std::common_type_t<T, U>;
   Vector<CommonType, N> result;
   ((result[Is] = static_cast<CommonType>(vec[Is]) + static_cast<CommonType>(scalar)), ...);

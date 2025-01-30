@@ -27,7 +27,7 @@
 #include <cmath>
 #include <concepts>
 #include <iostream>
-#include <type_traits>
+#include <type_traits>  // for std::decay_t
 
 // Our libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
@@ -52,15 +52,16 @@ using Matrix3View = Matrix<T, 3, 3, Accessor, Ownership::Views>;
 template <typename T, ValidAccessor<T> Accessor = Array<T, 9>>
 using OwningMatrix3 = Matrix<T, 3, 3, Accessor, Ownership::Owns>;
 
-/// \brief Type trait to determine if a type is a Matrix3
+/// \brief (Implementation) Type trait to determine if a type is a Matrix3
 template <typename TypeToCheck>
-struct is_matrix3 : std::false_type {};
+struct is_matrix3_impl : std::false_type {};
 //
 template <typename T, typename Accessor, typename OwnershipType>
-struct is_matrix3<Matrix3<T, Accessor, OwnershipType>> : std::true_type {};
-//
-template <typename T, typename Accessor, typename OwnershipType>
-struct is_matrix3<const Matrix3<T, Accessor, OwnershipType>> : std::true_type {};
+struct is_matrix3_impl<Matrix3<T, Accessor, OwnershipType>> : std::true_type {};
+
+/// \brief Type trait to determine if a type is a Matrix3
+template <typename T>
+struct is_matrix3 : is_matrix3_impl<std::decay_t<T>> {};
 //
 template <typename TypeToCheck>
 constexpr bool is_matrix3_v = is_matrix3<TypeToCheck>::value;
@@ -68,8 +69,9 @@ constexpr bool is_matrix3_v = is_matrix3<TypeToCheck>::value;
 /// \brief A temporary concept to check if a type is a valid Matrix3 type
 /// TODO(palmerb4): Extend this concept to contain all shared setters and getters for our quaternions.
 template <typename Matrix3Type>
-concept ValidMatrix3Type = requires(std::decay_t<Matrix3Type> matrix3, const std::decay_t<Matrix3Type> const_matrix3) {
-  is_matrix3_v<std::decay_t<Matrix3Type>>;
+concept ValidMatrix3Type = 
+  is_matrix3_v<std::decay_t<Matrix3Type>> &&
+requires(std::decay_t<Matrix3Type> matrix3, const std::decay_t<Matrix3Type> const_matrix3) {
   typename std::decay_t<Matrix3Type>::scalar_t;
   { matrix3[0] } -> std::convertible_to<typename std::decay_t<Matrix3Type>::scalar_t>;
   { matrix3[1] } -> std::convertible_to<typename std::decay_t<Matrix3Type>::scalar_t>;

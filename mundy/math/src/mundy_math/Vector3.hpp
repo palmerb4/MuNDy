@@ -28,7 +28,7 @@
 #include <concepts>
 #include <initializer_list>
 #include <iostream>
-#include <type_traits>
+#include <type_traits>  // for std::decay_t
 #include <utility>
 
 // Mundy
@@ -57,15 +57,16 @@ template <typename T, ValidAccessor<T> Accessor = Array<T, 3>>
   requires std::is_arithmetic_v<T>
 using OwningVector3 = Vector<T, 3, Accessor, Ownership::Owns>;
 
+/// \brief (Implementation) Type trait to determine if a type is a Vector3
+template <typename TypeToCheck>
+struct is_vector3_impl : std::false_type {};
+//
+template <typename T, typename Accessor, typename OwnershipType>
+struct is_vector3_impl<Vector3<T, Accessor, OwnershipType>> : std::true_type {};
+
 /// \brief Type trait to determine if a type is a Vector3
 template <typename TypeToCheck>
-struct is_vector3 : std::false_type {};
-//
-template <typename T, typename Accessor, typename OwnershipType>
-struct is_vector3<Vector3<T, Accessor, OwnershipType>> : std::true_type {};
-//
-template <typename T, typename Accessor, typename OwnershipType>
-struct is_vector3<const Vector3<T, Accessor, OwnershipType>> : std::true_type {};
+struct is_vector3 : public is_vector3_impl<std::decay_t<TypeToCheck>> {};
 //
 template <typename TypeToCheck>
 constexpr bool is_vector3_v = is_vector3<TypeToCheck>::value;
@@ -73,8 +74,9 @@ constexpr bool is_vector3_v = is_vector3<TypeToCheck>::value;
 /// \brief A temporary concept to check if a type is a valid Vector3 type
 /// TODO(palmerb4): Extend this concept to contain all shared setters and getters for our vectors.
 template <typename Vector3Type>
-concept ValidVector3Type = requires(std::decay_t<Vector3Type> vector3, const std::decay_t<Vector3Type> const_vector3) {
-  is_vector3_v<std::decay_t<Vector3Type>>;
+concept ValidVector3Type = 
+  is_vector3_v<std::decay_t<Vector3Type>> &&
+requires(std::decay_t<Vector3Type> vector3, const std::decay_t<Vector3Type> const_vector3) {
   typename std::decay_t<Vector3Type>::scalar_t;
   { vector3[0] } -> std::convertible_to<typename std::decay_t<Vector3Type>::scalar_t>;
   { vector3[1] } -> std::convertible_to<typename std::decay_t<Vector3Type>::scalar_t>;

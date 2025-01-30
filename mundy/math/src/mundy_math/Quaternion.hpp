@@ -26,6 +26,7 @@
 // C++ core
 #include <initializer_list>  // for std::initializer_list
 #include <utility>
+#include <type_traits>  // for std::decay_t
 
 // Mundy
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
@@ -80,15 +81,16 @@ template <typename T, ValidAccessor<T> Accessor = Array<T, 4>, typename Ownershi
   requires std::is_floating_point_v<T>
 class Quaternion;
 
-/// \brief Type trait to determine if a type is a Quaternion
+/// \brief (Implementation) Type trait to determine if a type is a Quaternion
 template <typename TypeToCheck>
-struct is_quaternion : std::false_type {};
+struct is_quaternion_impl : std::false_type {};
 //
 template <typename T, typename Accessor, typename OwnershipType>
-struct is_quaternion<Quaternion<T, Accessor, OwnershipType>> : std::true_type {};
-//
-template <typename T, typename Accessor, typename OwnershipType>
-struct is_quaternion<const Quaternion<T, Accessor, OwnershipType>> : std::true_type {};
+struct is_quaternion_impl<Quaternion<T, Accessor, OwnershipType>> : std::true_type {};
+
+/// \brief Type trait to determine if a type is a Quaternion
+template <typename T>
+struct is_quaternion : is_quaternion_impl<std::decay_t<T>> {};
 //
 template <typename TypeToCheck>
 constexpr bool is_quaternion_v = is_quaternion<TypeToCheck>::value;
@@ -96,8 +98,9 @@ constexpr bool is_quaternion_v = is_quaternion<TypeToCheck>::value;
 /// \brief A temporary concept to check if a type is a valid Quaternion type
 /// TODO(palmerb4): Extend this concept to contain all shared setters and getters for our quaternions.
 template <typename QuaternionType>
-concept ValidQuaternionType = requires(std::decay_t<QuaternionType> quaternion, const std::decay_t<QuaternionType> const_quaternion) {
-  is_quaternion_v<std::decay_t<QuaternionType>>;
+concept ValidQuaternionType = 
+  is_quaternion_v<std::decay_t<QuaternionType>> &&
+requires(std::decay_t<QuaternionType> quaternion, const std::decay_t<QuaternionType> const_quaternion) {
   typename std::decay_t<QuaternionType>::scalar_t;
   { quaternion[0] } -> std::convertible_to<typename std::decay_t<QuaternionType>::scalar_t>;
   { quaternion[1] } -> std::convertible_to<typename std::decay_t<QuaternionType>::scalar_t>;

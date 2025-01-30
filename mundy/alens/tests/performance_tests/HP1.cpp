@@ -3566,10 +3566,10 @@ class HP1 {
     }
 
     // Apply the RPY kernel from spheres to spheres
-    // mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
-    //                                           sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
-    mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
-                                                 sphere_forces, sphere_velocities);
+    mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
+                                              sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
+    // mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
+    //                                              sphere_forces, sphere_velocities);
 
     // If enabled, apply the correction for the no-slip boundary condition
     if (enable_periphery_hydrodynamics_) {

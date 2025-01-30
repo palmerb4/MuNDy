@@ -36,7 +36,8 @@ namespace mundy {
 
 namespace geom {
 
-template <typename Scalar, ValidPointType PointType = Point<Scalar>, typename OwnershipType = mundy::math::Ownership::Owns>
+template <typename Scalar, ValidPointType PointType = Point<Scalar>,
+          typename OwnershipType = mundy::math::Ownership::Owns>
 class AABB {
   static_assert(std::is_same_v<typename PointType::scalar_t, Scalar>,
                 "The scalar_t of the PointType must match the Scalar type.");
@@ -336,51 +337,59 @@ class AABB {
   point_t max_corner_;
 };  // AABB
 
+/// \brief Deduction guide for AABB
+template <typename Scalar>
+AABB(Scalar, Scalar, Scalar, Scalar, Scalar, Scalar) -> AABB<Scalar>;
+//
+template <typename Scalar, ValidPointType PointType>
+AABB(PointType, PointType) -> AABB<Scalar, PointType, typename PointType::ownership_t>;
+
 template <typename Scalar>
 using OwningAABB = AABB<Scalar, mundy::math::Ownership::Owns>;
 
 template <typename Scalar>
 using AABBView = AABB<Scalar, mundy::math::Ownership::Views>;
 
+/// @brief (Implementation) Type trait to determine if a type is an AABB
+template <typename T>
+struct is_aabb_impl : std::false_type {};
+//
+template <typename Scalar, ValidPointType PointType, typename OwnershipType>
+struct is_aabb_impl<AABB<Scalar, PointType, OwnershipType>> : std::true_type {};
+
 /// @brief Type trait to determine if a type is an AABB
 template <typename T>
-struct is_aabb : std::false_type {};
-//
-template <typename Scalar, ValidPointType PointType, typename OwnershipType>
-struct is_aabb<AABB<Scalar, PointType, OwnershipType>> : std::true_type {};
-//
-template <typename Scalar, ValidPointType PointType, typename OwnershipType>
-struct is_aabb<const AABB<Scalar, PointType, OwnershipType>> : std::true_type {};
+struct is_aabb : is_aabb_impl<std::remove_cv_t<T>> {};
 //
 template <typename T>
 constexpr bool is_aabb_v = is_aabb<T>::value;
 
 /// @brief Concept to determine if a type is a valid AABB type
 template <typename AABBType>
-concept ValidAABBType = requires(std::remove_cv_t<AABBType> aabb, const std::remove_cv_t<AABBType> const_aabb) {
-  is_aabb_v<std::remove_cv_t<AABBType>>;
-  typename std::remove_cv_t<AABBType>::scalar_t;
-  typename std::remove_cv_t<AABBType>::point_t;
-  is_point_v<typename std::remove_cv_t<AABBType>::point_t>;
+concept ValidAABBType =
+    is_aabb_v<std::remove_cv_t<AABBType>> && is_point_v<typename std::remove_cv_t<AABBType>::point_t> &&
+    is_point_v<decltype(std::declval<std::remove_cv_t<AABBType>>().min_corner())> &&
+    is_point_v<decltype(std::declval<std::remove_cv_t<AABBType>>().max_corner())> &&
+    is_point_v<decltype(std::declval<const std::remove_cv_t<AABBType>>().min_corner())> &&
+    is_point_v<decltype(std::declval<const std::remove_cv_t<AABBType>>().max_corner())> &&
+    requires(std::remove_cv_t<AABBType> aabb, const std::remove_cv_t<AABBType> const_aabb) {
+      typename std::remove_cv_t<AABBType>::scalar_t;
+      typename std::remove_cv_t<AABBType>::point_t;
 
-  is_point_v<decltype(aabb.min_corner())>;
-  is_point_v<decltype(aabb.max_corner())>;
-  { aabb.x_min() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
-  { aabb.y_min() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
-  { aabb.z_min() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
-  { aabb.x_max() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
-  { aabb.y_max() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
-  { aabb.z_max() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
+      { aabb.x_min() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
+      { aabb.y_min() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
+      { aabb.z_min() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
+      { aabb.x_max() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
+      { aabb.y_max() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
+      { aabb.z_max() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
 
-  is_point_v<decltype(const_aabb.min_corner())>;
-  is_point_v<decltype(const_aabb.max_corner())>;
-  { const_aabb.x_min() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
-  { const_aabb.y_min() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
-  { const_aabb.z_min() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
-  { const_aabb.x_max() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
-  { const_aabb.y_max() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
-  { const_aabb.z_max() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
-};  // ValidAABBType
+      { const_aabb.x_min() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
+      { const_aabb.y_min() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
+      { const_aabb.z_min() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
+      { const_aabb.x_max() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
+      { const_aabb.y_max() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
+      { const_aabb.z_max() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
+    };  // ValidAABBType
 
 static_assert(ValidAABBType<AABB<float>> && ValidAABBType<const AABB<float>> && ValidAABBType<AABB<double>> &&
                   ValidAABBType<const AABB<double>>,

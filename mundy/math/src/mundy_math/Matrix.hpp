@@ -28,7 +28,7 @@
 #include <concepts>
 #include <initializer_list>
 #include <iostream>
-#include <type_traits>
+#include <type_traits>  // for std::decay_t
 #include <utility>
 
 // Our libs
@@ -88,15 +88,16 @@ template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor = Array<T, N
   requires std::is_arithmetic_v<T>
 class Matrix;
 
-/// \brief Type trait to determine if a type is a Matrix
+/// \brief (Implementation) Type trait to determine if a type is a Matrix
 template <typename TypeToCheck>
-struct is_matrix : std::false_type {};
+struct is_matrix_impl : std::false_type {};
 //
 template <typename T, size_t N, size_t M, typename Accessor, typename OwnershipType>
-struct is_matrix<Matrix<T, N, M, Accessor, OwnershipType>> : std::true_type {};
-//
-template <typename T, size_t N, size_t M, typename Accessor, typename OwnershipType>
-struct is_matrix<const Matrix<T, N, M, Accessor, OwnershipType>> : std::true_type {};
+struct is_matrix_impl<Matrix<T, N, M, Accessor, OwnershipType>> : std::true_type {};
+
+/// \brief Type trait to determine if a type is a Matrix
+template <typename T>
+struct is_matrix : public is_matrix_impl<std::decay_t<T>> {};
 //
 template <typename TypeToCheck>
 constexpr bool is_matrix_v = is_matrix<TypeToCheck>::value;
@@ -104,16 +105,17 @@ constexpr bool is_matrix_v = is_matrix<TypeToCheck>::value;
 /// \brief A temporary concept to check if a type is a valid Matrix type
 /// TODO(palmerb4): Extend this concept to contain all shared setters and getters for our quaternions.
 template <typename MatrixType>
-concept ValidMatrixType = requires(std::decay_t<MatrixType> matrix, const std::decay_t<MatrixType> const_matrix, size_t i) {
-  is_matrix_v<std::decay_t<MatrixType>>;
-  typename std::decay_t<MatrixType>::scalar_t;
-  { matrix[i] } -> std::convertible_to<typename std::decay_t<MatrixType>::scalar_t>;
-  { matrix(i) } -> std::convertible_to<typename std::decay_t<MatrixType>::scalar_t>;
-  { matrix(i, i) } -> std::convertible_to<typename std::decay_t<MatrixType>::scalar_t>;
-  { const_matrix[i] } -> std::convertible_to<const typename std::decay_t<MatrixType>::scalar_t>;
-  { const_matrix(i) } -> std::convertible_to<const typename std::decay_t<MatrixType>::scalar_t>;
-  { const_matrix(i, i) } -> std::convertible_to<const typename std::decay_t<MatrixType>::scalar_t>;
-};  // ValidMatrixType
+concept ValidMatrixType =
+    is_matrix_v<std::decay_t<MatrixType>> &&
+    requires(std::decay_t<MatrixType> matrix, const std::decay_t<MatrixType> const_matrix, size_t i) {
+      typename std::decay_t<MatrixType>::scalar_t;
+      { matrix[i] } -> std::convertible_to<typename std::decay_t<MatrixType>::scalar_t>;
+      { matrix(i) } -> std::convertible_to<typename std::decay_t<MatrixType>::scalar_t>;
+      { matrix(i, i) } -> std::convertible_to<typename std::decay_t<MatrixType>::scalar_t>;
+      { const_matrix[i] } -> std::convertible_to<const typename std::decay_t<MatrixType>::scalar_t>;
+      { const_matrix(i) } -> std::convertible_to<const typename std::decay_t<MatrixType>::scalar_t>;
+      { const_matrix(i, i) } -> std::convertible_to<const typename std::decay_t<MatrixType>::scalar_t>;
+    };  // ValidMatrixType
 
 namespace impl {
 //! \name Helper functions for generic matrix operators applied to an abstract accessor.
@@ -257,9 +259,10 @@ KOKKOS_INLINE_FUNCTION Matrix<T, N, M> unary_minus_impl(std::index_sequence<Is..
 /// \param[in] other The other matrix.
 template <size_t... Is, typename T, size_t N, size_t M, typename U, ValidAccessor<T> Accessor, typename OwnershipType,
           ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
-KOKKOS_INLINE_FUNCTION auto matrix_matrix_addition_impl(
-    std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat,
-    const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other) -> Matrix<std::common_type_t<T, U>, N, M> {
+KOKKOS_INLINE_FUNCTION auto matrix_matrix_addition_impl(std::index_sequence<Is...>,
+                                                        const Matrix<T, N, M, Accessor, OwnershipType>& mat,
+                                                        const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other)
+    -> Matrix<std::common_type_t<T, U>, N, M> {
   using CommonType = std::common_type_t<T, U>;
   Matrix<CommonType, N, M> result;
   ((result[Is] = static_cast<CommonType>(mat[Is]) + static_cast<CommonType>(other[Is])), ...);
@@ -405,9 +408,10 @@ KOKKOS_INLINE_FUNCTION auto matrix_vector_multiplication_impl(
 /// \param[in] scalar The scalar.
 template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U>
   requires std::is_arithmetic_v<U>
-KOKKOS_INLINE_FUNCTION auto matrix_scalar_multiplication_impl(
-    std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat,
-    const U& scalar) -> Matrix<std::common_type_t<T, U>, N, M> {
+KOKKOS_INLINE_FUNCTION auto matrix_scalar_multiplication_impl(std::index_sequence<Is...>,
+                                                              const Matrix<T, N, M, Accessor, OwnershipType>& mat,
+                                                              const U& scalar)
+    -> Matrix<std::common_type_t<T, U>, N, M> {
   using CommonType = std::common_type_t<T, U>;
   Matrix<CommonType, N, M> result;
   ((result[Is] = static_cast<CommonType>(mat[Is]) * static_cast<CommonType>(scalar)), ...);
@@ -1906,7 +1910,8 @@ template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor = Array<T, N
 using OwningMatrix = Matrix<T, N, M, Accessor, Ownership::Owns>;
 
 static_assert(is_matrix_v<Matrix<int, 3, 4>>, "Odd, default matrix is not a matrix.");
-static_assert(is_matrix_v<Matrix<int, 3, 4, Array<int, 12>>>, "Odd, default matrix with Array accessor is not a matrix.");
+static_assert(is_matrix_v<Matrix<int, 3, 4, Array<int, 12>>>,
+              "Odd, default matrix with Array accessor is not a matrix.");
 static_assert(is_matrix_v<MatrixView<int, 3, 4>>, "Odd, MatrixView is not a matrix.");
 static_assert(is_matrix_v<OwningMatrix<int, 3, 4>>, "Odd, OwningMatrix is not a matrix.");
 

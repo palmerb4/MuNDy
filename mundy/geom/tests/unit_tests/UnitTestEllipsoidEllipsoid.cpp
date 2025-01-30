@@ -65,7 +65,7 @@ TEST(SharedNormalDistanceBetweenEllipsoidAndPoint, AnalyticalSphereTestCases) {
   auto perform_test_for_given_spheres = [](const Point<double>& center,
                                            const mundy::math::Quaternion<double>& orientation, const double r,
                                            const Point<double>& point) {
-    const Ellipsoid<double> ellipsoid(center, orientation, 2 * r, 2 * r, 2 * r);
+    const Ellipsoid<double> ellipsoid(center, orientation, r, r, r);
     const double shared_normal_ssd = distance(SharedNormalSigned{}, point, ellipsoid);
     const double expected_ssd = mundy::math::norm(point - center) - r;
 
@@ -105,8 +105,8 @@ TEST(SharedNormalDistanceBetweenEllipsoids, AnalyticalSphereTestCases) {
   auto perform_test_for_given_spheres =
       [](const Point<double>& center0, const mundy::math::Quaternion<double>& orientation0, const double r0,
          const Point<double>& center1, const mundy::math::Quaternion<double>& orientation1, const double r1) {
-        const Ellipsoid<double> ellipsoid0(center0, orientation0, 2 * r0, 2 * r0, 2 * r0);
-        const Ellipsoid<double> ellipsoid1(center1, orientation1, 2 * r1, 2 * r1, 2 * r1);
+        const Ellipsoid<double> ellipsoid0(center0, orientation0, r0, r0, r0);
+        const Ellipsoid<double> ellipsoid1(center1, orientation1, r1, r1, r1);
         const double shared_normal_ssd = distance(SharedNormalSigned{}, ellipsoid0, ellipsoid1);
         const double expected_ssd = mundy::math::norm(center1 - center0) - r0 - r1;
 
@@ -155,14 +155,14 @@ TEST(SharedNormalDistanceBetweenEllipsoids, AnalyticalEllipsoidTestCases) {
     const double r1_0 = 3.0;
     const double r2_0 = 1.0;
     const double r3_0 = 2.0;
-    const Ellipsoid<double> ellipsoid0(center0, orientation0, 2 * r1_0, 2 * r2_0, 2 * r3_0);
+    const Ellipsoid<double> ellipsoid0(center0, orientation0, r1_0, r2_0, r3_0);
 
     const auto center1 = Point<double>(0.0, 0.0, 0.0);
     const auto orientation1 = mundy::math::Quaternion<double>::identity();
     const double r1_1 = r1_0;
     const double r2_1 = r2_0;
     const double r3_1 = r3_0;
-    const Ellipsoid<double> ellipsoid1(center1, orientation1, 2 * r1_1, 2 * r2_1, 2 * r3_1);
+    const Ellipsoid<double> ellipsoid1(center1, orientation1, r1_1, r2_1, r3_1);
 
     const double shared_normal_ssd = distance(SharedNormalSigned{}, ellipsoid0, ellipsoid1);
     EXPECT_NEAR(shared_normal_ssd, -2 * r2_0, TEST_DOUBLE_EPSILON);
@@ -175,14 +175,14 @@ TEST(SharedNormalDistanceBetweenEllipsoids, AnalyticalEllipsoidTestCases) {
     const double r1_0 = 3.0;
     const double r2_0 = 1.0;
     const double r3_0 = 2.0;
-    const Ellipsoid<double> ellipsoid0(center0, orientation0, 2 * r1_0, 2 * r2_0, 2 * r3_0);
+    const Ellipsoid<double> ellipsoid0(center0, orientation0, r1_0, r2_0, r3_0);
 
     const auto center1 = Point<double>(0.0, 0.0, 0.0);
     const auto orientation1 = mundy::math::Quaternion<double>::identity();
     const double r1_1 = 2 * r1_0;
     const double r2_1 = 2 * r2_0;
     const double r3_1 = 2 * r3_0;
-    const Ellipsoid<double> ellipsoid1(center1, orientation1, 2 * r1_1, 2 * r2_1, 2 * r3_1);
+    const Ellipsoid<double> ellipsoid1(center1, orientation1, r1_1, r2_1, r3_1);
 
     const double shared_normal_ssd = distance(SharedNormalSigned{}, ellipsoid0, ellipsoid1);
     EXPECT_NEAR(shared_normal_ssd, -3 * r2_0, TEST_DOUBLE_EPSILON);
@@ -196,14 +196,14 @@ TEST(SharedNormalDistanceBetweenEllipsoids, AnalyticalEllipsoidTestCases) {
       const double r3_0 = 2.0;
       const auto center0 = Point<double>(-r1_0 - 0.5 * expected_ssd, 0.0, 0.0);
       const auto orientation0 = mundy::math::Quaternion<double>::identity();  // Aligned with the x-axis
-      const Ellipsoid<double> ellipsoid0(center0, orientation0, 2 * r1_0, 2 * r2_0, 2 * r3_0);
+      const Ellipsoid<double> ellipsoid0(center0, orientation0, r1_0, r2_0, r3_0);
 
       const double r1_1 = r1_0;
       const double r2_1 = r2_0;
       const double r3_1 = r3_0;
       const auto center1 = -center0;
       const auto orientation1 = orientation0;
-      const Ellipsoid<double> ellipsoid1(center1, orientation1, 2 * r1_1, 2 * r2_1, 2 * r3_1);
+      const Ellipsoid<double> ellipsoid1(center1, orientation1, r1_1, r2_1, r3_1);
 
       const double shared_normal_ssd = distance(SharedNormalSigned{}, ellipsoid0, ellipsoid1);
       EXPECT_NEAR(shared_normal_ssd, expected_ssd, TEST_DOUBLE_EPSILON);
@@ -223,14 +223,14 @@ TEST(SharedNormalDistanceBetweenEllipsoids, AnalyticalEllipsoidTestCases) {
       const auto center0 = Point<double>(0.0, r1_0 + r2_0 + expected_ssd, 0.0);
       const auto orientation0 = quat_from_parallel_transport(Point<double>(1.0, 0.0, 0.0),
                                                              Point<double>(0.0, 1.0, 0.0));  // Aligned with the y-axis
-      const Ellipsoid<double> ellipsoid0(center0, orientation0, 2 * r1_0, 2 * r2_0, 2 * r3_0);
+      const Ellipsoid<double> ellipsoid0(center0, orientation0, r1_0, r2_0, r3_0);
 
       const double r1_1 = r1_0;
       const double r2_1 = r2_0;
       const double r3_1 = r3_0;
       const auto center1 = Point<double>(0.0, 0.0, 0.0);
       const auto orientation1 = mundy::math::Quaternion<double>::identity();  // Aligned with the x-axis
-      const Ellipsoid<double> ellipsoid1(center1, orientation1, 2 * r1_1, 2 * r2_1, 2 * r3_1);
+      const Ellipsoid<double> ellipsoid1(center1, orientation1, r1_1, r2_1, r3_1);
 
       const double shared_normal_ssd = distance(SharedNormalSigned{}, ellipsoid0, ellipsoid1);
       EXPECT_NEAR(shared_normal_ssd, expected_ssd, TEST_DOUBLE_EPSILON);
