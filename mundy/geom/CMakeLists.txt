@@ -47,6 +47,8 @@ SET(NOINSTALLHEADERS
   src/mundy_geom/primitives/Spherocylinder.hpp
   src/mundy_geom/primitives/SpherocylinderSegment.hpp
   src/mundy_geom/primitives/VSegment.hpp
+  src/mundy_geom/compute_aabb.hpp
+  src/mundy_geom/compute_bounding_radius.hpp
   )
 
 SET(SOURCES

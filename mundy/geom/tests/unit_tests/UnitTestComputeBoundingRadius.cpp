@@ -31,9 +31,9 @@
 #include <Kokkos_Core.hpp>  // for Kokkos::numbers::pi
 
 // Mundy
-#include <mundy_geom/compute_aabb.hpp>  // for mundy::geom::compute_aabb
-#include <mundy_geom/primitives.hpp>    // for mundy::geom::Ellipsoid...
-#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_zero_tolerance
+#include <mundy_geom/compute_bounding_radius.hpp>  // for mundy::geom::compute_bounding_radius
+#include <mundy_geom/primitives.hpp>               // for mundy::geom::Ellipsoid...
+#include <mundy_math/Tolerance.hpp>                // for mundy::math::get_zero_tolerance
 
 namespace mundy {
 
@@ -48,28 +48,15 @@ namespace {
 //   - Spherocylinder
 //   - SpherocylinderSegment
 
-// A custom macro that wraps GTEST for checking if two AABBs are nearly equal
-#define ASSERT_NEAR_AABB(expected, actual, tol)                                   \
-  ASSERT_NEAR(mundy::math::norm(expected.min_corner() - actual.min_corner()) +    \
-                  mundy::math::norm(expected.max_corner() - actual.max_corner()), \
-              0.0, tol)
-
-/// \brief Get the quaternion corresponding to a 90 deg rotation about the x-axis
-template <typename T>
-mundy::math::Quaternion<T> get_quaternion_x_90() {
-  return mundy::math::Quaternion<T>(static_cast<T>(1.0 / std::sqrt(2.0)), static_cast<T>(1.0 / std::sqrt(2.0)),
-                                    static_cast<T>(0.0), static_cast<T>(0.0));
-}
-
 template <typename Scalar>
 struct PointTestCase {
   std::string name;
   Point<Scalar> point;
-  AABB<Scalar> expected_aabb;
+  Scalar expected_bounding_radius;
   void check() const {
-    const auto actual_aabb = compute_aabb(point);
+    const auto actual_bounding_radius = compute_bounding_radius(point);
     const double tol = mundy::math::get_relaxed_zero_tolerance<Scalar>();
-    ASSERT_NEAR_AABB(expected_aabb, actual_aabb, tol) << "Failed test case: " << name;
+    ASSERT_NEAR(expected_bounding_radius, actual_bounding_radius, tol) << "Failed test case: " << name;
   }
 };
 
@@ -77,11 +64,11 @@ template <typename Scalar>
 struct LineSegmentTestCase {
   std::string name;
   LineSegment<Scalar> segment;
-  AABB<Scalar> expected_aabb;
+  Scalar expected_bounding_radius;
   void check() const {
-    const auto actual_aabb = compute_aabb(segment);
+    const auto actual_bounding_radius = compute_bounding_radius(segment);
     const double tol = mundy::math::get_relaxed_zero_tolerance<Scalar>();
-    ASSERT_NEAR_AABB(expected_aabb, actual_aabb, tol) << "Failed test case: " << name;
+    ASSERT_NEAR(expected_bounding_radius, actual_bounding_radius, tol) << "Failed test case: " << name;
   }
 };
 
@@ -89,11 +76,11 @@ template <typename Scalar>
 struct SphereTestCase {
   std::string name;
   Sphere<Scalar> sphere;
-  AABB<Scalar> expected_aabb;
+  Scalar expected_bounding_radius;
   void check() const {
-    const auto actual_aabb = compute_aabb(sphere);
+    const auto actual_bounding_radius = compute_bounding_radius(sphere);
     const double tol = mundy::math::get_relaxed_zero_tolerance<Scalar>();
-    ASSERT_NEAR_AABB(expected_aabb, actual_aabb, tol) << "Failed test case: " << name;
+    ASSERT_NEAR(expected_bounding_radius, actual_bounding_radius, tol) << "Failed test case: " << name;
   }
 };
 
@@ -101,11 +88,11 @@ template <typename Scalar>
 struct EllipsoidTestCase {
   std::string name;
   Ellipsoid<Scalar> ellipsoid;
-  AABB<Scalar> expected_aabb;
+  Scalar expected_bounding_radius;
   void check() const {
-    const auto actual_aabb = compute_aabb(ellipsoid);
+    const auto actual_bounding_radius = compute_bounding_radius(ellipsoid);
     const double tol = mundy::math::get_relaxed_zero_tolerance<Scalar>();
-    ASSERT_NEAR_AABB(expected_aabb, actual_aabb, tol) << "Failed test case: " << name;
+    ASSERT_NEAR(expected_bounding_radius, actual_bounding_radius, tol) << "Failed test case: " << name;
   }
 };
 
@@ -113,11 +100,11 @@ template <typename Scalar>
 struct SpherocylinderTestCase {
   std::string name;
   Spherocylinder<Scalar> spherocylinder;
-  AABB<Scalar> expected_aabb;
+  Scalar expected_bounding_radius;
   void check() const {
-    const auto actual_aabb = compute_aabb(spherocylinder);
+    const auto actual_bounding_radius = compute_bounding_radius(spherocylinder);
     const double tol = mundy::math::get_relaxed_zero_tolerance<Scalar>();
-    ASSERT_NEAR_AABB(expected_aabb, actual_aabb, tol) << "Failed test case: " << name;
+    ASSERT_NEAR(expected_bounding_radius, actual_bounding_radius, tol) << "Failed test case: " << name;
   }
 };
 
@@ -125,141 +112,132 @@ template <typename Scalar>
 struct SpherocylinderSegmentTestCase {
   std::string name;
   SpherocylinderSegment<Scalar> spherocylinder_segment;
-  AABB<Scalar> expected_aabb;
+  Scalar expected_bounding_radius;
   void check() const {
-    const auto actual_aabb = compute_aabb(spherocylinder_segment);
+    const auto actual_bounding_radius = compute_bounding_radius(spherocylinder_segment);
     const double tol = mundy::math::get_relaxed_zero_tolerance<Scalar>();
-    ASSERT_NEAR_AABB(expected_aabb, actual_aabb, tol) << "Failed test case: " << name;
+    ASSERT_NEAR(expected_bounding_radius, actual_bounding_radius, tol) << "Failed test case: " << name;
   }
 };
 
 std::vector<PointTestCase<double>> point_test_cases() {
-  // The AABB for a point is just the point itself
+  // The bounding radius for a point is 0.
   std::vector<PointTestCase<double>> test_cases;
-  test_cases.push_back(PointTestCase<double>{.name = std::string("trivial"),   //
+  test_cases.push_back(PointTestCase{.name = std::string("trivial"),   //
                                      .point = Point<double>{0, 0, 0},  //
-                                     .expected_aabb = AABB<double>{0, 0, 0, 0, 0, 0}});
-  test_cases.push_back(PointTestCase<double>{.name = std::string("+/-"),        //
+                                     .expected_bounding_radius = 0.0});
+  test_cases.push_back(PointTestCase{.name = std::string("+/-"),        //
                                      .point = Point<double>{1, -2, 3},  //
-                                     .expected_aabb = AABB<double>{1, -2, 3, 1, -2, 3}});
+                                     .expected_bounding_radius = 0.0});
   return test_cases;
 }
 
 std::vector<LineSegmentTestCase<double>> line_segment_test_cases() {
-  // The AABB for a line segment, given by two its start and end points, is just the
-  // min_x/y/z and max_x/y/z of those points
+  // The bounding radius for a line segment, given by two its start and end points, is just the
+  // half-length of the line segment.
   using mundy::math::Vector3;
   std::vector<LineSegmentTestCase<double>> test_cases;
   test_cases.push_back(
       LineSegmentTestCase{.name = std::string("length 0"),                                                   //
                           .segment = LineSegment<double>{Point<double>{1, -2, 3}, Point<double>{1, -2, 3}},  //
-                          .expected_aabb = AABB<double>(1, -2, 3, 1, -2, 3)});
+                          .expected_bounding_radius = 0.0});
   test_cases.push_back(
       LineSegmentTestCase{.name = std::string("regular"),                                                   //
                           .segment = LineSegment<double>{Point<double>{1, -2, 3}, Point<double>{4, 5, 6}},  //
-                          .expected_aabb = AABB<double>{1, -2, 3, 4, 5, 6}});
+                          .expected_bounding_radius = 0.5 * std::sqrt(3.0 * 3.0 + 7.0 * 7.0 + 3.0 * 3.0)});
   test_cases.push_back(
       LineSegmentTestCase{.name = std::string("regular flipped"),                                           //
                           .segment = LineSegment<double>{Point<double>{4, 5, 6}, Point<double>{1, -2, 3}},  //
-                          .expected_aabb = AABB<double>{1, -2, 3, 4, 5, 6}});
+                          .expected_bounding_radius = 0.5 * std::sqrt(3.0 * 3.0 + 7.0 * 7.0 + 3.0 * 3.0)});
   return test_cases;
 }
 
 std::vector<SphereTestCase<double>> sphere_test_cases() {
-  // The min/max corners of an AABB for a sphere is just the center -/+ radius in each direction
+  // The bounding radius of a sphere is its radius.
   std::vector<SphereTestCase<double>> test_cases;
   test_cases.push_back(SphereTestCase{.name = std::string("trivial"),                       //
                                       .sphere = Sphere<double>{Point<double>{0, 0, 0}, 1},  //
-                                      .expected_aabb = AABB<double>{-1, -1, -1, 1, 1, 1}});
+                                      .expected_bounding_radius = 1.0});
   test_cases.push_back(SphereTestCase{.name = std::string("regular"),                        //
                                       .sphere = Sphere<double>{Point<double>{1, -2, 3}, 4},  //
-                                      .expected_aabb = AABB<double>{-3, -6, -1, 5, 2, 7}});
+                                      .expected_bounding_radius = 4.0});
   return test_cases;
 }
 
 std::vector<EllipsoidTestCase<double>> ellipsoid_test_cases() {
-  // Our ellipsoids have a center, 3 radii, and a quaternion orientation
-  // Lets start by testing unit orientation
+  // The bounding radius of an ellipsoid is the maximum of its radii.
   using mundy::math::Quaternion;
   using mundy::math::Vector3;
   std::vector<EllipsoidTestCase<double>> test_cases;
 
-  // Rotate 90 degrees about the x-axis
-  const Quaternion<double> x_90_rot = get_quaternion_x_90<double>();
+  // Bounding radius is independent of orientation
+  Quaternion<double> random_quat = Quaternion<double>{static_cast<double>(rand()), static_cast<double>(rand()),
+                                                      static_cast<double>(rand()), static_cast<double>(rand())};
+  random_quat.normalize();
 
-  test_cases.push_back(EllipsoidTestCase{
-      .name = std::string("spherical"),  //
-      .ellipsoid = Ellipsoid<double>{Point<double>{1, -2, 3}, Quaternion<double>{1, 0, 0, 0}, Vector3<double>{4, 4, 4}},
-      .expected_aabb = AABB<double>{-3, -6, -1, 5, 2, 7}});
-  test_cases.push_back(EllipsoidTestCase{
-      .name = std::string("ellipsoidal"),  //
-      .ellipsoid = Ellipsoid<double>{Point<double>{1, -2, 3}, Quaternion<double>{1, 0, 0, 0}, Vector3<double>{4, 5, 6}},
-      .expected_aabb = AABB<double>{-3, -7, -3, 5, 3, 9}});
   test_cases.push_back(
-      EllipsoidTestCase{.name = std::string("rotated 90 degrees about x"),  // y goes to -z, z goes to y
-                        .ellipsoid = Ellipsoid<double>{Point<double>{0, 0, 0}, x_90_rot, Vector3<double>{4, 5, 6}},
-                        .expected_aabb = AABB<double>{-4, -6, -5, 4, 6, 5}});
+      EllipsoidTestCase{.name = std::string("spherical"),  //
+                        .ellipsoid = Ellipsoid<double>{Point<double>{1, -2, 3}, random_quat, Vector3<double>{4, 4, 4}},
+                        .expected_bounding_radius = 4.0});
   test_cases.push_back(
-      EllipsoidTestCase{.name = std::string("rotated 90 degrees about x + shift"),
-                        .ellipsoid = Ellipsoid<double>{Point<double>{1, -2, 3}, x_90_rot, Vector3<double>{4, 5, 6}},
-                        .expected_aabb = AABB<double>{-3, -8, -2, 5, 4, 8}});
+      EllipsoidTestCase{.name = std::string("ellipsoidal"),  //
+                        .ellipsoid = Ellipsoid<double>{Point<double>{1, -2, 3}, random_quat, Vector3<double>{4, 5, 6}},
+                        .expected_bounding_radius = 6.0});
   return test_cases;
 }
 
 std::vector<SpherocylinderTestCase<double>> spherocylinder_test_cases() {
   // Our spherocylinders have a center, a radius, a length, and a quaternion orientation
-  // Lets start by testing unit orientation
+  // Their bounding radius is just the 0.5 length + radius
   using mundy::math::Quaternion;
   using mundy::math::Vector3;
   std::vector<SpherocylinderTestCase<double>> test_cases;
 
-  const Quaternion<double> x_90_rot = get_quaternion_x_90<double>();
+  // Bounding radius is independent of orientation
+  Quaternion<double> random_quat = Quaternion<double>{static_cast<double>(rand()), static_cast<double>(rand()),
+                                                      static_cast<double>(rand()), static_cast<double>(rand())};  random_quat.normalize();
 
-  test_cases.push_back(SpherocylinderTestCase{
-      .name = std::string("spherical"),  //
-      .spherocylinder = Spherocylinder<double>{Point<double>{1, -2, 3}, Quaternion<double>{1, 0, 0, 0}, 4, 0},
-      .expected_aabb = AABB<double>{-3, -6, -1, 5, 2, 7}});
-  test_cases.push_back(SpherocylinderTestCase{
-      .name = std::string("line segment"),  //
-      .spherocylinder = Spherocylinder<double>{Point<double>{1, -2, 3}, Quaternion<double>{1, 0, 0, 0}, 0, 4},
-      .expected_aabb = AABB<double>{1, -2, 1, 1, -2, 5}});
-  test_cases.push_back(SpherocylinderTestCase{
-      .name = std::string("regular"),  //
-      .spherocylinder = Spherocylinder<double>{Point<double>{1, -2, 3}, Quaternion<double>{1, 0, 0, 0}, 2, 4},
-      .expected_aabb = AABB<double>{-1, -4, -1, 3, 0, 7}});
   test_cases.push_back(
-      SpherocylinderTestCase{.name = std::string("rotated 90 degrees about x"),  // y goes to -z, z goes to y
-                             .spherocylinder = Spherocylinder<double>{Point<double>{1, -2, 3}, x_90_rot, 2, 3},
-                             .expected_aabb = AABB<double>{-1, -5.5, 1, 3, 1.5, 5}});
+      SpherocylinderTestCase{.name = std::string("spherical"),  //
+                             .spherocylinder = Spherocylinder<double>{Point<double>{1, -2, 3}, random_quat, 4, 0},
+                             .expected_bounding_radius = 4.0});
+  test_cases.push_back(
+      SpherocylinderTestCase{.name = std::string("line segment"),  //
+                             .spherocylinder = Spherocylinder<double>{Point<double>{1, -2, 3}, random_quat, 0, 4},
+                             .expected_bounding_radius = 2.0});
+  test_cases.push_back(
+      SpherocylinderTestCase{.name = std::string("regular"),  //
+                             .spherocylinder = Spherocylinder<double>{Point<double>{1, -2, 3}, random_quat, 2, 4},
+                             .expected_bounding_radius = 4.0});
   return test_cases;
 }
 
 std::vector<SpherocylinderSegmentTestCase<double>> spherocylinder_segment_test_cases() {
-  // Our spherocylinder segments have two endpoints and a radius
-  // Same test cases as a spherocylinder except with endpoints
+  // Our spherocylinder segments have two endpoints and a radius.
+  // Their bounding radius is just the 0.5 length + radius
   using mundy::math::Vector3;
   std::vector<SpherocylinderSegmentTestCase<double>> test_cases;
 
   test_cases.push_back(SpherocylinderSegmentTestCase{
       .name = std::string("spherical"),  //
       .spherocylinder_segment = SpherocylinderSegment<double>{Point<double>{1, -2, 3}, Point<double>{1, -2, 3}, 4},
-      .expected_aabb = AABB<double>{-3, -6, -1, 5, 2, 7}});
+      .expected_bounding_radius = 4.0});
   test_cases.push_back(SpherocylinderSegmentTestCase{
       .name = std::string("line segment"),  //
       .spherocylinder_segment = SpherocylinderSegment<double>{Point<double>{1, -2, 1}, Point<double>{1, -2, 5}, 0},
-      .expected_aabb = AABB<double>{1, -2, 1, 1, -2, 5}});
+      .expected_bounding_radius = 2.0});
   test_cases.push_back(SpherocylinderSegmentTestCase{
       .name = std::string("regular"),  //
       .spherocylinder_segment = SpherocylinderSegment<double>{Point<double>{1, -2, 1}, Point<double>{1, -2, 5}, 2},
-      .expected_aabb = AABB<double>{-1, -4, -1, 3, 0, 7}});
+      .expected_bounding_radius = 4.0});
   test_cases.push_back(SpherocylinderSegmentTestCase{
       .name = std::string("aligned with y"),  // same as regular but rotated 90 degrees about x
       .spherocylinder_segment = SpherocylinderSegment<double>{Point<double>{1, -3.5, 3}, Point<double>{1, -0.5, 3}, 2},
-      .expected_aabb = AABB<double>{-1, -5.5, 1, 3, 1.5, 5}});
+      .expected_bounding_radius = 3.5});
   return test_cases;
 }
 
-TEST(ComputeAABB, HardCodedTestCases) {
+TEST(ComputeBoundingRadius, HardCodedTestCases) {
   for (const auto& point_test_case : point_test_cases()) {
     point_test_case.check();
   }
