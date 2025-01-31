@@ -75,13 +75,13 @@ class ShiftedAccessor<T, shift, Accessor, Ownership::Views> {
 
   /// \brief Element access operator
   /// \param[in] idx The index of the element.
-  KOKKOS_INLINE_FUNCTION decltype(auto) operator[](size_t idx) {
+  KOKKOS_INLINE_FUNCTION constexpr decltype(auto) operator[](size_t idx) {
     return accessor_[idx + shift];
   }
 
   /// \brief Element access operator
   /// \param[in] idx The index of the element.
-  KOKKOS_INLINE_FUNCTION decltype(auto) operator[](size_t idx) const {
+  KOKKOS_INLINE_FUNCTION constexpr decltype(auto) operator[](size_t idx) const {
     return accessor_[idx + shift];
   }
 };  // class ShiftedAccessor
@@ -117,13 +117,13 @@ class ShiftedAccessor<T, shift, Accessor, Ownership::Owns> {
 
   /// \brief Element access operator
   /// \param[in] idx The index of the element.
-  KOKKOS_INLINE_FUNCTION decltype(auto) operator[](size_t idx) {
+  KOKKOS_INLINE_FUNCTION constexpr decltype(auto) operator[](size_t idx) {
     return accessor_[idx + shift];
   }
 
   /// \brief Element access operator
   /// \param[in] idx The index of the element.
-  KOKKOS_INLINE_FUNCTION decltype(auto) operator[](size_t idx) const {
+  KOKKOS_INLINE_FUNCTION constexpr decltype(auto) operator[](size_t idx) const {
     return accessor_[idx + shift];
   }
 };  // class ShiftedAccessor
@@ -151,22 +151,22 @@ using OwningShiftedAccessor = ShiftedAccessor<T, shift, Accessor, Ownership::Own
 ///   auto shifted_data = get_shifted_view<T, shift>(data);
 /// \endcode
 template <typename T, size_t shift, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_shifted_view(Accessor& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_shifted_view(Accessor& data) {
   return ShiftedView<T, shift, Accessor>(data);
 }
 
 template <typename T, size_t shift, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_shifted_view(Accessor&& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_shifted_view(Accessor&& data) {
   return ShiftedView<T, shift, Accessor>(std::forward<Accessor>(data));
 }
 
 template <typename T, size_t shift, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_owning_shifted_accessor(Accessor& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_owning_shifted_accessor(Accessor& data) {
   return OwningShiftedAccessor<T, shift, Accessor>(data);
 }
 
 template <typename T, size_t shift, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_owning_shifted_accessor(Accessor&& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_owning_shifted_accessor(Accessor&& data) {
   return OwningShiftedAccessor<T, shift, Accessor>(std::forward<Accessor>(data));
 }
 //@}

@@ -34,6 +34,19 @@ tribits_copy_files_to_binary_dir(
         EXEDEPS PerfTestDeclareEntities
     )
 
+tribits_add_executable(
+    PerfTestAccessors
+    SOURCES
+    PerfTestAccessors.cpp
+    CATEGORIES PERFORMANCE
+    )
+
+tribits_add_executable(
+    PerfTestAggregates
+    SOURCES
+    PerfTestAggregates.cpp
+    CATEGORIES PERFORMANCE
+    )
 
 # These tests require Trilinos 16.0.0 or later
 # They still get built but will simply print a warning and return

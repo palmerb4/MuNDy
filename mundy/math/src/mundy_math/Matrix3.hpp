@@ -156,22 +156,22 @@ static_assert(is_matrix3_v<OwningMatrix3<int>>, "Odd, OwningMatrix3 is not a mat
 ///   auto mat = get_matrix3_view<T>(data);
 /// \endcode
 template <typename T, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_matrix3_view(Accessor& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_matrix3_view(Accessor& data) {
   return Matrix3View<T, Accessor>(data);
 }
 
 template <typename T, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_matrix3_view(Accessor&& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_matrix3_view(Accessor&& data) {
   return Matrix3View<T, Accessor>(std::forward<Accessor>(data));
 }
 
 template <typename T, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_owning_matrix3(Accessor& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_owning_matrix3(Accessor& data) {
   return OwningMatrix3<T, Accessor>(data);
 }
 
 template <typename T, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_owning_matrix3(Accessor&& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_owning_matrix3(Accessor&& data) {
   return OwningMatrix3<T, Accessor>(std::forward<Accessor>(data));
 }
 //@}

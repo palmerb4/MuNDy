@@ -75,21 +75,21 @@ class AABB {
   /// \brief Default constructor for owning AABBs. Initializes the aabb inside out and as large as possible.
   /// Nothing can be inside this aabb.
   KOKKOS_FUNCTION
-  AABB()
+  constexpr AABB()
   requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
       : min_corner_(scalar_max(), scalar_max(), scalar_max()), max_corner_(scalar_min(), scalar_min(), scalar_min()) {
   }
 
   /// \brief No default constructor for viewing/mixed AABBs.
   KOKKOS_FUNCTION
-  AABB()
+  constexpr AABB()
   requires (!std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>) = delete;
 
   /// \brief Constructor to directly set the min and max corners.
   /// \param[in] min_corner The minimum corner of the aabb.
   /// \param[in] max_corner The maximum corner of the aabb.
   KOKKOS_FUNCTION
-  AABB(const min_point_t& min_corner, const max_point_t& max_corner)
+  constexpr AABB(const min_point_t& min_corner, const max_point_t& max_corner)
       : min_corner_(min_corner), max_corner_(max_corner) {
   }
 
@@ -97,7 +97,8 @@ class AABB {
   /// \param[in] min_corner The minimum corner of the aabb.
   /// \param[in] max_corner The maximum corner of the aabb.
   template <ValidPointType OtherPointType1, ValidPointType OtherPointType2>
-  KOKKOS_FUNCTION AABB(const OtherPointType1& min_corner, const OtherPointType2& max_corner)
+  KOKKOS_FUNCTION 
+  constexpr AABB(const OtherPointType1& min_corner, const OtherPointType2& max_corner)
     requires(!std::is_same_v<OtherPointType1, min_point_t> || !std::is_same_v<OtherPointType2, max_point_t>)
       : min_corner_(min_corner), max_corner_(max_corner) {
   }
@@ -110,35 +111,39 @@ class AABB {
   /// \param[in] y_max The maximum y-coordinate.
   /// \param[in] z_max The maximum z-coordinate.
   KOKKOS_FUNCTION
-  AABB(scalar_t x_min, scalar_t y_min, scalar_t z_min, scalar_t x_max, scalar_t y_max, scalar_t z_max)
+  constexpr AABB(scalar_t x_min, scalar_t y_min, scalar_t z_min, scalar_t x_max, scalar_t y_max, scalar_t z_max)
   requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns> : min_corner_(x_min, y_min, z_min),
                                                                          max_corner_(x_max, y_max, z_max) {
   }
 
   /// \brief Destructor
   KOKKOS_DEFAULTED_FUNCTION
-  ~AABB() = default;
+  constexpr ~AABB() = default;
 
   /// \brief Deep copy constructor
-  KOKKOS_FUNCTION AABB(const AABB<scalar_t, min_point_t, max_point_t>& other)
+  KOKKOS_FUNCTION 
+  constexpr AABB(const AABB<scalar_t, min_point_t, max_point_t>& other)
       : min_corner_(other.min_corner_), max_corner_(other.max_corner_) {
   }
 
   /// \brief Deep copy constructor
   template <typename OtherAABBType>
-  KOKKOS_FUNCTION AABB(const OtherAABBType& other)
+  KOKKOS_FUNCTION 
+  constexpr AABB(const OtherAABBType& other)
     requires(!std::is_same_v<OtherAABBType, AABB<scalar_t, min_point_t, max_point_t>>)
       : min_corner_(other.min_corner_), max_corner_(other.max_corner_) {
   }
 
   /// \brief Deep move constructor
-  KOKKOS_FUNCTION AABB(AABB<scalar_t, min_point_t, max_point_t>&& other)
+  KOKKOS_FUNCTION 
+  constexpr AABB(AABB<scalar_t, min_point_t, max_point_t>&& other)
       : min_corner_(std::move(other.min_corner_)), max_corner_(std::move(other.max_corner_)) {
   }
 
   /// \brief Deep move constructor
   template <typename OtherAABBType>
-  KOKKOS_FUNCTION AABB(OtherAABBType&& other)
+  KOKKOS_FUNCTION 
+  constexpr AABB(OtherAABBType&& other)
     requires(!std::is_same_v<OtherAABBType, AABB<scalar_t, min_point_t, max_point_t>>)
       : min_corner_(std::move(other.min_corner_)), max_corner_(std::move(other.max_corner_)) {
   }
@@ -148,7 +153,8 @@ class AABB {
   //@{
 
   /// \brief Copy assignment operator
-  KOKKOS_FUNCTION AABB<scalar_t, min_point_t, max_point_t>& operator=(
+  KOKKOS_FUNCTION 
+  constexpr AABB<scalar_t, min_point_t, max_point_t>& operator=(
       const AABB<scalar_t, min_point_t, max_point_t>& other) {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     min_corner_ = other.min_corner_;
@@ -158,7 +164,8 @@ class AABB {
 
   /// \brief Copy assignment operator
   template <typename OtherAABBType>
-  KOKKOS_FUNCTION AABB<scalar_t, min_point_t, max_point_t>& operator=(const OtherAABBType& other)
+  KOKKOS_FUNCTION 
+  constexpr AABB<scalar_t, min_point_t, max_point_t>& operator=(const OtherAABBType& other)
     requires(!std::is_same_v<OtherAABBType, AABB<scalar_t, min_point_t, max_point_t>>)
   {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
@@ -168,7 +175,8 @@ class AABB {
   }
 
   /// \brief Move assignment operator
-  KOKKOS_FUNCTION AABB<scalar_t, min_point_t, max_point_t>& operator=(
+  KOKKOS_FUNCTION 
+  constexpr AABB<scalar_t, min_point_t, max_point_t>& operator=(
       AABB<scalar_t, min_point_t, max_point_t>&& other) {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     min_corner_ = std::move(other.min_corner_);
@@ -178,7 +186,8 @@ class AABB {
 
   /// \brief Move assignment operator
   template <typename OtherAABBType>
-  KOKKOS_FUNCTION AABB<scalar_t, min_point_t, max_point_t>& operator=(OtherAABBType&& other)
+  KOKKOS_FUNCTION 
+  constexpr AABB<scalar_t, min_point_t, max_point_t>& operator=(OtherAABBType&& other)
     requires(!std::is_same_v<OtherAABBType, AABB<scalar_t, min_point_t, max_point_t>>)
   {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
@@ -193,6 +202,12 @@ class AABB {
 
   /// \brief Accesses the AABB as though it were an array of size 6 with the min then max corners.
   KOKKOS_FUNCTION const scalar_t& operator[](const size_t& i) const {
+    MUNDY_THROW_ASSERT(i < 6, std::out_of_range, "Index out of range");
+    return i < 3 ? min_corner_[i] : max_corner_[i - 3];
+  }
+
+  /// \brief Accesses the AABB as though it were an array of size 6 with the min then max corners.
+  KOKKOS_FUNCTION scalar_t& operator[](const size_t& i) {
     MUNDY_THROW_ASSERT(i < 6, std::out_of_range, "Index out of range");
     return i < 3 ? min_corner_[i] : max_corner_[i - 3];
   }

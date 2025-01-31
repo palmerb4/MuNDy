@@ -87,7 +87,6 @@ struct MATRIX3_DATA {};
 struct QUATERNION_DATA {};
 struct AABB_DATA {};
 
-
 TEST(UnitTestAggregate, Accessors) {
   if (stk::parallel_machine_size(MPI_COMM_WORLD) != 1) {
     GTEST_SKIP();

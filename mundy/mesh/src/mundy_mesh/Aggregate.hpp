@@ -137,15 +137,15 @@ class ScalarFieldComponent : public FieldComponentBase {
   /// Notice that we follow view conventions and return a non-const reference to the ScalarType
   /// even when this object is const. This is because a const view simply states that the view itself
   /// cannot be modified, not that the data it points to cannot be modified.
-  ScalarType& operator()(stk::mesh::Entity entity) const {
+  inline ScalarType& operator()(stk::mesh::Entity entity) const {
     return stk::mesh::field_data(field_, entity)[0];
   }
 
-  stk::mesh::Field<ScalarType>& field() {
+  inline stk::mesh::Field<ScalarType>& field() {
     return field_;
   }
 
-  const stk::mesh::Field<ScalarType>& field() const {
+  inline const stk::mesh::Field<ScalarType>& field() const {
     return field_;
   }
 
@@ -166,17 +166,17 @@ class NgpScalarFieldComponent : public NgpFieldComponentBase {
   }
 
   /// \brief Fetch the value of the field at the given entity index
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
     return ngp_field_(entity_index, 0);
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   NgpFieldType& ngp_field() {
     return ngp_field_;
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const NgpFieldType& ngp_field() const {
     return ngp_field_;
   }
@@ -209,15 +209,15 @@ class Vector3FieldComponent : public FieldComponentBase {
   Vector3FieldComponent(stk::mesh::Field<ScalarType>& field) : FieldComponentBase(field), field_(field) {
   }
 
-  decltype(auto) operator()(stk::mesh::Entity entity) const {
+  inline decltype(auto) operator()(stk::mesh::Entity entity) const {
     return vector3_field_data(field_, entity);
   }
 
-  stk::mesh::Field<ScalarType>& field() {
+  inline stk::mesh::Field<ScalarType>& field() {
     return field_;
   }
 
-  const stk::mesh::Field<ScalarType>& field() const {
+  inline const stk::mesh::Field<ScalarType>& field() const {
     return field_;
   }
 
@@ -237,17 +237,17 @@ class NgpVector3FieldComponent : public NgpFieldComponentBase {
         ngp_field_(ngp_field) {
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
     return vector3_field_data(ngp_field_, entity_index);
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   NgpFieldType& ngp_field() {
     return ngp_field_;
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const NgpFieldType& ngp_field() const {
     return ngp_field_;
   }
@@ -280,15 +280,15 @@ class Matrix3FieldComponent : public FieldComponentBase {
   Matrix3FieldComponent(stk::mesh::Field<ScalarType>& field) : FieldComponentBase(field), field_(field) {
   }
 
-  decltype(auto) operator()(stk::mesh::Entity entity) const {
+  inline decltype(auto) operator()(stk::mesh::Entity entity) const {
     return matrix3_field_data(field_, entity);
   }
 
-  stk::mesh::Field<ScalarType>& field() {
+  inline stk::mesh::Field<ScalarType>& field() {
     return field_;
   }
 
-  const stk::mesh::Field<ScalarType>& field() const {
+  inline const stk::mesh::Field<ScalarType>& field() const {
     return field_;
   }
 
@@ -308,17 +308,17 @@ class NgpMatrix3FieldComponent : public NgpFieldComponentBase {
         ngp_field_(ngp_field) {
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
     return matrix3_field_data(ngp_field_, entity_index);
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   NgpFieldType& ngp_field() {
     return ngp_field_;
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const NgpFieldType& ngp_field() const {
     return ngp_field_;
   }
@@ -351,15 +351,15 @@ class QuaternionFieldComponent : public FieldComponentBase {
   QuaternionFieldComponent(stk::mesh::Field<ScalarType>& field) : FieldComponentBase(field), field_(field) {
   }
 
-  decltype(auto) operator()(stk::mesh::Entity entity) const {
+  inline decltype(auto) operator()(stk::mesh::Entity entity) const {
     return quaternion_field_data(field_, entity);
   }
 
-  stk::mesh::Field<ScalarType>& field() {
+  inline stk::mesh::Field<ScalarType>& field() {
     return field_;
   }
 
-  const stk::mesh::Field<ScalarType>& field() const {
+  inline const stk::mesh::Field<ScalarType>& field() const {
     return field_;
   }
 
@@ -380,12 +380,12 @@ class NgpQuaternionFieldComponent : public NgpFieldComponentBase {
         ngp_field_(ngp_field) {
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
     return quaternion_field_data(ngp_field_, entity_index);
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   NgpFieldType& ngp_field() {
     return ngp_field_;
   }
@@ -418,15 +418,15 @@ class AABBFieldComponent : public FieldComponentBase {
   AABBFieldComponent(stk::mesh::Field<ScalarType>& field) : FieldComponentBase(field), field_(field) {
   }
 
-  decltype(auto) operator()(stk::mesh::Entity entity) const {
+  inline decltype(auto) operator()(stk::mesh::Entity entity) const {
     return aabb_field_data(field_, entity);
   }
 
-  stk::mesh::Field<ScalarType>& field() {
+  inline stk::mesh::Field<ScalarType>& field() {
     return field_;
   }
 
-  const stk::mesh::Field<ScalarType>& field() const {
+  inline const stk::mesh::Field<ScalarType>& field() const {
     return field_;
   }
 
@@ -447,12 +447,12 @@ class NgpAABBFieldComponent : public NgpFieldComponentBase {
         ngp_field_(ngp_field) {
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
     return aabb_field_data(ngp_field_, entity_index);
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   NgpFieldType& ngp_field() {
     return ngp_field_;
   }
@@ -490,16 +490,16 @@ class TaggedComponent {
   TaggedComponent(component_type component) : component_(component) {
   }
 
-  decltype(auto) operator()(stk::mesh::Entity entity) const {
+  inline decltype(auto) operator()(stk::mesh::Entity entity) const {
     return component_(entity);
   }
 
-  const component_type& component() const {
+  inline const component_type& component() const {
     // Our lifetime should be at least as long as the component's
     return component_;
   }
 
-  component_type& component() {
+  inline component_type& component() {
     return component_;
   }
 
@@ -534,17 +534,17 @@ class NgpTaggedComponent {
   NgpTaggedComponent(component_type component) : component_(component) {
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
     return component_(entity_index);
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const component_type& component() const {
     return component_;
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   component_type& component() {
     return component_;
   }
@@ -1197,17 +1197,17 @@ class NgpAggregate {
   //! \name Accessors
   //@{
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   static constexpr stk::topology::topology_t topology() {
     return OurTopology;
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   static constexpr stk::topology::rank_t rank() {
     return OurRank;
   }
 
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const stk::mesh::NgpMesh& ngp_mesh() const {
     return ngp_mesh_;
   }
@@ -1233,13 +1233,13 @@ class NgpAggregate {
 
   /// \brief Fetch the component corresponding to the given Tag
   template <typename Tag>
-  KOKKOS_FUNCTION const auto& get_component() const {
+  KOKKOS_INLINE_FUNCTION const auto& get_component() const {
     return find_component<Tag>(ngp_components_);
   }
 
   /// \brief Fetch the component corresponding to the given Tag
   template <typename Tag>
-  KOKKOS_FUNCTION auto& get_component() {
+  KOKKOS_INLINE_FUNCTION auto& get_component() {
     return find_component<Tag>(ngp_components_);
   }
 
@@ -1272,7 +1272,7 @@ class NgpAggregate {
    public:
     /// \brief Construct an EntityView for the given entity
     /// TODO(palmerb4) Optimize for reuse of connectivity.
-    KOKKOS_FUNCTION
+    KOKKOS_INLINE_FUNCTION
     NgpEntityView(const stk::mesh::NgpMesh& ngp_mesh, const NgpComponentsTuple& components,
                   stk::mesh::FastMeshIndex entity_index)
         : ngp_mesh_(ngp_mesh), ngp_components_(components), entity_index_(entity_index) {
@@ -1285,19 +1285,19 @@ class NgpAggregate {
 
    public:
     /// \brief Fetch the entity that we view
-    KOKKOS_FUNCTION
+    KOKKOS_INLINE_FUNCTION
     stk::mesh::FastMeshIndex entity_index() const {
       return entity_index_;
     }
 
     /// \brief Fetch the rank of the entity that we view
-    KOKKOS_FUNCTION
+    KOKKOS_INLINE_FUNCTION
     static constexpr stk::topology::rank_t rank() {
       return OurRank;
     }
 
     /// \brief Fetch the topology of the entity that we view
-    KOKKOS_FUNCTION
+    KOKKOS_INLINE_FUNCTION
     static constexpr stk::topology::topology_t topology() {
       return OurTopology;
     }
@@ -1306,7 +1306,7 @@ class NgpAggregate {
     /// Only works for components of the same rank as the entity
     template <typename Tag>
       requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank == OurRank)
-    KOKKOS_FUNCTION decltype(auto) get() {
+    KOKKOS_INLINE_FUNCTION decltype(auto) get() {
       auto& comp = find_component<Tag>(ngp_components_);
       return comp(entity_index_);
     }
@@ -1315,7 +1315,7 @@ class NgpAggregate {
     /// Only works for components of the same rank as the entity
     template <typename Tag>
       requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank == OurRank)
-    KOKKOS_FUNCTION decltype(auto) get() const {
+    KOKKOS_INLINE_FUNCTION decltype(auto) get() const {
       auto& comp = find_component<Tag>(ngp_components_);
       return comp(entity_index_);
     }
@@ -1324,7 +1324,7 @@ class NgpAggregate {
     /// Only works for components of a different rank then the entity
     template <typename Tag>
       requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank != OurRank)
-    KOKKOS_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) {
+    KOKKOS_INLINE_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) {
       using TaggedComponentType = std::decay_t<decltype(find_component<Tag>(ngp_components_))>;
       static constexpr auto comp_rank = TaggedComponentType::rank;
       auto& comp = find_component<Tag>(ngp_components_);
@@ -1347,7 +1347,7 @@ class NgpAggregate {
     /// Only works for components of a different rank then the entity
     template <typename Tag>
       requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank != OurRank)
-    KOKKOS_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) const {
+    KOKKOS_INLINE_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) const {
       using TaggedComponentType = std::decay_t<decltype(find_component<Tag>(ngp_components_))>;
       static constexpr auto comp_rank = TaggedComponentType::rank;
       auto& comp = find_component<Tag>(ngp_components_);
@@ -1365,7 +1365,7 @@ class NgpAggregate {
   };  // NgpEntityView
 
   /// \brief Get an EntityView for the given entity
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   NgpEntityView get_view(stk::mesh::FastMeshIndex entity_index) const {
     return NgpEntityView(ngp_mesh_, ngp_components_, entity_index);
   }

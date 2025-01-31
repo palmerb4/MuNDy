@@ -75,7 +75,7 @@ class StridedAccessor<T, stride, Accessor, Ownership::Views> {
 
   /// \brief Element access operator
   /// \param[in] idx The index of the element.
-  KOKKOS_INLINE_FUNCTION auto& operator[](size_t idx) const {
+  KOKKOS_INLINE_FUNCTION constexpr auto& operator[](size_t idx) const {
     return accessor_[idx * stride];
   }
 };  // class StridedAccessor
@@ -87,7 +87,7 @@ class StridedAccessor<T, stride, Accessor, Ownership::Owns> {
 
   /// \brief Default constructor.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
-  KOKKOS_DEFAULTED_FUNCTION StridedAccessor()
+  KOKKOS_DEFAULTED_FUNCTION constexpr StridedAccessor()
     requires HasDefaultConstructor<Accessor>
   = default;
 
@@ -111,7 +111,7 @@ class StridedAccessor<T, stride, Accessor, Ownership::Owns> {
 
   /// \brief Element access operator
   /// \param[in] idx The index of the element.
-  KOKKOS_INLINE_FUNCTION auto& operator[](size_t idx) const {
+  KOKKOS_INLINE_FUNCTION constexpr auto& operator[](size_t idx) const {
     return accessor_[idx * stride];
   }
 };  // class StridedAccessor
@@ -139,22 +139,22 @@ using OwningStridedAccessor = StridedAccessor<T, stride, Accessor, Ownership::Ow
 ///   auto strided_data = get_strided_view<T, stride>(data);
 /// \endcode
 template <typename T, size_t stride, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_strided_view(Accessor& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_strided_view(Accessor& data) {
   return StridedView<T, stride, Accessor>(data);
 }
 
 template <typename T, size_t stride, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_strided_view(Accessor&& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_strided_view(Accessor&& data) {
   return StridedView<T, stride, Accessor>(std::forward<Accessor>(data));
 }
 
 template <typename T, size_t stride, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_owning_strided_accessor(Accessor& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_owning_strided_accessor(Accessor& data) {
   return OwningStridedAccessor<T, stride, Accessor>(data);
 }
 
 template <typename T, size_t stride, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_owning_strided_accessor(Accessor&& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_owning_strided_accessor(Accessor&& data) {
   return OwningStridedAccessor<T, stride, Accessor>(std::forward<Accessor>(data));
 }
 //@}
