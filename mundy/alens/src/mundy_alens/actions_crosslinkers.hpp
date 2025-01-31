@@ -119,7 +119,6 @@ inline bool bind_crosslinker_to_node(mundy::mesh::BulkData &bulk_data, const stk
 
   // Check a node already exists at the ordinal
   const int num_nodes = bulk_data.num_nodes(crosslinker);
-  stk::mesh::Entity const *nodes = bulk_data.begin_nodes(crosslinker);
   stk::mesh::ConnectivityOrdinal const *node_ords = bulk_data.begin_node_ordinals(crosslinker);
   for (int i = 0; i < num_nodes; ++i) {
     if (node_ords[i] == conn_ordinal) {

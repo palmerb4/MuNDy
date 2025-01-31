@@ -38,11 +38,11 @@
 #include <stk_topology/topology.hpp>      // for stk::topology::topology_t
 
 // Mundy
-#include <mundy_mesh/fmt_stk_types.hpp> // for STK-compatible fmt::format
-#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_core/tuple.hpp>         // for mundy::core::tuple
-#include <mundy_mesh/BulkData.hpp>      // for mundy::mesh::BulkData
-#include <mundy_mesh/FieldViews.hpp>    // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
+#include <mundy_core/tuple.hpp>          // for mundy::core::tuple
+#include <mundy_mesh/BulkData.hpp>       // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>     // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_mesh/fmt_stk_types.hpp>  // for STK-compatible fmt::format
 
 namespace mundy {
 
@@ -275,6 +275,77 @@ class NgpVector3FieldComponent : public NgpFieldComponentBase {
 };  // NgpVector3FieldComponent
 
 template <typename ScalarType>
+class Matrix3FieldComponent : public FieldComponentBase {
+ public:
+  Matrix3FieldComponent(stk::mesh::Field<ScalarType>& field) : FieldComponentBase(field), field_(field) {
+  }
+
+  decltype(auto) operator()(stk::mesh::Entity entity) const {
+    return matrix3_field_data(field_, entity);
+  }
+
+  stk::mesh::Field<ScalarType>& field() {
+    return field_;
+  }
+
+  const stk::mesh::Field<ScalarType>& field() const {
+    return field_;
+  }
+
+ private:
+  stk::mesh::Field<ScalarType>& field_;
+};  // Matrix3FieldComponent
+
+template <typename NgpFieldType>
+class NgpMatrix3FieldComponent : public NgpFieldComponentBase {
+ public:
+  NgpMatrix3FieldComponent(NgpFieldType ngp_field)
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+      : NgpFieldComponentBase(*ngp_field.get_field_base()),  // Directly store the field base
+#else
+      : NgpFieldComponentBase(),
+#endif
+        ngp_field_(ngp_field) {
+  }
+
+  KOKKOS_FUNCTION
+  decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
+    return matrix3_field_data(ngp_field_, entity_index);
+  }
+
+  KOKKOS_FUNCTION
+  NgpFieldType& ngp_field() {
+    return ngp_field_;
+  }
+
+  KOKKOS_FUNCTION
+  const NgpFieldType& ngp_field() const {
+    return ngp_field_;
+  }
+
+#if TRILINOS_MAJOR_MINOR_VERSION < 160000
+  void sync_to_device() {
+    ngp_field_.sync_to_device();
+  }
+
+  void sync_to_host() {
+    ngp_field_.sync_to_host();
+  }
+
+  void modify_on_device() {
+    ngp_field_.modify_on_device();
+  }
+
+  void modify_on_host() {
+    ngp_field_.modify_on_host();
+  }
+#endif
+
+ private:
+  NgpFieldType ngp_field_;
+};  // NgpMatrix3FieldComponent
+
+template <typename ScalarType>
 class QuaternionFieldComponent : public FieldComponentBase {
  public:
   QuaternionFieldComponent(stk::mesh::Field<ScalarType>& field) : FieldComponentBase(field), field_(field) {
@@ -340,6 +411,73 @@ class NgpQuaternionFieldComponent : public NgpFieldComponentBase {
  private:
   NgpFieldType ngp_field_;
 };  // NgpQuaternionFieldComponent
+
+template <typename ScalarType>
+class AABBFieldComponent : public FieldComponentBase {
+ public:
+  AABBFieldComponent(stk::mesh::Field<ScalarType>& field) : FieldComponentBase(field), field_(field) {
+  }
+
+  decltype(auto) operator()(stk::mesh::Entity entity) const {
+    return aabb_field_data(field_, entity);
+  }
+
+  stk::mesh::Field<ScalarType>& field() {
+    return field_;
+  }
+
+  const stk::mesh::Field<ScalarType>& field() const {
+    return field_;
+  }
+
+ private:
+  stk::mesh::Field<ScalarType>& field_;
+};  // AABBFieldComponent
+
+template <typename NgpFieldType>
+class NgpAABBFieldComponent : public NgpFieldComponentBase {
+ public:
+  NgpAABBFieldComponent(NgpFieldType ngp_field)
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+      : NgpFieldComponentBase(*ngp_field.get_field_base()),
+#else
+      : NgpFieldComponentBase(),
+#endif
+
+        ngp_field_(ngp_field) {
+  }
+
+  KOKKOS_FUNCTION
+  decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
+    return aabb_field_data(ngp_field_, entity_index);
+  }
+
+  KOKKOS_FUNCTION
+  NgpFieldType& ngp_field() {
+    return ngp_field_;
+  }
+
+#if TRILINOS_MAJOR_MINOR_VERSION < 160000
+  void sync_to_device() {
+    ngp_field_.sync_to_device();
+  }
+
+  void sync_to_host() {
+    ngp_field_.sync_to_host();
+  }
+
+  void modify_on_device() {
+    ngp_field_.modify_on_device();
+  }
+
+  void modify_on_host() {
+    ngp_field_.modify_on_host();
+  }
+#endif
+
+ private:
+  NgpFieldType ngp_field_;
+};  // NgpAABBFieldComponent
 
 /// \brief A small helper type for tying a Tag to an underlying component
 template <typename Tag, stk::topology::rank_t our_rank, typename ComponentType>
@@ -474,7 +612,7 @@ namespace impl {
 /// We assume each tag occurs only once and perform a simple linear search.
 template <typename Tag, typename First, typename... Rest>
 KOKKOS_FUNCTION static constexpr const auto& find_const_component_recurse_impl(const First& first,
-                                                                                      const Rest&... rest) {
+                                                                               const Rest&... rest) {
   if constexpr (std::is_same_v<typename First::tag_type, Tag>) {
     return first;
   } else {
@@ -485,7 +623,7 @@ KOKKOS_FUNCTION static constexpr const auto& find_const_component_recurse_impl(c
 /// \brief Fetch the component corresponding to the given Tag using an index sequence
 template <typename Tag, typename... Components, std::size_t... Is>
 KOKKOS_FUNCTION static constexpr auto& find_const_component_impl(const core::tuple<Components...>& tuple,
-                                                                        std::index_sequence<Is...>) {
+                                                                 std::index_sequence<Is...>) {
   // Unpack into the
   return find_const_component_recurse_impl<Tag>(core::get<Is>(tuple)...);
 }
@@ -504,7 +642,7 @@ KOKKOS_FUNCTION static constexpr auto& find_component_recurse_impl(First& first,
 /// \brief Fetch the component corresponding to the given Tag using an index sequence
 template <typename Tag, typename... Components, std::size_t... Is>
 KOKKOS_FUNCTION static constexpr auto& find_component_impl(core::tuple<Components...>& tuple,
-                                                                  std::index_sequence<Is...>) {
+                                                           std::index_sequence<Is...>) {
   // Unpack into the
   return find_component_recurse_impl<Tag>(core::get<Is>(tuple)...);
 }
@@ -522,7 +660,7 @@ KOKKOS_FUNCTION static constexpr bool has_rank_recurse_impl(const First& first, 
 /// \brief Determine if any components in a tuple have a given rank using an index sequence
 template <stk::topology::rank_t rank, typename... Components, std::size_t... Is>
 KOKKOS_FUNCTION static constexpr bool has_rank_impl(const core::tuple<Components...>& tuple,
-                                                           std::index_sequence<Is...>) {
+                                                    std::index_sequence<Is...>) {
   return has_rank_recurse_impl<rank>(core::get<Is>(tuple)...);
 }
 
@@ -539,7 +677,7 @@ KOKKOS_FUNCTION static constexpr bool all_have_rank_recurse_impl(const First& fi
 /// \brief Determine if ~all~ components in a tuple have a given rank
 template <stk::topology::rank_t rank, typename... Components, std::size_t... Is>
 KOKKOS_FUNCTION static constexpr bool all_have_rank_impl(const core::tuple<Components...>& tuple,
-                                                                std::index_sequence<Is...>) {
+                                                         std::index_sequence<Is...>) {
   return all_have_rank_recurse_impl<rank>(core::get<Components>(tuple)...);
 }
 
@@ -697,6 +835,7 @@ KOKKOS_FUNCTION static constexpr bool all_have_rank(const core::tuple<Components
 ///          Component Name                :              Data it accesses             ->         Return Type
 ///   ScalarFieldComponent                 :  Field<scalar_t>                          ->  scalar_t&
 ///   Vector3FieldComponent                :  Field<scalar_t>                          ->  Vector3View<scalar_t>
+///   Matrix3FieldComponent                :  Field<scalar_t>                          ->  Matrix3View<scalar_t>
 ///   QuaternionFieldComponent             :  Field<scalar_t>                          ->  QuaternionView<scalar_t>
 ///   AABBFieldComponent                   :  Field<scalar_t>                          ->  AABBView<scalar_t>
 ///   SharedViewComponent (size 1)         :  mundy::NgpVector<SharedType>             ->  SharedType&
@@ -1194,11 +1333,10 @@ class NgpAggregate {
       // such that the list of connected entities can be indexed by the connectivity_ordinal.
       const auto connected_entities = ngp_mesh_.get_connected_entities(OurRank, entity_index_, comp_rank);
 
-      MUNDY_THROW_ASSERT(
-          connected_entities.size() > connectivity_ordinal, std::runtime_error,
-          fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
-                      "connectivities of rank {}",
-                      connectivity_ordinal, connected_entities.size(), comp_rank));
+      MUNDY_THROW_ASSERT(connected_entities.size() > connectivity_ordinal, std::runtime_error,
+                         fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
+                                     "connectivities of rank {}",
+                                     connectivity_ordinal, connected_entities.size(), comp_rank));
 
       const stk::mesh::FastMeshIndex connected_entity_index =
           ngp_mesh_.fast_mesh_index(connected_entities[connectivity_ordinal]);
@@ -1214,13 +1352,12 @@ class NgpAggregate {
       static constexpr auto comp_rank = TaggedComponentType::rank;
       auto& comp = find_component<Tag>(ngp_components_);
       const auto connected_entities = ngp_mesh_.get_connected_entities(OurRank, entity_index_, comp_rank);
-      
-      MUNDY_THROW_ASSERT(
-          connected_entities.size() > connectivity_ordinal, std::runtime_error,
-          fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
-                      "connectivities of rank {}",
-                      connectivity_ordinal, connected_entities.size(), comp_rank));
-      
+
+      MUNDY_THROW_ASSERT(connected_entities.size() > connectivity_ordinal, std::runtime_error,
+                         fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
+                                     "connectivities of rank {}",
+                                     connectivity_ordinal, connected_entities.size(), comp_rank));
+
       const stk::mesh::FastMeshIndex connected_entity_index =
           ngp_mesh_.fast_mesh_index(connected_entities[connectivity_ordinal]);
       return comp(connected_entity_index);
@@ -1285,7 +1422,7 @@ auto make_ranked_aggregate(const stk::mesh::BulkData& bulk_data, stk::mesh::Sele
 template <stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... TaggedComponents>
 auto get_updated_ngp_aggregate(const Aggregate<OurTopology, OurRank, TaggedComponents...>& aggregate) {
   auto ngp_mesh = stk::mesh::get_updated_ngp_mesh(aggregate.bulk_data());
-  
+
   auto ngp_components = core::make_tuple(
       get_updated_ngp_component(aggregate.template get_component<typename TaggedComponents::tag_type>())...);
 

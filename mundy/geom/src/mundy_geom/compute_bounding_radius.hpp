@@ -44,7 +44,7 @@ namespace geom {
 /// @brief Compute the bounding radius of a point
 KOKKOS_FUNCTION
 template <ValidPointType PointType>
-typename PointType::scalar_t compute_bounding_radius(const PointType& point) {
+typename PointType::scalar_t compute_bounding_radius([[maybe_unused]] const PointType& point) {
   return static_cast<typename PointType::scalar_t>(0);
 }
 
