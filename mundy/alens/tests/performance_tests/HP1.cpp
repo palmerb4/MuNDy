@@ -3566,10 +3566,10 @@ class HP1 {
     }
 
     // Apply the RPY kernel from spheres to spheres
-    // mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
-    //                                           sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
-    mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
-                                                 sphere_forces, sphere_velocities);
+    mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
+                                              sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
+    // mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions,
+    // sphere_positions, sphere_forces, sphere_velocities);
 
     // If enabled, apply the correction for the no-slip boundary condition
     if (enable_periphery_hydrodynamics_) {
@@ -3585,11 +3585,10 @@ class HP1 {
       Kokkos::deep_copy(surface_radii, 0.0);
 
       // Apply the RPY kernel from spheres to periphery
-      // mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions,
-      // surface_positions,
-      //                                           sphere_radii, surface_radii, sphere_forces, surface_velocities);
-      mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions,
-                                                   surface_positions, sphere_forces, surface_velocities);
+      mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, surface_positions,
+                                                sphere_radii, surface_radii, sphere_forces, surface_velocities);
+      // mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions,
+      //                                              surface_positions, sphere_forces, surface_velocities);
 
       // Apply no-slip boundary conditions
       // This is done in two steps: first, we compute the forces on the periphery necessary to enforce no-slip
@@ -3599,9 +3598,9 @@ class HP1 {
           DeviceExecutionSpace(), viscosity, num_surface_nodes, num_spheres, surface_positions, sphere_positions,
           surface_normals, surface_weights, surface_forces, sphere_velocities);
 
-      // // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
-      // mundy::alens::periphery::apply_local_drag(DeviceExecutionSpace(), viscosity, sphere_velocities, sphere_forces,
-      //                                           sphere_radii);
+      // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
+      mundy::alens::periphery::apply_local_drag(DeviceExecutionSpace(), viscosity, sphere_velocities, sphere_forces,
+                                                sphere_radii);
     }
 
     // Copy the sphere forces and velocities back to STK fields
