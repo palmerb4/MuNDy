@@ -3599,8 +3599,8 @@ class HP1 {
           surface_normals, surface_weights, surface_forces, sphere_velocities);
 
       // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
-      mundy::alens::periphery::apply_local_drag(DeviceExecutionSpace(), viscosity, sphere_velocities, sphere_forces,
-                                                sphere_radii);
+      // mundy::alens::periphery::apply_local_drag(DeviceExecutionSpace(), viscosity, sphere_velocities, sphere_forces,
+      //                                           sphere_radii);
     }
 
     // Copy the sphere forces and velocities back to STK fields
