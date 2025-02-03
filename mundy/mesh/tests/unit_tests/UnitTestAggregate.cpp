@@ -249,14 +249,24 @@ TEST(UnitTestAggregate, BasicUsage) {
   EXPECT_DOUBLE_EQ(also_radius, expected_radius);
 
   collision_sphere_data.for_each([&expected_center, &expected_radius, &elem1](auto& other_sphere_view) {
+    // Because calling .template get<TAG>() is syntactically awkward, we offer a get<TAG>(view) method
     auto c = other_sphere_view.template get<CENTER>(0);
     double& r = other_sphere_view.template get<COLLISION_RADIUS>();
+
+    auto c2 = get<CENTER>(other_sphere_view, 0);
+    double& r2 = get<COLLISION_RADIUS>(other_sphere_view);
 
     // There is only one sphere, so we can perform the same checks as above
     EXPECT_DOUBLE_EQ(c[0], expected_center[0]);
     EXPECT_DOUBLE_EQ(c[1], expected_center[1]);
     EXPECT_DOUBLE_EQ(c[2], expected_center[2]);
     EXPECT_DOUBLE_EQ(r, expected_radius);
+
+    EXPECT_DOUBLE_EQ(c2[0], expected_center[0]);
+    EXPECT_DOUBLE_EQ(c2[1], expected_center[1]);
+    EXPECT_DOUBLE_EQ(c2[2], expected_center[2]);
+    EXPECT_DOUBLE_EQ(r2, expected_radius);
+    
     EXPECT_EQ(other_sphere_view.entity(), elem1);
     EXPECT_EQ(other_sphere_view.rank(), stk::topology::ELEM_RANK);
     EXPECT_EQ(other_sphere_view.topology(), stk::topology::PARTICLE);
@@ -301,12 +311,12 @@ TEST(UnitTestAggregate, CanonicalExample) {
     stk::mesh::Entity elem = bulk_data.declare_element(i + 1, stk::mesh::PartVector{&sphere_part});
     bulk_data.declare_relation(elem, node, 0);
 
-    // // Populate the fields
-    // vector3_field_data(node_center_field, node).set(1.1 * i, 2.2 * i, 3.3);
-    // vector3_field_data(node_force_field, node).set(5.0, 6.0, 7.0);
-    // vector3_field_data(node_velocity_field, node).set(1.0, 2.0, 3.0);
-    // scalar_field_data(elem_radius_field, elem) = 0.5;
-    // scalar_field_data(elem_mass_field, elem) = 1.0;
+    // Populate the fields
+    vector3_field_data(node_center_field, node).set(1.1 * i, 2.2 * i, 3.3);
+    vector3_field_data(node_force_field, node).set(5.0, 6.0, 7.0);
+    vector3_field_data(node_velocity_field, node).set(1.0, 2.0, 3.0);
+    scalar_field_data(elem_radius_field, elem) = 0.5;
+    scalar_field_data(elem_mass_field, elem) = 1.0;
   }
   bulk_data.modification_end();
 
@@ -332,8 +342,8 @@ TEST(UnitTestAggregate, CanonicalExample) {
     // Note: The zero is the center node connectivity ordinal.
     //  If you had, say, a BEAM_2 you could use .get<VELOCITY>(0) and .get<VELOCITY>(1)
     //  For the velocity of the left and right nodes, respectively.
-    auto c = sphere_view.template get<CENTER>(0);
-    auto v = sphere_view.template get<VELOCITY>(0);
+    auto c = get<CENTER>(sphere_view, 0);
+    auto v = get<VELOCITY>(sphere_view, 0);
     c += dt * v;
   });
 
@@ -347,8 +357,8 @@ TEST(UnitTestAggregate, CanonicalExample) {
 
   ngp_sphere_data.sync_to_device<CENTER, VELOCITY>();
   ngp_sphere_data.for_each(KOKKOS_LAMBDA(auto& sphere_view) {
-    auto c = sphere_view.template get<CENTER>(0);
-    auto v = sphere_view.template get<VELOCITY>(0);
+    auto c = get<CENTER>(sphere_view, 0);
+    auto v = get<VELOCITY>(sphere_view, 0);
     c += dt * v;
   });
   ngp_sphere_data.modify_on_device<CENTER>();

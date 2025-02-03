@@ -1418,6 +1418,39 @@ auto make_ranked_aggregate(const stk::mesh::BulkData& bulk_data, stk::mesh::Sele
   return Aggregate<stk::topology::INVALID_TOPOLOGY, OurRank>(bulk_data, selector);
 }
 
+/// \brief Get a component of the given aggregate (const)
+/// This simply calls the get_component method of the given aggregate and solely exists so you don't need to write
+///  "aggregate. template get_component<Tag>()" every time you want to fetch a component. Instead,
+/// you use "get_component<Tag>(aggregate)". Same concept as std::get<N>(tuple).
+template <typename Tag, stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
+const auto& get_component(const Aggregate<OurTopology, OurRank, Components...>& aggregate) {
+  return aggregate.template get_component<Tag>();
+}
+
+/// \brief Get a component of the given aggregate
+template <typename Tag, stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
+auto& get_component(Aggregate<OurTopology, OurRank, Components...>& aggregate) {
+  return aggregate.template get_component<Tag>();
+}
+
+/// \brief Get the data tagged by the given tag from the given entity view (const)
+template <typename Tag, stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
+auto get(const typename Aggregate<OurTopology, OurRank, Components...>::EntityView& entity_view) {
+  return entity_view.template get<Tag>();
+}
+
+/// \brief Get the data tagged by the given tag from the given entity view
+template <typename Tag, stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
+auto get(typename Aggregate<OurTopology, OurRank, Components...>::EntityView& entity_view) {
+  return entity_view.template get<Tag>();
+}
+
+/// \brief Get the data tagged by the given tag from the given entity view
+template <typename Tag, stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
+auto get(const typename Aggregate<OurTopology, OurRank, Components...>::EntityView& entity_view, unsigned connectivity_ordinal) {
+  return entity_view.template get<Tag>(connectivity_ordinal);
+}
+
 /// \brief A helper function for getting the NGP aggregate from a regular aggregate
 template <stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... TaggedComponents>
 auto get_updated_ngp_aggregate(const Aggregate<OurTopology, OurRank, TaggedComponents...>& aggregate) {
