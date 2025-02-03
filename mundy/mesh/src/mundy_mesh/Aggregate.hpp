@@ -738,6 +738,13 @@ KOKKOS_FUNCTION static constexpr bool all_have_rank(const core::tuple<Components
   return impl::all_have_rank_impl<rank>(tuple, std::make_index_sequence<sizeof...(Components)>{});
 }
 
+/// Forward declarations:
+template <stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
+class EntityView;
+
+template <stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... NgpComponents>
+class NgpEntityView;
+
 /// \brief An aggregator of components
 ///
 /// # ECS Overview
@@ -1023,113 +1030,9 @@ class Aggregate {
     (get_component<TagsToModify>().modify_on_host(), ...);
   }
 
-  /// \brief A view into the components, connections, and meta-information for an entity
-  class EntityView {
-   public:
-    /// \brief Construct an EntityView for the given entity
-    /// TODO(palmerb4) Optimize for reuse of connectivity.
-    EntityView(const Aggregate& parent, stk::mesh::Entity entity) : parent_(parent), entity_(entity) {
-      MUNDY_THROW_ASSERT(parent.bulk_data().is_valid(entity), std::runtime_error,
-                         "EntityView created with invalid entity");
-      MUNDY_THROW_ASSERT(parent.bulk_data().entity_rank(entity) == OurRank, std::runtime_error,
-                         fmt::format("EntityView created with entity of rank {} but aggregate has rank {}",
-                                     parent.bulk_data().entity_rank(entity), OurRank));
-    }
-
-   private:
-    const Aggregate& parent_;
-    stk::mesh::Entity entity_;
-
-   public:
-    /// \brief Fetch the entity that we view
-    stk::mesh::Entity entity() const {
-      return entity_;
-    }
-
-    /// \brief Fetch the rank of the entity that we view
-    static constexpr stk::topology::rank_t rank() {
-      return OurRank;
-    }
-
-    /// \brief Fetch the topology of the entity that we view
-    static constexpr stk::topology::topology_t topology() {
-      return OurTopology;
-    }
-
-    /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
-    /// Only works for components of the same rank as the entity
-    template <typename Tag>
-      requires(std::decay_t<decltype(parent_.get_component<Tag>())>::rank == OurRank)
-    decltype(auto) get() {
-      auto& comp = parent_.get_component<Tag>();
-      return comp(entity_);
-    }
-
-    /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
-    /// Only works for components of the same rank as the entity
-    template <typename Tag>
-      requires(std::decay_t<decltype(parent_.get_component<Tag>())>::rank == OurRank)
-    decltype(auto) get() const {
-      auto& comp = parent_.get_component<Tag>();
-      return comp(entity_);
-    }
-
-    /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
-    /// Only works for components of a different rank then the entity
-    template <typename Tag>
-      requires(std::decay_t<decltype(parent_.get_component<Tag>())>::rank != OurRank)
-    decltype(auto) get(unsigned connectivity_ordinal) {
-      using TaggedComponentType = std::decay_t<decltype(parent_.get_component<Tag>())>;
-      static constexpr auto comp_rank = TaggedComponentType::rank;
-      auto& comp = parent_.get_component<Tag>();
-
-      MUNDY_THROW_ASSERT(
-          parent_.bulk_data().num_connectivity(entity_, comp_rank) > connectivity_ordinal, std::runtime_error,
-          fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
-                      "connectivities of rank {}",
-                      connectivity_ordinal, parent_.bulk_data().num_connectivity(entity_, comp_rank), comp_rank));
-
-      // TODO: The following assumes that the entity is connected to all of its possible lower rank entities
-      // such that the list of connected entities can be indexed by the connectivity_ordinal.
-      const stk::mesh::Entity& connected_entity = parent_.bulk_data().begin(entity_, comp_rank)[connectivity_ordinal];
-
-      MUNDY_THROW_ASSERT(
-          parent_.bulk_data().is_valid(connected_entity), std::runtime_error,
-          fmt::format("EntityView::get() called with connectivity_ordinal {} but connected entity is invalid",
-                      connectivity_ordinal));
-
-      return comp(connected_entity);
-    }
-
-    /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
-    /// Only works for components of a different rank then the entity
-    template <typename Tag>
-      requires(std::decay_t<decltype(parent_.get_component<Tag>())>::rank != OurRank)
-    decltype(auto) get(unsigned connectivity_ordinal) const {
-      using TaggedComponentType = std::decay_t<decltype(parent_.get_component<Tag>())>;
-      static constexpr auto comp_rank = TaggedComponentType::rank;
-      auto& comp = parent_.get_component<Tag>();
-
-      MUNDY_THROW_ASSERT(
-          parent_.bulk_data().num_connectivity(entity_, comp_rank) > connectivity_ordinal, std::runtime_error,
-          fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
-                      "connectivities of rank {}",
-                      connectivity_ordinal, parent_.bulk_data().num_connectivity(entity_, comp_rank), comp_rank));
-
-      const stk::mesh::Entity& connected_entity = parent_.bulk_data().begin(entity_, comp_rank)[connectivity_ordinal];
-
-      MUNDY_THROW_ASSERT(
-          parent_.bulk_data().is_valid(connected_entity), std::runtime_error,
-          fmt::format("EntityView::get() called with connectivity_ordinal {} but connected entity is invalid",
-                      connectivity_ordinal));
-
-      return comp(connected_entity);
-    }
-  };  // EntityView
-
   /// \brief Get an EntityView for the given entity
-  EntityView get_view(stk::mesh::Entity entity) const {
-    return EntityView(*this, entity);
+  EntityView<OurTopology, OurRank, Components...> get_view(stk::mesh::Entity entity) const {
+    return EntityView<OurTopology, OurRank, Components...>(*this, entity);
   }
 
   /// \brief Apply a functor on the EntityView of each entity in the current data aggregate that is also in the given
@@ -1267,107 +1170,10 @@ class NgpAggregate {
     (get_component<TagsToModify>().modify_on_host(), ...);
   }
 
-  /// \brief A view into the components, connections, and meta-information for an entity
-  class NgpEntityView {
-   public:
-    /// \brief Construct an EntityView for the given entity
-    /// TODO(palmerb4) Optimize for reuse of connectivity.
-    KOKKOS_INLINE_FUNCTION
-    NgpEntityView(const stk::mesh::NgpMesh& ngp_mesh, const NgpComponentsTuple& components,
-                  stk::mesh::FastMeshIndex entity_index)
-        : ngp_mesh_(ngp_mesh), ngp_components_(components), entity_index_(entity_index) {
-    }
-
-   private:
-    const stk::mesh::NgpMesh& ngp_mesh_;
-    const NgpComponentsTuple& ngp_components_;
-    stk::mesh::FastMeshIndex entity_index_;
-
-   public:
-    /// \brief Fetch the entity that we view
-    KOKKOS_INLINE_FUNCTION
-    stk::mesh::FastMeshIndex entity_index() const {
-      return entity_index_;
-    }
-
-    /// \brief Fetch the rank of the entity that we view
-    KOKKOS_INLINE_FUNCTION
-    static constexpr stk::topology::rank_t rank() {
-      return OurRank;
-    }
-
-    /// \brief Fetch the topology of the entity that we view
-    KOKKOS_INLINE_FUNCTION
-    static constexpr stk::topology::topology_t topology() {
-      return OurTopology;
-    }
-
-    /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
-    /// Only works for components of the same rank as the entity
-    template <typename Tag>
-      requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank == OurRank)
-    KOKKOS_INLINE_FUNCTION decltype(auto) get() {
-      auto& comp = find_component<Tag>(ngp_components_);
-      return comp(entity_index_);
-    }
-
-    /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
-    /// Only works for components of the same rank as the entity
-    template <typename Tag>
-      requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank == OurRank)
-    KOKKOS_INLINE_FUNCTION decltype(auto) get() const {
-      auto& comp = find_component<Tag>(ngp_components_);
-      return comp(entity_index_);
-    }
-
-    /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
-    /// Only works for components of a different rank then the entity
-    template <typename Tag>
-      requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank != OurRank)
-    KOKKOS_INLINE_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) {
-      using TaggedComponentType = std::decay_t<decltype(find_component<Tag>(ngp_components_))>;
-      static constexpr auto comp_rank = TaggedComponentType::rank;
-      auto& comp = find_component<Tag>(ngp_components_);
-
-      // TODO: The following assumes that the entity is connected to all of its possible lower rank entities
-      // such that the list of connected entities can be indexed by the connectivity_ordinal.
-      const auto connected_entities = ngp_mesh_.get_connected_entities(OurRank, entity_index_, comp_rank);
-
-      MUNDY_THROW_ASSERT(connected_entities.size() > connectivity_ordinal, std::runtime_error,
-                         fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
-                                     "connectivities of rank {}",
-                                     connectivity_ordinal, connected_entities.size(), comp_rank));
-
-      const stk::mesh::FastMeshIndex connected_entity_index =
-          ngp_mesh_.fast_mesh_index(connected_entities[connectivity_ordinal]);
-      return comp(connected_entity_index);
-    }
-
-    /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
-    /// Only works for components of a different rank then the entity
-    template <typename Tag>
-      requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank != OurRank)
-    KOKKOS_INLINE_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) const {
-      using TaggedComponentType = std::decay_t<decltype(find_component<Tag>(ngp_components_))>;
-      static constexpr auto comp_rank = TaggedComponentType::rank;
-      auto& comp = find_component<Tag>(ngp_components_);
-      const auto connected_entities = ngp_mesh_.get_connected_entities(OurRank, entity_index_, comp_rank);
-
-      MUNDY_THROW_ASSERT(connected_entities.size() > connectivity_ordinal, std::runtime_error,
-                         fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
-                                     "connectivities of rank {}",
-                                     connectivity_ordinal, connected_entities.size(), comp_rank));
-
-      const stk::mesh::FastMeshIndex connected_entity_index =
-          ngp_mesh_.fast_mesh_index(connected_entities[connectivity_ordinal]);
-      return comp(connected_entity_index);
-    }
-  };  // NgpEntityView
-
   /// \brief Get an EntityView for the given entity
   KOKKOS_INLINE_FUNCTION
-  NgpEntityView get_view(stk::mesh::FastMeshIndex entity_index) const {
-    return NgpEntityView(ngp_mesh_, ngp_components_, entity_index);
+  NgpEntityView<OurTopology, OurRank, NgpComponents...> get_view(stk::mesh::FastMeshIndex entity_index) const {
+    return NgpEntityView<OurTopology, OurRank, NgpComponents...>(ngp_mesh_, ngp_components_, entity_index);
   }
 
   /// \brief Apply a functor on the EntityView of each entity in the current data aggregate that is also in the given
@@ -1405,6 +1211,212 @@ class NgpAggregate {
   //@}
 };  // NgpAggregate
 
+/// \brief A view into the components, connections, and meta-information for an entity
+template <stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
+class EntityView {
+ public:
+  /// \brief Construct an EntityView for the given entity
+  /// TODO(palmerb4) Optimize for reuse of connectivity.
+  EntityView(const Aggregate<OurTopology, OurRank, Components...>& parent, stk::mesh::Entity entity)
+      : parent_(parent), entity_(entity) {
+    MUNDY_THROW_ASSERT(parent.bulk_data().is_valid(entity), std::runtime_error,
+                       "EntityView created with invalid entity");
+    MUNDY_THROW_ASSERT(parent.bulk_data().entity_rank(entity) == OurRank, std::runtime_error,
+                       fmt::format("EntityView created with entity of rank {} but aggregate has rank {}",
+                                   parent.bulk_data().entity_rank(entity), OurRank));
+  }
+
+ private:
+  const Aggregate<OurTopology, OurRank, Components...>& parent_;
+  stk::mesh::Entity entity_;
+
+ public:
+  /// \brief Fetch the entity that we view
+  stk::mesh::Entity entity() const {
+    return entity_;
+  }
+
+  /// \brief Fetch the rank of the entity that we view
+  static constexpr stk::topology::rank_t rank() {
+    return OurRank;
+  }
+
+  /// \brief Fetch the topology of the entity that we view
+  static constexpr stk::topology::topology_t topology() {
+    return OurTopology;
+  }
+
+  /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
+  /// Only works for components of the same rank as the entity
+  template <typename Tag>
+    requires(std::decay_t<decltype(parent_.template get_component<Tag>())>::rank == OurRank)
+  decltype(auto) get() {
+    auto& comp = parent_.template get_component<Tag>();
+    return comp(entity_);
+  }
+
+  /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
+  /// Only works for components of the same rank as the entity
+  template <typename Tag>
+    requires(std::decay_t<decltype(parent_.template get_component<Tag>())>::rank == OurRank)
+  decltype(auto) get() const {
+    auto& comp = parent_.template get_component<Tag>();
+    return comp(entity_);
+  }
+
+  /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
+  /// Only works for components of a different rank then the entity
+  template <typename Tag>
+    requires(std::decay_t<decltype(parent_.template get_component<Tag>())>::rank != OurRank)
+  decltype(auto) get(unsigned connectivity_ordinal) {
+    using TaggedComponentType = std::decay_t<decltype(parent_.template get_component<Tag>())>;
+    static constexpr auto comp_rank = TaggedComponentType::rank;
+    auto& comp = parent_.template get_component<Tag>();
+
+    MUNDY_THROW_ASSERT(
+        parent_.bulk_data().num_connectivity(entity_, comp_rank) > connectivity_ordinal, std::runtime_error,
+        fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
+                    "connectivities of rank {}",
+                    connectivity_ordinal, parent_.bulk_data().num_connectivity(entity_, comp_rank), comp_rank));
+
+    // TODO: The following assumes that the entity is connected to all of its possible lower rank entities
+    // such that the list of connected entities can be indexed by the connectivity_ordinal.
+    const stk::mesh::Entity& connected_entity = parent_.bulk_data().begin(entity_, comp_rank)[connectivity_ordinal];
+
+    MUNDY_THROW_ASSERT(
+        parent_.bulk_data().is_valid(connected_entity), std::runtime_error,
+        fmt::format("EntityView::get() called with connectivity_ordinal {} but connected entity is invalid",
+                    connectivity_ordinal));
+
+    return comp(connected_entity);
+  }
+
+  /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
+  /// Only works for components of a different rank then the entity
+  template <typename Tag>
+    requires(std::decay_t<decltype(parent_.template get_component<Tag>())>::rank != OurRank)
+  decltype(auto) get(unsigned connectivity_ordinal) const {
+    using TaggedComponentType = std::decay_t<decltype(parent_.template get_component<Tag>())>;
+    static constexpr auto comp_rank = TaggedComponentType::rank;
+    auto& comp = parent_.template get_component<Tag>();
+
+    MUNDY_THROW_ASSERT(
+        parent_.bulk_data().num_connectivity(entity_, comp_rank) > connectivity_ordinal, std::runtime_error,
+        fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
+                    "connectivities of rank {}",
+                    connectivity_ordinal, parent_.bulk_data().num_connectivity(entity_, comp_rank), comp_rank));
+
+    const stk::mesh::Entity& connected_entity = parent_.bulk_data().begin(entity_, comp_rank)[connectivity_ordinal];
+
+    MUNDY_THROW_ASSERT(
+        parent_.bulk_data().is_valid(connected_entity), std::runtime_error,
+        fmt::format("EntityView::get() called with connectivity_ordinal {} but connected entity is invalid",
+                    connectivity_ordinal));
+
+    return comp(connected_entity);
+  }
+};  // EntityView
+
+/// \brief A view into the components, connections, and meta-information for an entity
+template <stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... NgpComponents>
+class NgpEntityView {
+ public:
+  using NgpComponentsTuple = core::tuple<NgpComponents...>;
+
+  /// \brief Construct an EntityView for the given entity
+  /// TODO(palmerb4) Optimize for reuse of connectivity.
+  KOKKOS_INLINE_FUNCTION
+  NgpEntityView(const stk::mesh::NgpMesh& ngp_mesh, const NgpComponentsTuple& components,
+                stk::mesh::FastMeshIndex entity_index)
+      : ngp_mesh_(ngp_mesh), ngp_components_(components), entity_index_(entity_index) {
+  }
+
+ private:
+  const stk::mesh::NgpMesh& ngp_mesh_;
+  const NgpComponentsTuple& ngp_components_;
+  stk::mesh::FastMeshIndex entity_index_;
+
+ public:
+  /// \brief Fetch the entity that we view
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex entity_index() const {
+    return entity_index_;
+  }
+
+  /// \brief Fetch the rank of the entity that we view
+  KOKKOS_INLINE_FUNCTION
+  static constexpr stk::topology::rank_t rank() {
+    return OurRank;
+  }
+
+  /// \brief Fetch the topology of the entity that we view
+  KOKKOS_INLINE_FUNCTION
+  static constexpr stk::topology::topology_t topology() {
+    return OurTopology;
+  }
+
+  /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
+  /// Only works for components of the same rank as the entity
+  template <typename Tag>
+    requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank == OurRank)
+  KOKKOS_INLINE_FUNCTION decltype(auto) get() {
+    auto& comp = find_component<Tag>(ngp_components_);
+    return comp(entity_index_);
+  }
+
+  /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
+  /// Only works for components of the same rank as the entity
+  template <typename Tag>
+    requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank == OurRank)
+  KOKKOS_INLINE_FUNCTION decltype(auto) get() const {
+    auto& comp = find_component<Tag>(ngp_components_);
+    return comp(entity_index_);
+  }
+
+  /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
+  /// Only works for components of a different rank then the entity
+  template <typename Tag>
+    requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank != OurRank)
+  KOKKOS_INLINE_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) {
+    using TaggedComponentType = std::decay_t<decltype(find_component<Tag>(ngp_components_))>;
+    static constexpr auto comp_rank = TaggedComponentType::rank;
+    auto& comp = find_component<Tag>(ngp_components_);
+
+    // TODO: The following assumes that the entity is connected to all of its possible lower rank entities
+    // such that the list of connected entities can be indexed by the connectivity_ordinal.
+    const auto connected_entities = ngp_mesh_.get_connected_entities(OurRank, entity_index_, comp_rank);
+
+    MUNDY_THROW_ASSERT(connected_entities.size() > connectivity_ordinal, std::runtime_error,
+                       fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
+                                   "connectivities of rank {}",
+                                   connectivity_ordinal, connected_entities.size(), comp_rank));
+
+    const stk::mesh::FastMeshIndex connected_entity_index =
+        ngp_mesh_.fast_mesh_index(connected_entities[connectivity_ordinal]);
+    return comp(connected_entity_index);
+  }
+
+  /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
+  /// Only works for components of a different rank then the entity
+  template <typename Tag>
+    requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank != OurRank)
+  KOKKOS_INLINE_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) const {
+    using TaggedComponentType = std::decay_t<decltype(find_component<Tag>(ngp_components_))>;
+    static constexpr auto comp_rank = TaggedComponentType::rank;
+    auto& comp = find_component<Tag>(ngp_components_);
+    const auto connected_entities = ngp_mesh_.get_connected_entities(OurRank, entity_index_, comp_rank);
+
+    MUNDY_THROW_ASSERT(connected_entities.size() > connectivity_ordinal, std::runtime_error,
+                       fmt::format("EntityView::get() called with connectivity_ordinal {} but entity has only {} "
+                                   "connectivities of rank {}",
+                                   connectivity_ordinal, connected_entities.size(), comp_rank));
+
+    const stk::mesh::FastMeshIndex connected_entity_index =
+        ngp_mesh_.fast_mesh_index(connected_entities[connectivity_ordinal]);
+    return comp(connected_entity_index);
+  }
+};  // NgpEntityView
+
 /// \brief Make an aggregate for the given topology
 template <stk::topology::topology_t OurTopology>
 auto make_aggregate(const stk::mesh::BulkData& bulk_data, stk::mesh::Selector selector) {
@@ -1435,19 +1447,51 @@ auto& get_component(Aggregate<OurTopology, OurRank, Components...>& aggregate) {
 
 /// \brief Get the data tagged by the given tag from the given entity view (const)
 template <typename Tag, stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
-auto get(const typename Aggregate<OurTopology, OurRank, Components...>::EntityView& entity_view) {
+decltype(auto) get(const EntityView<OurTopology, OurRank, Components...>& entity_view) {
   return entity_view.template get<Tag>();
 }
 
 /// \brief Get the data tagged by the given tag from the given entity view
 template <typename Tag, stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
-auto get(typename Aggregate<OurTopology, OurRank, Components...>::EntityView& entity_view) {
+decltype(auto) get(EntityView<OurTopology, OurRank, Components...>& entity_view) {
   return entity_view.template get<Tag>();
 }
 
 /// \brief Get the data tagged by the given tag from the given entity view
 template <typename Tag, stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
-auto get(const typename Aggregate<OurTopology, OurRank, Components...>::EntityView& entity_view, unsigned connectivity_ordinal) {
+decltype(auto) get(const EntityView<OurTopology, OurRank, Components...>& entity_view, unsigned connectivity_ordinal) {
+  return entity_view.template get<Tag>(connectivity_ordinal);
+}
+
+/// \brief Get the data tagged by the given tag from the given entity view
+template <typename Tag, stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
+decltype(auto) get(EntityView<OurTopology, OurRank, Components...>& entity_view, unsigned connectivity_ordinal) {
+  return entity_view.template get<Tag>(connectivity_ordinal);
+}
+
+/// \brief Get the data tagged by the given tag from the given entity view (const)
+template <typename Tag, stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
+KOKKOS_INLINE_FUNCTION decltype(auto) get(const NgpEntityView<OurTopology, OurRank, Components...>& entity_view) {
+  return entity_view.template get<Tag>();
+}
+
+/// \brief Get the data tagged by the given tag from the given entity view
+template <typename Tag, stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
+KOKKOS_INLINE_FUNCTION decltype(auto) get(NgpEntityView<OurTopology, OurRank, Components...>& entity_view) {
+  return entity_view.template get<Tag>();
+}
+
+/// \brief Get the data tagged by the given tag from the given entity view
+template <typename Tag, stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
+KOKKOS_INLINE_FUNCTION decltype(auto) get(const NgpEntityView<OurTopology, OurRank, Components...>& entity_view,
+                                          unsigned connectivity_ordinal) {
+  return entity_view.template get<Tag>(connectivity_ordinal);
+}
+
+/// \brief Get the data tagged by the given tag from the given entity view
+template <typename Tag, stk::topology::topology_t OurTopology, stk::topology::rank_t OurRank, typename... Components>
+KOKKOS_INLINE_FUNCTION decltype(auto) get(NgpEntityView<OurTopology, OurRank, Components...>& entity_view,
+                                          unsigned connectivity_ordinal) {
   return entity_view.template get<Tag>(connectivity_ordinal);
 }
 
