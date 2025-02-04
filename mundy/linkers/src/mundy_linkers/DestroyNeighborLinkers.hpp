@@ -103,16 +103,14 @@ class DestroyNeighborLinkers
 };  // DestroyNeighborLinkers
 
 // Workaround due to CUDA not liking our meta factory registration
-static inline volatile const bool register_destroy_neighbor_linkers_kernels_ =
-[]() {
+static inline volatile const bool register_destroy_neighbor_linkers_kernels_ = []() {
   // Register our default kernels
- mundy::linkers::DestroyNeighborLinkers::OurTechniqueFactory::register_new_class<
-          mundy::linkers::destroy_neighbor_linkers::techniques::DestroyDistantNeighbors>("DESTROY_DISTANT_NEIGHBORS");
- mundy::linkers::DestroyNeighborLinkers::OurTechniqueFactory::register_new_class<
-          mundy::linkers::destroy_neighbor_linkers::techniques::DestroyBoundNeighbors>("DESTROY_BOUND_NEIGHBORS");
+  mundy::linkers::DestroyNeighborLinkers::OurTechniqueFactory::register_new_class<
+      mundy::linkers::destroy_neighbor_linkers::techniques::DestroyDistantNeighbors>("DESTROY_DISTANT_NEIGHBORS");
+  mundy::linkers::DestroyNeighborLinkers::OurTechniqueFactory::register_new_class<
+      mundy::linkers::destroy_neighbor_linkers::techniques::DestroyBoundNeighbors>("DESTROY_BOUND_NEIGHBORS");
   return true;
 }();
-
 
 }  // namespace linkers
 

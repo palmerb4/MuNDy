@@ -72,8 +72,9 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
       stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
-    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
-                       std::string("Sphere: Field ") + field_name + " cannot be a nullptr. Check that the field exists.");
+    MUNDY_THROW_REQUIRE(
+        field_ptr != nullptr, std::invalid_argument,
+        std::string("Sphere: Field ") + field_name + " cannot be a nullptr. Check that the field exists.");
   };  // field_exists
 
   field_exists(linker_potential_force_field_ptr_, linker_potential_force_field_name);
@@ -90,8 +91,9 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
-                         std::string("Sphere: Part ") + part_name + " cannot be a nullptr. Check that the part exists.");
+      MUNDY_THROW_REQUIRE(
+          part != nullptr, std::invalid_argument,
+          std::string("Sphere: Part ") + part_name + " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;

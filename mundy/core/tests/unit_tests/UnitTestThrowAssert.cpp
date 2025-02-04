@@ -147,7 +147,8 @@ TEST(ThrowAssert, ThrowsCorrectMessage) {
   // Throws correct for message with pipe (on host)
   {
     std::string expected_message = "Some error message with pipe";
-    ASSERT_THROW(MUNDY_THROW_REQUIRE(false, some_exception, std::string("Some error message ") + "with pipe"), some_exception);
+    ASSERT_THROW(MUNDY_THROW_REQUIRE(false, some_exception, std::string("Some error message ") + "with pipe"),
+                 some_exception);
     try {
       MUNDY_THROW_REQUIRE(false, some_exception, std::string("Some error message ") + "with pipe");
     } catch (const some_exception& e) {

@@ -136,10 +136,11 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
     const bool generate_spheres_at_nodes = valid_fixed_params.get<bool>("generate_spheres_at_nodes");
     const bool generate_spherocylinder_segments_along_edges =
         valid_fixed_params.get<bool>("generate_spherocylinder_segments_along_edges");
-    MUNDY_THROW_REQUIRE(generate_hookean_springs || generate_angular_springs || generate_spheres_at_nodes ||
-                           generate_spherocylinder_segments_along_edges,
-                       std::invalid_argument,
-                       "ChainOfSprings: At least one of the objects must be generated. Currently, all are turned off!");
+    MUNDY_THROW_REQUIRE(
+        generate_hookean_springs || generate_angular_springs || generate_spheres_at_nodes ||
+            generate_spherocylinder_segments_along_edges,
+        std::invalid_argument,
+        "ChainOfSprings: At least one of the objects must be generated. Currently, all are turned off!");
 
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
 

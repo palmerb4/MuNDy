@@ -75,7 +75,7 @@ class IOBroker {
         stk_io_broker_(bulk_data_ptr->parallel()) {
     // The bulk data pointer must not be null.
     MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                       "IOBroker: bulk_data_ptr cannot be a nullptr.");
+                        "IOBroker: bulk_data_ptr cannot be a nullptr.");
 
     stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "MuNDy IO");
 
@@ -98,7 +98,8 @@ class IOBroker {
     } else if (database_purpose == "append") {
       database_purpose_ = stk::io::APPEND_RESULTS;
     } else {
-      MUNDY_THROW_REQUIRE(false, std::invalid_argument, std::string("IOBroker: incorrect database purpose: ") + database_purpose);
+      MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                          std::string("IOBroker: incorrect database purpose: ") + database_purpose);
     }
 
     // Check if we are reading a RESTART or not, otherwise make sure that the input filename is set to an empty string

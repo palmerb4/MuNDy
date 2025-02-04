@@ -100,23 +100,22 @@ class EvaluateLinkerPotentials
 static inline volatile const bool register_evaluate_linker_potentials_kernels_ = []() {
   // Register our default kernels
   mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
-      mundy::linkers::evaluate_linker_potentials::kernels::
-          SphereSphereHertzianContact>("SPHERE_SPHERE_HERTZIAN_CONTACT");
+      mundy::linkers::evaluate_linker_potentials::kernels::SphereSphereHertzianContact>(
+      "SPHERE_SPHERE_HERTZIAN_CONTACT");
   mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
-      mundy::linkers::evaluate_linker_potentials::kernels::
-          SphereSpherocylinderHertzianContact>("SPHERE_SPHEROCYLINDER_HERTZIAN_CONTACT");
+      mundy::linkers::evaluate_linker_potentials::kernels::SphereSpherocylinderHertzianContact>(
+      "SPHERE_SPHEROCYLINDER_HERTZIAN_CONTACT");
   mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
-      mundy::linkers::evaluate_linker_potentials::kernels::
-          SphereSpherocylinderSegmentHertzianContact>("SPHERE_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT");
+      mundy::linkers::evaluate_linker_potentials::kernels::SphereSpherocylinderSegmentHertzianContact>(
+      "SPHERE_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT");
   mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
-      mundy::linkers::evaluate_linker_potentials::kernels::
-          SpherocylinderSegmentSpherocylinderSegmentHertzianContact>("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT");
+      mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSegmentSpherocylinderSegmentHertzianContact>(
+      "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT");
   mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
-      mundy::linkers::evaluate_linker_potentials::kernels::
-          SpherocylinderSpherocylinderHertzianContact>("SPHEROCYLINDER_SPHEROCYLINDER_HERTZIAN_CONTACT");
+      mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSpherocylinderHertzianContact>(
+      "SPHEROCYLINDER_SPHEROCYLINDER_HERTZIAN_CONTACT");
   mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
-      mundy::linkers::evaluate_linker_potentials::kernels::
-          SpherocylinderSpherocylinderSegmentHertzianContact>(
+      mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSpherocylinderSegmentHertzianContact>(
       "SPHEROCYLINDER_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT");
   mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
       mundy::linkers::evaluate_linker_potentials::kernels::

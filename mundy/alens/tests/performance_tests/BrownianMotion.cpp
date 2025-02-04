@@ -139,7 +139,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
       : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
     // The bulk data pointer must not be null.
     MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                       "NodeEulerSphere: bulk_data_ptr cannot be a nullptr.");
+                        "NodeEulerSphere: bulk_data_ptr cannot be a nullptr.");
 
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -150,8 +150,8 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
     for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
       MUNDY_THROW_REQUIRE(valid_entity_parts_.back() != nullptr, std::invalid_argument,
-                         std::string("NodeEulerSphere: Part '")
-                             + part_name + "' from the valid_entity_part_names does not exist in the meta data.");
+                          std::string("NodeEulerSphere: Part '") + part_name +
+                              "' from the valid_entity_part_names does not exist in the meta data.");
     }
 
     // Fetch the fields.
@@ -313,11 +313,9 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
 };  // NodeEulerSphere
 
 // Workaround due to CUDA not liking our meta factory registration
-static inline volatile const bool register_node_euler_kernels_ =
-[]() {
+static inline volatile const bool register_node_euler_kernels_ = []() {
   // Register our default kernels
-  NodeEuler::OurKernelFactory::register_new_class<
-            NodeEulerSphere>("SPHERE");
+  NodeEuler::OurKernelFactory::register_new_class<NodeEulerSphere>("SPHERE");
   return true;
 }();
 
@@ -413,7 +411,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
       : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
     // The bulk data pointer must not be null.
     MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                       "ComputeBrownianVelocitySphere: bulk_data_ptr cannot be a nullptr.");
+                        "ComputeBrownianVelocitySphere: bulk_data_ptr cannot be a nullptr.");
 
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -424,8 +422,8 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
       MUNDY_THROW_REQUIRE(valid_entity_parts_.back() != nullptr, std::invalid_argument,
-                         std::string("ComputeBrownianVelocitySphere: Part '")
-                             + part_name + "' from the valid_entity_part_names does not exist in the meta data.");
+                          std::string("ComputeBrownianVelocitySphere: Part '") + part_name +
+                              "' from the valid_entity_part_names does not exist in the meta data.");
     }
 
     // Fetch the fields.
@@ -630,15 +628,11 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
 };  // ComputeBrownianVelocitySphere
 
 // Workaround due to CUDA not liking our meta factory registration
-static inline volatile const bool register_compute_brownian_velocity_kernels_ =
-[]() {
+static inline volatile const bool register_compute_brownian_velocity_kernels_ = []() {
   // Register our default kernels
- ComputeBrownianVelocity::OurKernelFactory::register_new_class<
-          ComputeBrownianVelocitySphere>("SPHERE");
+  ComputeBrownianVelocity::OurKernelFactory::register_new_class<ComputeBrownianVelocitySphere>("SPHERE");
   return true;
 }();
-
-
 
 int main(int argc, char **argv) {
   // Initialize MPI
@@ -740,7 +734,7 @@ int main(int argc, char **argv) {
 
   auto check_if_exists = [](const stk::mesh::FieldBase *const field_ptr, const std::string &name) {
     MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
-                       name + "cannot be a nullptr. Check that the field exists.");
+                        name + "cannot be a nullptr. Check that the field exists.");
   };
 
   check_if_exists(node_coordinates_field_ptr, "NODE_COORDS");

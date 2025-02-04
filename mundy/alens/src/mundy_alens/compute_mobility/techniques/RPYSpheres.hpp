@@ -307,10 +307,10 @@
         const bool coordinate_out_of_domain_in_non_periodic_direction =
             coordinate_out_of_domain_in_x || coordinate_out_of_domain_in_y || coordinate_out_of_domain_in_z;
         MUNDY_THROW_ASSERT(!coordinate_out_of_domain_in_non_periodic_direction, std::logic_error,
-                                 "RPYSpheres: Node coordinate is out of domain. The current coordinate is "
-                                     << node_coord[0] << " " << node_coord[1] << " " << node_coord[2]
-                                     << " and the origin is " << domain_origin[0] << " " << domain_origin[1] << " "
-                                     << domain_origin[2] << " with length " << domain_length);
+                           "RPYSpheres: Node coordinate is out of domain. The current coordinate is "
+                               << node_coord[0] << " " << node_coord[1] << " " << node_coord[2] << " and the origin is "
+                               << domain_origin[0] << " " << domain_origin[1] << " " << domain_origin[2]
+                               << " with length " << domain_length);
 
         src_single_layer_coord[3 * i] = node_coord[0];
         src_single_layer_coord[3 * i + 1] = node_coord[1];

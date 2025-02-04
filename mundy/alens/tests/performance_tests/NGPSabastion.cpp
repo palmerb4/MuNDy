@@ -199,8 +199,8 @@ FastMeshIndicesViewType get_local_entity_indices(const stk::mesh::BulkData &bulk
   FastMeshIndicesViewType::HostMirror host_mesh_indices =
       Kokkos::create_mirror_view(Kokkos::WithoutInitializing, mesh_indices);
 
-
-   Kokkos::parallel_for(stk::ngp::HostRangePolicy(0, local_entities.size()), [&bulk_data, &local_entities, &host_mesh_indices](const int i) {
+  Kokkos::parallel_for(stk::ngp::HostRangePolicy(0, local_entities.size()), [&bulk_data, &local_entities,
+                                                                             &host_mesh_indices](const int i) {
     const stk::mesh::MeshIndex &mesh_index = bulk_data.mesh_index(local_entities[i]);
     host_mesh_indices(i) = stk::mesh::FastMeshIndex{mesh_index.bucket->bucket_id(), mesh_index.bucket_ordinal};
   });
@@ -322,7 +322,7 @@ void ghost_neighbors(stk::mesh::BulkData &bulk_data, const ResultViewType &searc
 
   const int my_parallel_rank = bulk_data.parallel_rank();
 
-  // TODO(palmerb4): This is a VERY slow append operation. 
+  // TODO(palmerb4): This is a VERY slow append operation.
   for (size_t i = 0; i < host_search_results.size(); ++i) {
     auto result = host_search_results(i);
     const bool i_own_source = result.domainIdentProc.proc() == my_parallel_rank;
@@ -725,10 +725,10 @@ int main(int argc, char **argv) {
         std::cout << "Time step: " << time_step_index << " running at "
                   << static_cast<double>(io_frequency) / tps_timer.seconds() << " tps." << std::endl;
         tps_timer.reset();
-        
+
         // Only compute the tangent when we are going to write to file
         compute_tangent(ngp_mesh, spherocyliners_part, ngp_elem_orientation, ngp_elem_tangent);
-      
+
         // Comm fields to host
         ngp_node_coordinates.sync_to_host();
         ngp_node_force.sync_to_host();
@@ -741,7 +741,8 @@ int main(int argc, char **argv) {
         ngp_elem_angular_velocity.sync_to_host();
 
         // Write to file
-        // stk::io::write_mesh_with_fields("spherocyliners.e-s." + std::to_string(time_step_index), bulk_data, time_step_index + 1,
+        // stk::io::write_mesh_with_fields("spherocyliners.e-s." + std::to_string(time_step_index), bulk_data,
+        // time_step_index + 1,
         //                     time_step_index * time_step_size, stk::io::WRITE_RESULTS);
       }
 
@@ -770,7 +771,7 @@ int main(int argc, char **argv) {
         stk::search::SearchMethod search_method = stk::search::MORTON_LBVH;
         const bool results_parallel_symmetry = true;   // create source -> target and target -> source pairs
         const bool auto_swap_domain_and_range = true;  // swap source and target if target is owned and source is not
-        const bool sort_search_results = false;         // sort the search results by source id
+        const bool sort_search_results = false;        // sort the search results by source id
         stk::search::coarse_search(search_aabbs, search_aabbs, search_method, bulk_data.parallel(), search_results,
                                    stk::ngp::ExecSpace{}, results_parallel_symmetry);
         std::cout << "Search time: " << search_timer.seconds() << std::endl;

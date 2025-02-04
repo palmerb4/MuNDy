@@ -1069,8 +1069,6 @@ TEST(PeripheryTest, SKFIERigidBodyMotion) {
     std::cout << "  " << v[0] << " " << v[1] << " " << v[2] << std::endl;
   }
 
-
-
   // Setup the test
   const bool include_poles = false;
   const bool invert = true;
@@ -1181,7 +1179,7 @@ TEST(PeripheryTest, SKFIERigidBodyMotionFromFile) {
   bulk_points(23) = -cube_side_half_length;
 
   Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> expected_bulk_velocity("expected_bulk_velocity",
-                                                                                        3 * num_bulk_points);
+                                                                                       3 * num_bulk_points);
   for (size_t i = 0; i < num_bulk_points; ++i) {
     const double x = bulk_points(3 * i);
     const double y = bulk_points(3 * i + 1);
@@ -1224,7 +1222,7 @@ TEST(PeripheryTest, SKFIERigidBodyMotionFromFile) {
 
     // Setup the test
     Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_slip_velocity("surface_slip_velocity",
-                                                                                         3 * num_quad_points);
+                                                                                        3 * num_quad_points);
     for (size_t j = 0; j < weights.extent(0); ++j) {
       const double x = points(3 * j);
       const double y = points(3 * j + 1);
@@ -1237,14 +1235,12 @@ TEST(PeripheryTest, SKFIERigidBodyMotionFromFile) {
     }
 
     // Use apply_resistance to map the surface velocities to the bulk surface velocities
-    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_forces("surface_forces",
-                                                                                 points.extent(0));
-    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_velocity("bulk_velocity",
-                                                                                        3 * num_bulk_points);
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_forces("surface_forces", points.extent(0));
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_velocity("bulk_velocity", 3 * num_bulk_points);
     Kokkos::deep_copy(surface_forces, 0.0);
     Kokkos::deep_copy(bulk_velocity, 0.0);
-    apply_resistance(viscosity, points, normals, weights, surface_slip_velocity, surface_forces,
-                     bulk_points, bulk_velocity);
+    apply_resistance(viscosity, points, normals, weights, surface_slip_velocity, surface_forces, bulk_points,
+                     bulk_velocity);
 
     // Absolute error
     const double fd_l2_error = fd_l2_norm_difference(bulk_velocity, expected_bulk_velocity);
@@ -1258,7 +1254,6 @@ TEST(PeripheryTest, SKFIERigidBodyMotionFromFile) {
   }
 }
 
-
 TEST(PeripheryTest, SKFIESelfConvFromFile) {
   // Test the convergence for the flow induced by N points within the bulk of the sphere
   // Assign to each point in the bulk a smoothly varying force field
@@ -1271,15 +1266,14 @@ TEST(PeripheryTest, SKFIESelfConvFromFile) {
 
   // Setup the bulk points at the corner of the cube with side length cude_side_length
   Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_points("bulk_points", 3 * num_bulk_points);
-  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_forces("bulk_forces",
-                                                                                        3 * num_bulk_points);
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_forces("bulk_forces", 3 * num_bulk_points);
   size_t seed = 1234;
   size_t counter = 0;
   openrand::Philox rng(seed, counter);
   for (size_t i = 0; i < num_bulk_points; ++i) {
     const double theta = rng.uniform(0.0, 2.0 * M_PI);
     const double phi = rng.uniform(0.0, M_PI);
-    const double r = rng.uniform(0.0, 0.9*sphere_radius - 1e-12);  // Avoid landing on the surface
+    const double r = rng.uniform(0.0, 0.9 * sphere_radius - 1e-12);  // Avoid landing on the surface
     bulk_points(3 * i) = r * std::sin(phi) * std::cos(theta);
     bulk_points(3 * i + 1) = r * std::sin(phi) * std::sin(theta);
     bulk_points(3 * i + 2) = r * std::cos(phi);
@@ -1294,7 +1288,7 @@ TEST(PeripheryTest, SKFIESelfConvFromFile) {
   }
 
   Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> expected_bulk_velocity("expected_bulk_velocity",
-                                                                                        3 * num_bulk_points);
+                                                                                       3 * num_bulk_points);
 
   std::cout << "###########################################################" << std::endl;
   std::cout << "Self-conv from file" << std::endl;
@@ -1314,20 +1308,18 @@ TEST(PeripheryTest, SKFIESelfConvFromFile) {
 
     // Compute the surface slip velocity induced by the bulk forces
     Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_slip_velocity("surface_slip_velocity",
-                                                                                         3 * num_quad_points);
+                                                                                        3 * num_quad_points);
     apply_stokes_kernel(Kokkos::DefaultHostExecutionSpace(), viscosity, bulk_points, points, bulk_forces,
-                                    surface_slip_velocity);
+                        surface_slip_velocity);
 
     // Use apply_resistance to map the surface velocities to the bulk surface velocities
     // The surface forces are unknown and will be computed by apply_resistance
-    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_forces("surface_forces",
-                                                                                 points.extent(0));
-    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_velocity("bulk_velocity",
-                                                                                        3 * num_bulk_points);
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_forces("surface_forces", points.extent(0));
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_velocity("bulk_velocity", 3 * num_bulk_points);
     Kokkos::deep_copy(surface_forces, 0.0);
     Kokkos::deep_copy(bulk_velocity, 0.0);
-    apply_resistance(viscosity, points, normals, weights, surface_slip_velocity, surface_forces,
-                     bulk_points, bulk_velocity);
+    apply_resistance(viscosity, points, normals, weights, surface_slip_velocity, surface_forces, bulk_points,
+                     bulk_velocity);
 
     // Save the self-conv results
     if (i == 0) {

@@ -85,7 +85,7 @@ class TorsionalSpring {
   /// \param[in] end The end of the TorsionalSpring.
   template <mundy::geom::ValidVSegmentType OtherVSegmentType>
   KOKKOS_FUNCTION TorsionalSpring(const OtherVSegmentType& v_segment, const scalar_t& rest_angle,
-                                const scalar_t& spring_constant)
+                                  const scalar_t& spring_constant)
     requires(!std::is_same_v<OtherVSegmentType, v_segment_t>)
       : v_segment_(v_segment), rest_angle_(rest_angle), spring_constant_(spring_constant) {
   }
@@ -130,7 +130,8 @@ class TorsionalSpring {
 
   /// \brief Copy assignment operator
   KOKKOS_FUNCTION
-  TorsionalSpring<scalar_t, v_segment_t, ownership_t>& operator=(const TorsionalSpring<scalar_t, v_segment_t, ownership_t>& other) {
+  TorsionalSpring<scalar_t, v_segment_t, ownership_t>& operator=(
+      const TorsionalSpring<scalar_t, v_segment_t, ownership_t>& other) {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     v_segment_ = other.v_segment_;
     rest_angle_ = other.rest_angle_;
@@ -152,7 +153,8 @@ class TorsionalSpring {
 
   /// \brief Move assignment operator
   KOKKOS_FUNCTION
-  TorsionalSpring<scalar_t, v_segment_t, ownership_t>& operator=(TorsionalSpring<scalar_t, v_segment_t, ownership_t>&& other) {
+  TorsionalSpring<scalar_t, v_segment_t, ownership_t>& operator=(
+      TorsionalSpring<scalar_t, v_segment_t, ownership_t>&& other) {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     v_segment_ = std::move(other.v_segment_);
     rest_angle_ = std::move(other.rest_angle_);
@@ -261,8 +263,10 @@ inline constexpr bool is_torsional_spring_v = is_torsional_spring<T>::value;
 template <typename TorsionalSpringType>
 concept ValidTorsionalSpringType = mundy::geom::ValidTorsionalSpringType<TorsionalSpringType>;
 
-static_assert(ValidTorsionalSpringType<TorsionalSpring<float>> && ValidTorsionalSpringType<const TorsionalSpring<float>> &&
-                  ValidTorsionalSpringType<TorsionalSpring<double>> && ValidTorsionalSpringType<const TorsionalSpring<double>>,
+static_assert(ValidTorsionalSpringType<TorsionalSpring<float>> &&
+                  ValidTorsionalSpringType<const TorsionalSpring<float>> &&
+                  ValidTorsionalSpringType<TorsionalSpring<double>> &&
+                  ValidTorsionalSpringType<const TorsionalSpring<double>>,
               "TorsionalSpring should satisfy the ValidTorsionalSpringType concept");
 
 }  // namespace mech

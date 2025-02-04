@@ -24,9 +24,9 @@
 #include <Kokkos_Core.hpp>
 
 // Mundy
-#include <mundy_geom/primitives/Line.hpp>            // for mundy::geom::Line
-#include <mundy_geom/primitives/Point.hpp>           // for mundy::geom::Point
-#include <mundy_geom/distance/Types.hpp>  // for mundy::geom::SharedNormalSigned
+#include <mundy_geom/distance/Types.hpp>    // for mundy::geom::SharedNormalSigned
+#include <mundy_geom/primitives/Line.hpp>   // for mundy::geom::Line
+#include <mundy_geom/primitives/Point.hpp>  // for mundy::geom::Point
 
 namespace mundy {
 

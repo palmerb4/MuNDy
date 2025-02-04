@@ -55,7 +55,7 @@ SpherocylinderSegment::SpherocylinderSegment(mundy::mesh::BulkData *const bulk_d
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "SpherocylinderSegment: bulk_data_ptr cannot be a nullptr.");
+                      "SpherocylinderSegment: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -73,7 +73,7 @@ SpherocylinderSegment::SpherocylinderSegment(mundy::mesh::BulkData *const bulk_d
       meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_bounding_radius_field_name);
 
   MUNDY_THROW_REQUIRE(node_coord_field_ptr_ != nullptr, std::invalid_argument,
-                     "SpherocylinderSegment: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
+                      "SpherocylinderSegment: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_REQUIRE(
       element_radius_field_ptr_ != nullptr, std::invalid_argument,
       "SpherocylinderSegment: element_radius_field_ptr cannot be a nullptr. Check that the field exists.");
@@ -89,9 +89,9 @@ SpherocylinderSegment::SpherocylinderSegment(mundy::mesh::BulkData *const bulk_d
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_REQUIRE(
-          part != nullptr, std::invalid_argument,
-          std::string("SpherocylinderSegment: Part ") + part_name + " cannot be a nullptr. Check that the part exists.");
+      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
+                          std::string("SpherocylinderSegment: Part ") + part_name +
+                              " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;

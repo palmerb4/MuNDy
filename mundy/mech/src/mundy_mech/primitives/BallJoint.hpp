@@ -39,8 +39,8 @@ namespace mech {
 ///
 /// The BallJoint is a simple mechanical joint that constrains two points to have zero separation.
 /// It does not have any physical properties beyond those of its underlying geometry. Although,
-/// depending on the use case, it will be augmented to include a finite spring constant (if imposed as a soft constraint)
-/// or three Lagrange multipliers (if imposed as a hard constraint).
+/// depending on the use case, it will be augmented to include a finite spring constant (if imposed as a soft
+/// constraint) or three Lagrange multipliers (if imposed as a hard constraint).
 template <typename Scalar, mundy::geom::ValidLineSegmentType LineSegmentType = mundy::geom::LineSegment<Scalar>,
           typename OwnershipType = mundy::math::Ownership::Owns>
 class BallJoint {
@@ -80,8 +80,7 @@ class BallJoint {
 
   /// \brief Constructor to initialize the underlying line segment.
   KOKKOS_FUNCTION
-  BallJoint(const line_segment_t& line_segment)
-      : line_segment_(line_segment) {
+  BallJoint(const line_segment_t& line_segment) : line_segment_(line_segment) {
   }
 
   /// \brief Constructor to initialize the underlying line segment.
@@ -97,8 +96,7 @@ class BallJoint {
 
   /// \brief Deep copy constructor
   KOKKOS_FUNCTION
-  BallJoint(const BallJoint<scalar_t, line_segment_t, ownership_t>& other)
-      : line_segment_(other.line_segment_) {
+  BallJoint(const BallJoint<scalar_t, line_segment_t, ownership_t>& other) : line_segment_(other.line_segment_) {
   }
 
   /// \brief Deep copy constructor
@@ -110,8 +108,7 @@ class BallJoint {
 
   /// \brief Deep move constructor
   KOKKOS_FUNCTION
-  BallJoint(BallJoint<scalar_t, line_segment_t, ownership_t>&& other)
-      : line_segment_(std::move(other.line_segment_)) {
+  BallJoint(BallJoint<scalar_t, line_segment_t, ownership_t>&& other) : line_segment_(std::move(other.line_segment_)) {
   }
 
   /// \brief Deep move constructor
@@ -127,7 +124,8 @@ class BallJoint {
 
   /// \brief Copy assignment operator
   KOKKOS_FUNCTION
-  BallJoint<scalar_t, line_segment_t, ownership_t>& operator=(const BallJoint<scalar_t, line_segment_t, ownership_t>& other) {
+  BallJoint<scalar_t, line_segment_t, ownership_t>& operator=(
+      const BallJoint<scalar_t, line_segment_t, ownership_t>& other) {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     line_segment_ = other.line_segment_;
     return *this;
@@ -145,7 +143,8 @@ class BallJoint {
 
   /// \brief Move assignment operator
   KOKKOS_FUNCTION
-  BallJoint<scalar_t, line_segment_t, ownership_t>& operator=(BallJoint<scalar_t, line_segment_t, ownership_t>&& other) {
+  BallJoint<scalar_t, line_segment_t, ownership_t>& operator=(
+      BallJoint<scalar_t, line_segment_t, ownership_t>&& other) {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     line_segment_ = std::move(other.line_segment_);
     return *this;
@@ -211,7 +210,7 @@ template <typename BallJointType>
 concept ValidBallJointType = mundy::geom::ValidLineSegmentType<BallJointType>;
 
 static_assert(ValidBallJointType<BallJoint<float>> && ValidBallJointType<const BallJoint<float>> &&
-              ValidBallJointType<BallJoint<double>> && ValidBallJointType<const BallJoint<double>>,
+                  ValidBallJointType<BallJoint<double>> && ValidBallJointType<const BallJoint<double>>,
               "BallJoint should satisfy the ValidBallJointType concept");
 
 }  // namespace mech

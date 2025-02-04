@@ -194,8 +194,7 @@ KOKKOS_INLINE_FUNCTION constexpr RegistrationStringValueWrapper<N> make_registra
 /// \tparam RegistrationValueWrapperType_t A wrapper type for the registration value.
 /// \tparam registration_value_wrapper A wrapper for the registration value. \c registration_value_wrapper::Type must be
 /// the return type of \c registration_value_wrapper.value().
-template <typename PolymorphicBaseType_t,
-          RegistrationStringValueWrapper registration_value_wrapper>
+template <typename PolymorphicBaseType_t, RegistrationStringValueWrapper registration_value_wrapper>
 class MetaFactory {
  public:
   //! \name Typedefs

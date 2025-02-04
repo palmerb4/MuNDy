@@ -106,8 +106,8 @@ TEST(SharedNormalDistanceBetweenEllipsoids, AnalyticalSphereTestCases) {
   auto perform_test_for_given_spheres = [](const Vector3<double>& center0, const Quaternion<double>& orientation0,
                                            const double r0, const Vector3<double>& center1,
                                            const Quaternion<double>& orientation1, const double r1) {
-    const double shared_normal_ssd = shared_normal_ssd_between_ellipsoids(
-        center0, orientation0, r0, r0, r0, center1, orientation1, r1, r1, r1);
+    const double shared_normal_ssd =
+        shared_normal_ssd_between_ellipsoids(center0, orientation0, r0, r0, r0, center1, orientation1, r1, r1, r1);
 
     const double expected_ssd = mundy::math::norm(center1 - center0) - r0 - r1;
 
@@ -159,8 +159,8 @@ TEST(SharedNormalDistanceBetweenEllipsoids, AnalyticalEllipsoidTestCases) {
     const double r2_1 = r2_0;
     const double r3_1 = r3_0;
 
-    const double shared_normal_ssd = shared_normal_ssd_between_ellipsoids(
-        center0, orientation0, r1_0, r2_0, r3_0, center1, orientation1, r1_1, r2_1, r3_1);
+    const double shared_normal_ssd = shared_normal_ssd_between_ellipsoids(center0, orientation0, r1_0, r2_0, r3_0,
+                                                                          center1, orientation1, r1_1, r2_1, r3_1);
 
     EXPECT_NEAR(shared_normal_ssd, -2 * r2_0, TEST_DOUBLE_EPSILON);
   }
@@ -179,8 +179,8 @@ TEST(SharedNormalDistanceBetweenEllipsoids, AnalyticalEllipsoidTestCases) {
     const double r2_1 = 2 * r2_0;
     const double r3_1 = 2 * r3_0;
 
-    const double shared_normal_ssd = shared_normal_ssd_between_ellipsoids(
-        center0, orientation0, r1_0, r2_0, r3_0, center1, orientation1, r1_1, r2_1, r3_1);
+    const double shared_normal_ssd = shared_normal_ssd_between_ellipsoids(center0, orientation0, r1_0, r2_0, r3_0,
+                                                                          center1, orientation1, r1_1, r2_1, r3_1);
 
     EXPECT_NEAR(shared_normal_ssd, -3 * r2_0, TEST_DOUBLE_EPSILON);
   }
@@ -200,8 +200,8 @@ TEST(SharedNormalDistanceBetweenEllipsoids, AnalyticalEllipsoidTestCases) {
       const auto center1 = -center0;
       const auto orientation1 = orientation0;
 
-      const double shared_normal_ssd = shared_normal_ssd_between_ellipsoids(
-          center0, orientation0, r1_0, r2_0, r3_0, center1, orientation1, r1_1, r2_1, r3_1);
+      const double shared_normal_ssd = shared_normal_ssd_between_ellipsoids(center0, orientation0, r1_0, r2_0, r3_0,
+                                                                            center1, orientation1, r1_1, r2_1, r3_1);
 
       EXPECT_NEAR(shared_normal_ssd, expected_ssd, TEST_DOUBLE_EPSILON);
     };
@@ -227,8 +227,8 @@ TEST(SharedNormalDistanceBetweenEllipsoids, AnalyticalEllipsoidTestCases) {
       const auto center1 = Vector3<double>(0.0, 0.0, 0.0);
       const auto orientation1 = Quaternion<double>::identity();  // Aligned with the x-axis
 
-      const double shared_normal_ssd = shared_normal_ssd_between_ellipsoids(
-          center0, orientation0, r1_0, r2_0, r3_0, center1, orientation1, r1_1, r2_1, r3_1);
+      const double shared_normal_ssd = shared_normal_ssd_between_ellipsoids(center0, orientation0, r1_0, r2_0, r3_0,
+                                                                            center1, orientation1, r1_1, r2_1, r3_1);
 
       EXPECT_NEAR(shared_normal_ssd, expected_ssd, TEST_DOUBLE_EPSILON);
     };

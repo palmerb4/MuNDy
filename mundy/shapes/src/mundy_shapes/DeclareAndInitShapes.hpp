@@ -95,11 +95,10 @@ class DeclareAndInitShapes
 };  // DeclareAndInitShapes
 
 // Workaround due to CUDA not liking our meta factory registration
-static inline volatile const bool register_declare_and_init_shapes_kernels_ =
-[]() {
+static inline volatile const bool register_declare_and_init_shapes_kernels_ = []() {
   // Register our default kernels
   mundy::shapes::DeclareAndInitShapes::OurTechniqueFactory::register_new_class<
-          mundy::shapes::declare_and_initialize_shapes::techniques::GridOfSpheres>("GRID_OF_SPHERES");
+      mundy::shapes::declare_and_initialize_shapes::techniques::GridOfSpheres>("GRID_OF_SPHERES");
   return true;
 }();
 

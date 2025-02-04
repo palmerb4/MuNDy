@@ -21,17 +21,18 @@
 #include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
 
 // C++ core
-#include <memory>      // for std::unique_ptr
-#include <vector>      // for std::vector
+#include <memory>  // for std::unique_ptr
+#include <vector>  // for std::vector
 
 // STK
+#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
+
 #include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
 #include <stk_mesh/base/Field.hpp>
 #include <stk_mesh/base/FieldBase.hpp>
 #include <stk_mesh/base/MeshBuilder.hpp>
 #include <stk_mesh/base/MetaData.hpp>  // for stk::mesh::MetaData
 #include <stk_topology/topology.hpp>
-#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
 
 // Mundy
 #include <mundy_mesh/DeclareEntities.hpp>  // for mundy::mesh::DeclareEntitiesHelper

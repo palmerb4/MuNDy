@@ -168,9 +168,9 @@ void generate_lines_at_known_distance(RngType& rng, double& line_dist, Vector3<d
     degeneracy = static_cast<DegeneracyType>(static_cast<int>(rng.template rand<double>() * 4));
   }
   MUNDY_THROW_REQUIRE(degeneracy != DegeneracyType::A1_EQUALS_A2, std::invalid_argument,
-                     "A1_EQUALS_A2 is not a valid degeneracy for lines.");
+                      "A1_EQUALS_A2 is not a valid degeneracy for lines.");
   MUNDY_THROW_REQUIRE(degeneracy != DegeneracyType::B1_EQUALS_B2, std::invalid_argument,
-                     "B1_EQUALS_B2 is not a valid degeneracy for lines.");
+                      "B1_EQUALS_B2 is not a valid degeneracy for lines.");
 
   // Generate two unit vectors v1 and v2, and their cross product v3.
   // v1 and v2 will represent the orientations of the two lines, and v3 will be the direction of the line connecting

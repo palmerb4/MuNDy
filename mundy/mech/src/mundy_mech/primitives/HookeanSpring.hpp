@@ -130,7 +130,8 @@ class HookeanSpring {
 
   /// \brief Copy assignment operator
   KOKKOS_FUNCTION
-  HookeanSpring<scalar_t, line_segment_t, ownership_t>& operator=(const HookeanSpring<scalar_t, line_segment_t, ownership_t>& other) {
+  HookeanSpring<scalar_t, line_segment_t, ownership_t>& operator=(
+      const HookeanSpring<scalar_t, line_segment_t, ownership_t>& other) {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     line_segment_ = other.line_segment_;
     rest_length_ = other.rest_length_;
@@ -152,7 +153,8 @@ class HookeanSpring {
 
   /// \brief Move assignment operator
   KOKKOS_FUNCTION
-  HookeanSpring<scalar_t, line_segment_t, ownership_t>& operator=(HookeanSpring<scalar_t, line_segment_t, ownership_t>&& other) {
+  HookeanSpring<scalar_t, line_segment_t, ownership_t>& operator=(
+      HookeanSpring<scalar_t, line_segment_t, ownership_t>&& other) {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     line_segment_ = std::move(other.line_segment_);
     rest_length_ = std::move(other.rest_length_);

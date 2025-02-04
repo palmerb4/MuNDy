@@ -39,8 +39,8 @@
 #include <mundy_geom/primitives/AABB.hpp>  // for mundy::geom::AABB
 #include <mundy_math/Matrix3.hpp>          // for mundy::math::get_matrix3_view and mundy::math::Matrix3
 #include <mundy_math/Quaternion.hpp>       // for mundy::math::get_quaternion_view and mundy::math::Quaternion
-#include <mundy_math/Vector3.hpp>          // for mundy::math::get_vector3_view and mundy::math::Vector3
 #include <mundy_math/ScalarWrapper.hpp>    // for mundy::math::get_scalar_view and mundy::math::ScalarView
+#include <mundy_math/Vector3.hpp>          // for mundy::math::get_vector3_view and mundy::math::Vector3
 namespace mundy {
 
 namespace mesh {
@@ -51,8 +51,8 @@ namespace mesh {
 /// \brief A helper function for getting a view of a field's data as a scalar. 1 scalar per entity.
 template <class FieldType, typename StkDebugger = stk::mesh::DefaultStkFieldSyncDebugger>
 inline auto scalar_field_data(const FieldType& f, stk::mesh::Entity e,
-                               stk::mesh::DummyOverload dummyArg = stk::mesh::DummyOverload(),
-                               const char* fileName = HOST_DEBUG_FILE_NAME, int lineNumber = HOST_DEBUG_LINE_NUMBER) {
+                              stk::mesh::DummyOverload dummyArg = stk::mesh::DummyOverload(),
+                              const char* fileName = HOST_DEBUG_FILE_NAME, int lineNumber = HOST_DEBUG_LINE_NUMBER) {
   return math::get_scalar_view<typename FieldType::value_type>(
       stk::mesh::field_data(f, e, dummyArg, fileName, lineNumber));
 }
@@ -96,7 +96,7 @@ inline auto aabb_field_data(const FieldType& f, stk::mesh::Entity e,
       math::get_shifted_view<scalar_t, shift>(stk::mesh::field_data(f, e, dummyArg, fileName, lineNumber));
   auto max_corner = math::get_owning_vector3<scalar_t>(std::move(shifted_data_accessor));
   auto min_corner = math::get_vector3_view<scalar_t>(stk::mesh::field_data(f, e, dummyArg, fileName, lineNumber));
-  
+
   using min_point_t = decltype(min_corner);
   using max_point_t = decltype(max_corner);
   return geom::AABB<scalar_t, min_point_t, max_point_t>(min_corner, max_corner);

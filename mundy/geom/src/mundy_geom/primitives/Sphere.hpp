@@ -244,16 +244,17 @@ constexpr bool is_sphere_v = is_sphere<T>::value;
 
 /// @brief Concept to check if a type is a valid Sphere type
 template <typename SphereType>
-concept ValidSphereType =
-    is_sphere_v<SphereType> && is_point_v<typename SphereType::point_t> &&
-    is_point_v<decltype(std::declval<SphereType>().center())> &&
-    is_point_v<decltype(std::declval<const SphereType>().center())> &&
-    requires(std::decay_t<SphereType> sphere, const std::decay_t<SphereType> const_sphere) {
-      typename std::decay_t<SphereType>::scalar_t;
-      typename std::decay_t<SphereType>::point_t;
-      { sphere.radius() } -> std::convertible_to<typename std::decay_t<SphereType>::scalar_t&>;
-      { const_sphere.radius() } -> std::convertible_to<const typename std::decay_t<SphereType>::scalar_t&>;
-    };
+concept ValidSphereType = is_sphere_v<SphereType> && is_point_v<typename SphereType::point_t> &&
+                          is_point_v<decltype(std::declval<SphereType>().center())> &&
+                          is_point_v<decltype(std::declval<const SphereType>().center())> &&
+                          requires(std::decay_t<SphereType> sphere, const std::decay_t<SphereType> const_sphere) {
+                            typename std::decay_t<SphereType>::scalar_t;
+                            typename std::decay_t<SphereType>::point_t;
+                            { sphere.radius() } -> std::convertible_to<typename std::decay_t<SphereType>::scalar_t&>;
+                            {
+                              const_sphere.radius()
+                            } -> std::convertible_to<const typename std::decay_t<SphereType>::scalar_t&>;
+                          };
 
 static_assert(ValidSphereType<Sphere<float>> && ValidSphereType<const Sphere<float>> &&
                   ValidSphereType<Sphere<double>> && ValidSphereType<const Sphere<double>>,

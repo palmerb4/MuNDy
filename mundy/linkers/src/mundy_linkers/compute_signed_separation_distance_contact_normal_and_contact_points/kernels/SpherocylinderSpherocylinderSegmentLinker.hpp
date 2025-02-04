@@ -92,7 +92,6 @@ class SpherocylinderSpherocylinderSegmentLinker : public mundy::meta::MetaKernel
     valid_fixed_params.validateParametersAndSetDefaults(
         SpherocylinderSpherocylinderSegmentLinker::get_valid_fixed_params());
 
-
     // Add the requirements for the linker.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
     std::string linker_signed_separation_distance_field_name =

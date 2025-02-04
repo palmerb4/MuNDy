@@ -19,9 +19,9 @@
 
 // C++ core
 #include <functional>  // for std::function
+#include <iostream>    // for std::cout, std::endl
 #include <memory>      // for std::unique_ptr
 #include <vector>      // for std::vector
-#include <iostream>    // for std::cout, std::endl
 
 // Trilinos libs
 #include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
@@ -58,7 +58,6 @@
 // Mundy
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_REQUIRE
 #include <mundy_mesh/NgpFieldBLAS.hpp>  // for mundy::mesh::field_fill, mundy::mesh::field_copy, etc
-
 
 namespace mundy {
 
@@ -691,16 +690,16 @@ class FieldAxpbyTest : public PerfTestFieldBLAS {
     DoubleField& field2 = *field2_ptr_;
     for (size_t i = 0; i < num_iterations; ++i) {
       // Instead of using stk's field_axpby, write if from scratch using a host for_each_entity_run loop
-      stk::mesh::for_each_entity_run(bulk, field1.entity_rank(), selector,
-                                     [&field1, &field2]([[maybe_unused]] const stk::mesh::BulkData& bulk,
-                                                                     const stk::mesh::Entity entity) {
-                                       const int num_components = stk::mesh::field_scalars_per_entity(field1, entity);
-                                       double* raw_field1_data = stk::mesh::field_data(field1, entity);
-                                       double* raw_field2_data = stk::mesh::field_data(field2, entity);
-                                       for (int i = 0; i < num_components; ++i) {
-                                         raw_field2_data[i] = alpha * raw_field1_data[i] + beta * raw_field2_data[i];
-                                       }
-                                     });
+      stk::mesh::for_each_entity_run(
+          bulk, field1.entity_rank(), selector,
+          [&field1, &field2]([[maybe_unused]] const stk::mesh::BulkData& bulk, const stk::mesh::Entity entity) {
+            const int num_components = stk::mesh::field_scalars_per_entity(field1, entity);
+            double* raw_field1_data = stk::mesh::field_data(field1, entity);
+            double* raw_field2_data = stk::mesh::field_data(field2, entity);
+            for (int i = 0; i < num_components; ++i) {
+              raw_field2_data[i] = alpha * raw_field1_data[i] + beta * raw_field2_data[i];
+            }
+          });
     }
   }
 };  // class FieldAxpbyTest
@@ -745,18 +744,17 @@ class FieldAxpbyzTest : public PerfTestFieldBLAS {
     DoubleField& field3 = *field3_ptr_;
     for (size_t i = 0; i < num_iterations; ++i) {
       // Instead of using stk's field_axpbyz, write if from scratch using a host for_each_entity_run loop
-      stk::mesh::for_each_entity_run(
-          bulk, field1.entity_rank(), selector,
-          [&field1, &field2, &field3]([[maybe_unused]] const stk::mesh::BulkData& bulk,
-                                                   const stk::mesh::Entity entity) {
-            const int num_components = stk::mesh::field_scalars_per_entity(field1, entity);
-            double* raw_field1_data = stk::mesh::field_data(field1, entity);
-            double* raw_field2_data = stk::mesh::field_data(field2, entity);
-            double* raw_field3_data = stk::mesh::field_data(field3, entity);
-            for (int i = 0; i < num_components; ++i) {
-              raw_field3_data[i] = alpha * raw_field1_data[i] + beta * raw_field2_data[i];
-            }
-          });
+      stk::mesh::for_each_entity_run(bulk, field1.entity_rank(), selector,
+                                     [&field1, &field2, &field3]([[maybe_unused]] const stk::mesh::BulkData& bulk,
+                                                                 const stk::mesh::Entity entity) {
+                                       const int num_components = stk::mesh::field_scalars_per_entity(field1, entity);
+                                       double* raw_field1_data = stk::mesh::field_data(field1, entity);
+                                       double* raw_field2_data = stk::mesh::field_data(field2, entity);
+                                       double* raw_field3_data = stk::mesh::field_data(field3, entity);
+                                       for (int i = 0; i < num_components; ++i) {
+                                         raw_field3_data[i] = alpha * raw_field1_data[i] + beta * raw_field2_data[i];
+                                       }
+                                     });
     }
   }
 };  // class FieldAxpbyzTest
@@ -1277,7 +1275,6 @@ int main(int argc, char** argv) {
 
   return 0;
 }
-
 
 #else
 

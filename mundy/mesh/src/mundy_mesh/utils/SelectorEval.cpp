@@ -71,8 +71,8 @@ SelectorNode *SelectorEval::new_node(const int &opcode, const std::string &part_
   } else {
     stk::mesh::Part *part_ptr = bulk_data_.mesh_meta_data().get_part(part_name);
     MUNDY_THROW_REQUIRE(part_ptr != nullptr, std::invalid_argument,
-                       std::string("Could not find a part with name '") + part_name + "' while parsing the expression\n"
-                                                           + expression_);
+                        std::string("Could not find a part with name '") + part_name +
+                            "' while parsing the expression\n" + expression_);
     data = *part_ptr;
   }
 

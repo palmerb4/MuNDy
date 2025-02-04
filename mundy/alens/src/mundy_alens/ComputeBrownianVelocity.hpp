@@ -112,11 +112,10 @@ class ComputeBrownianVelocity
 };  // ComputeBrownianVelocity
 
 // Workaround due to CUDA not liking our meta factory registration
-static inline volatile const bool register_compute_brownian_velocity_kernels_ =
-[]() {
+static inline volatile const bool register_compute_brownian_velocity_kernels_ = []() {
   // Register our default kernels
- mundy::alens::ComputeBrownianVelocity::OurKernelFactory::register_new_class<
-          mundy::alens::compute_brownian_velocity::kernels::SpheresKernel>("SPHERE");
+  mundy::alens::ComputeBrownianVelocity::OurKernelFactory::register_new_class<
+      mundy::alens::compute_brownian_velocity::kernels::SpheresKernel>("SPHERE");
   return true;
 }();
 

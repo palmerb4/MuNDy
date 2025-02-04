@@ -74,7 +74,8 @@ struct pair_hash {
 STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument, "STKSearch: bulk_data_ptr cannot be a nullptr.");
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
+                      "STKSearch: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -90,16 +91,16 @@ STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
   linked_entity_owners_field_ptr_ =
       meta_data_ptr_->get_field<int>(stk::topology::CONSTRAINT_RANK, linked_entity_owners_field_name);
   MUNDY_THROW_REQUIRE(element_aabb_field_ptr_ != nullptr, std::invalid_argument,
-                     "STKSearch: element_aabb_field_ptr_ cannot be a nullptr. Check that the field exists.");
+                      "STKSearch: element_aabb_field_ptr_ cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_REQUIRE(linked_entities_field_ptr_ != nullptr, std::invalid_argument,
-                     "STKSearch: linked_entities_field_ptr_ cannot be a nullptr. Check that the field exists.");
+                      "STKSearch: linked_entities_field_ptr_ cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_REQUIRE(linked_entity_owners_field_ptr_ != nullptr, std::invalid_argument,
-                     "STKSearch: linked_entity_owners_field_ptr_ cannot be a nullptr. Check that the field exists.");
+                      "STKSearch: linked_entity_owners_field_ptr_ cannot be a nullptr. Check that the field exists.");
 
   // Get the part pointers.
   neighbor_linkers_part_ptr_ = meta_data_ptr_->get_part("NEIGHBOR_LINKERS");
   MUNDY_THROW_REQUIRE(neighbor_linkers_part_ptr_ != nullptr, std::invalid_argument,
-                     "STKSearch: Expected a part with name 'NEIGHBOR_LINKERS' but part does not exist.");
+                      "STKSearch: Expected a part with name 'NEIGHBOR_LINKERS' but part does not exist.");
 
   const Teuchos::Array<std::string> specialized_neighbor_linkers_part_names =
       valid_fixed_params.get<Teuchos::Array<std::string>>("specialized_neighbor_linkers_part_names");
@@ -112,8 +113,9 @@ STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
-                         std::string("STKSearch: Expected a part with name '") + part_name + "' but part does not exist.");
+      MUNDY_THROW_REQUIRE(
+          part != nullptr, std::invalid_argument,
+          std::string("STKSearch: Expected a part with name '") + part_name + "' but part does not exist.");
       parts.push_back(part);
     }
     return parts;

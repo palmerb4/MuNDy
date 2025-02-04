@@ -75,7 +75,7 @@ DestroyDistantNeighbors::DestroyDistantNeighbors(mundy::mesh::BulkData *const bu
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "DestroyDistantNeighbors: bulk_data_ptr cannot be a nullptr.");
+                      "DestroyDistantNeighbors: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -93,9 +93,9 @@ DestroyDistantNeighbors::DestroyDistantNeighbors(mundy::mesh::BulkData *const bu
       stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
-    MUNDY_THROW_REQUIRE(
-        field_ptr != nullptr, std::invalid_argument,
-        std::string("DestroyDistantNeighbors: Expected a field with name '") + field_name + "' but field does not exist.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                        std::string("DestroyDistantNeighbors: Expected a field with name '") + field_name +
+                            "' but field does not exist.");
   };  // field_exists
 
   field_exists(element_aabb_field_ptr_, element_aabb_field_name);
@@ -112,9 +112,9 @@ DestroyDistantNeighbors::DestroyDistantNeighbors(mundy::mesh::BulkData *const bu
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_REQUIRE(
-          part != nullptr, std::invalid_argument,
-          std::string("DestroyDistantNeighbors: Expected a part with name '") + part_name + "' but part does not exist.");
+      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
+                          std::string("DestroyDistantNeighbors: Expected a part with name '") + part_name +
+                              "' but part does not exist.");
       parts.push_back(part);
     }
     return parts;
@@ -167,12 +167,10 @@ void DestroyDistantNeighbors::execute(const stk::mesh::Selector &input_selector)
         stk::mesh::Entity source_entity = bulk_data.get_entity(key_t_ptr[0]);
         stk::mesh::Entity target_entity = bulk_data.get_entity(key_t_ptr[1]);
 
-        MUNDY_THROW_ASSERT(
-            bulk_data.is_valid(source_entity), std::invalid_argument,
-            "DestroyDistantNeighbors: one of the source enities is not valid");
-        MUNDY_THROW_ASSERT(
-            bulk_data.is_valid(target_entity), std::invalid_argument,
-            "DestroyDistantNeighbors: one of the target_entities is not valid");
+        MUNDY_THROW_ASSERT(bulk_data.is_valid(source_entity), std::invalid_argument,
+                           "DestroyDistantNeighbors: one of the source enities is not valid");
+        MUNDY_THROW_ASSERT(bulk_data.is_valid(target_entity), std::invalid_argument,
+                           "DestroyDistantNeighbors: one of the target_entities is not valid");
 
         // Get the AABBs of the source and target entities.
         const double *source_aabb = stk::mesh::field_data(element_aabb_field, source_entity);

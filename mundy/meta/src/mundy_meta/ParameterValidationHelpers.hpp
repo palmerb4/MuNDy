@@ -75,11 +75,11 @@ void check_parameter_and_set_default(Teuchos::ParameterList *const params_ptr, c
 template <typename ValueType>
 void check_required_parameter(Teuchos::ParameterList *const params_ptr, const std::string &name) {
   MUNDY_THROW_REQUIRE(params_ptr->isParameter(name), std::invalid_argument,
-                     std::string("Missing parameter '") + name + "' in the parameter list.");
+                      std::string("Missing parameter '") + name + "' in the parameter list.");
   const bool valid_type = params_ptr->INVALID_TEMPLATE_QUALIFIER isType<ValueType>(name);
   MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
-                     std::string("Type error. Given a parameter with name '") + name + "' but with a type other than "
-                                                                 + typeid(ValueType).name());
+                      std::string("Type error. Given a parameter with name '") + name +
+                          "' but with a type other than " + typeid(ValueType).name());
 }
 
 }  // namespace meta

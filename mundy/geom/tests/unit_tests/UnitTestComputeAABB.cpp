@@ -137,11 +137,11 @@ std::vector<PointTestCase<double>> point_test_cases() {
   // The AABB for a point is just the point itself
   std::vector<PointTestCase<double>> test_cases;
   test_cases.push_back(PointTestCase<double>{.name = std::string("trivial"),   //
-                                     .point = Point<double>{0, 0, 0},  //
-                                     .expected_aabb = AABB<double>{0, 0, 0, 0, 0, 0}});
+                                             .point = Point<double>{0, 0, 0},  //
+                                             .expected_aabb = AABB<double>{0, 0, 0, 0, 0, 0}});
   test_cases.push_back(PointTestCase<double>{.name = std::string("+/-"),        //
-                                     .point = Point<double>{1, -2, 3},  //
-                                     .expected_aabb = AABB<double>{1, -2, 3, 1, -2, 3}});
+                                             .point = Point<double>{1, -2, 3},  //
+                                             .expected_aabb = AABB<double>{1, -2, 3, 1, -2, 3}});
   return test_cases;
 }
 

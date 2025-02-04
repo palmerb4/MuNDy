@@ -361,7 +361,7 @@ TEST(DistanceBetweenLines, PositiveResult) {
     // The archlength we use is measured from the center.
     generate_lines_at_known_distance(rng, dist_expected, a1, a2, b1, b2, a12_expected, b12_expected, u_expected,
                                      v_expected);
-        
+
     const auto center_a = 0.5 * (a1 + a2);
     const auto center_b = 0.5 * (b1 + b2);
     const double len_a = mundy::math::norm(a2 - a1);

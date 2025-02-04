@@ -29,9 +29,10 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
+#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
+
 #include <stk_mesh/base/FieldDataManager.hpp>  // for stl::mesh::FieldDataManager
 #include <stk_util/parallel/Parallel.hpp>      // for stk::ParallelMachine
-#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData

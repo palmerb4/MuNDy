@@ -55,7 +55,7 @@ SpherocylinderSegment::SpherocylinderSegment(mundy::mesh::BulkData *const bulk_d
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "SpherocylinderSegment: bulk_data_ptr cannot be a nullptr.");
+                      "SpherocylinderSegment: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -80,9 +80,9 @@ SpherocylinderSegment::SpherocylinderSegment(mundy::mesh::BulkData *const bulk_d
       stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
-    MUNDY_THROW_REQUIRE(
-        field_ptr != nullptr, std::invalid_argument,
-        std::string("SpherocylinderSegment: Field ") + field_name + " cannot be a nullptr. Check that the field exists.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                        std::string("SpherocylinderSegment: Field ") + field_name +
+                            " cannot be a nullptr. Check that the field exists.");
   };  // field_exists
 
   field_exists(linker_contact_points_field_ptr_, linker_contact_points_field_name);
@@ -101,9 +101,9 @@ SpherocylinderSegment::SpherocylinderSegment(mundy::mesh::BulkData *const bulk_d
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_REQUIRE(
-          part != nullptr, std::invalid_argument,
-          std::string("SpherocylinderSegment: Part ") + part_name + " cannot be a nullptr. Check that the part exists.");
+      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
+                          std::string("SpherocylinderSegment: Part ") + part_name +
+                              " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;
@@ -186,17 +186,14 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
                 reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
                     stk::mesh::field_data(linked_entities_field, connected_linker));
 
-            const bool is_left_seg =
-                (key_t_ptr[0] == bulk_data.entity_key(spherocylinder_segment));
-            const bool is_right_seg =
-                (key_t_ptr[1] == bulk_data.entity_key(spherocylinder_segment));
+            const bool is_left_seg = (key_t_ptr[0] == bulk_data.entity_key(spherocylinder_segment));
+            const bool is_right_seg = (key_t_ptr[1] == bulk_data.entity_key(spherocylinder_segment));
             const double sign = is_left_seg ? 1.0 : (is_right_seg ? -1.0 : 0.0);
             const auto potential_force =
                 sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);
 
             auto contact_point = mundy::math::get_vector3_view<double>(
-                stk::mesh::field_data(linker_contact_points_field, connected_linker) +
-                3 * !is_left_seg);
+                stk::mesh::field_data(linker_contact_points_field, connected_linker) + 3 * !is_left_seg);
 
             // For now, we ignore the contribution to twist torque.
             const auto left_to_cp = contact_point - pos0;

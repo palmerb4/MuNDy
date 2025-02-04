@@ -870,7 +870,8 @@ bool divide_large_spheres(
   // Count the number of spheres that are ready to divide
   size_t num_divisions = 0;
   stk::mesh::EntityVector all_locally_owned_spheres;
-  stk::mesh::get_selected_entities(spheres_part, bulk_data.buckets(stk::topology::ELEMENT_RANK), all_locally_owned_spheres);
+  stk::mesh::get_selected_entities(spheres_part, bulk_data.buckets(stk::topology::ELEMENT_RANK),
+                                   all_locally_owned_spheres);
   for (const stk::mesh::Entity &sphere : all_locally_owned_spheres) {
     const double radius = *stk::mesh::field_data(elem_radius_field, sphere);
     if (radius > division_radius) {

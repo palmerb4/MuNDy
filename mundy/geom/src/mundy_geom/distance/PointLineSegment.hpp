@@ -24,11 +24,11 @@
 #include <Kokkos_Core.hpp>
 
 // Mundy
-#include <mundy_geom/primitives/LineSegment.hpp>          // for mundy::geom::LineSegment
-#include <mundy_geom/primitives/Point.hpp>                // for mundy::geom::Point
-#include <mundy_geom/distance/PointPoint.hpp>  // for mundy::geom::distance(Point, Point)
-#include <mundy_geom/distance/Types.hpp>       // for mundy::geom::SharedNormalSigned
-#include <mundy_math/Tolerance.hpp>       // for mundy::math::get_zero_tolerance
+#include <mundy_geom/distance/PointPoint.hpp>     // for mundy::geom::distance(Point, Point)
+#include <mundy_geom/distance/Types.hpp>          // for mundy::geom::SharedNormalSigned
+#include <mundy_geom/primitives/LineSegment.hpp>  // for mundy::geom::LineSegment
+#include <mundy_geom/primitives/Point.hpp>        // for mundy::geom::Point
+#include <mundy_math/Tolerance.hpp>               // for mundy::math::get_zero_tolerance
 
 namespace mundy {
 

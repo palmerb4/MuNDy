@@ -57,7 +57,7 @@ DestroyBoundNeighbors::DestroyBoundNeighbors(mundy::mesh::BulkData *const bulk_d
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "DestroyBoundNeighbors: bulk_data_ptr cannot be a nullptr.");
+                      "DestroyBoundNeighbors: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -74,9 +74,9 @@ DestroyBoundNeighbors::DestroyBoundNeighbors(mundy::mesh::BulkData *const bulk_d
       stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
-    MUNDY_THROW_REQUIRE(
-        field_ptr != nullptr, std::invalid_argument,
-        std::string("DestroyBoundNeighbors: Expected a field with name '") + field_name + "' but field does not exist.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                        std::string("DestroyBoundNeighbors: Expected a field with name '") + field_name +
+                            "' but field does not exist.");
   };  // field_exists
 
   field_exists(linker_destroy_flag_field_ptr_, linker_destroy_flag_field_name);

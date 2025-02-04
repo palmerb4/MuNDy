@@ -19,9 +19,10 @@
 
 //! \file UnitTestTest
 /// Validate that tests are actually running as expected.
-/// You may assume that simply because you ran 
-#include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
+/// You may assume that simply because you ran
 #include <gmock/gmock.h>  // for EXPECT_THAT, HasSubstr, etc
+#include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
+
 #include <iostream>
 
 TEST(UnitTest, test) {

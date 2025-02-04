@@ -93,7 +93,8 @@ TEST(Minimize, ComplexFunctions) {
   // N-dimensional Rosenbrock function
   {
     Vector<double, N> x = {0.0};
-    double min_cost = find_min_using_approximate_derivatives<lbfgs_max_memory_size>(rosenbrock<N>, x, min_objective_delta);
+    double min_cost =
+        find_min_using_approximate_derivatives<lbfgs_max_memory_size>(rosenbrock<N>, x, min_objective_delta);
     EXPECT_NEAR(min_cost, 0.0, test_tolerance);
     for (size_t i = 0; i < N; ++i) {
       EXPECT_NEAR(x[i], 1.0, test_tolerance);

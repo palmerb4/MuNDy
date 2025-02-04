@@ -195,7 +195,8 @@ std::vector<SpherocylinderTestCase<double>> spherocylinder_test_cases() {
 
   // Bounding radius is independent of orientation
   Quaternion<double> random_quat = Quaternion<double>{static_cast<double>(rand()), static_cast<double>(rand()),
-                                                      static_cast<double>(rand()), static_cast<double>(rand())};  random_quat.normalize();
+                                                      static_cast<double>(rand()), static_cast<double>(rand())};
+  random_quat.normalize();
 
   test_cases.push_back(
       SpherocylinderTestCase{.name = std::string("spherical"),  //

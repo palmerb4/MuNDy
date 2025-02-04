@@ -86,7 +86,8 @@ TEST(TupleTest, ConstexprTuple) {
 
   // Correct types:
   static_assert(std::is_same_v<decltype(::mundy::core::get<0>(t)), const int&>, "First element should be const int&");
-  static_assert(std::is_same_v<decltype(::mundy::core::get<1>(t)), const double&>, "Second element should be const double&");
+  static_assert(std::is_same_v<decltype(::mundy::core::get<1>(t)), const double&>,
+                "Second element should be const double&");
   static_assert(std::is_same_v<decltype(::mundy::core::get<2>(t)), const int&>, "Third element should be const int&");
 }
 

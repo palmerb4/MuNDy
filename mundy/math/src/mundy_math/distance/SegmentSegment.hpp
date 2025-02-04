@@ -75,10 +75,9 @@ calls that can accept Vector3's with non-owning memory, you should write Vector3
 // Here, p1 and p2 are two non-coincident points on the line.
 template <typename Scalar, typename Accessor1, typename Accessor2, typename Accessor3, typename OwnershipType1,
           typename OwnershipType2, typename OwnershipType3>
-KOKKOS_FUNCTION
-Scalar distance_from_point_to_line(const Vector3<Scalar, Accessor1, OwnershipType1>& x,
-                                   const Vector3<Scalar, Accessor2, OwnershipType2>& p1,
-                                   const Vector3<Scalar, Accessor3, OwnershipType3>& p2) {
+KOKKOS_FUNCTION Scalar distance_from_point_to_line(const Vector3<Scalar, Accessor1, OwnershipType1>& x,
+                                                   const Vector3<Scalar, Accessor2, OwnershipType2>& p1,
+                                                   const Vector3<Scalar, Accessor3, OwnershipType3>& p2) {
   const auto np1 = x - p1;
   auto p1p2 = p1 - p2;
   const Scalar p1p2_norm_sq = mundy::math::dot(p1p2, p1p2);

@@ -42,9 +42,9 @@
 #include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
 
 // Trilinos libs
-#include <Kokkos_Core.hpp>                 // for Kokkos::initialize, Kokkos::finalize
-#include <stk_util/parallel/Parallel.hpp>  // for stk::parallel_machine_init, stk::parallel_machine_finalize
+#include <Kokkos_Core.hpp>  // for Kokkos::initialize, Kokkos::finalize
 #include <iostream>
+#include <stk_util/parallel/Parallel.hpp>  // for stk::parallel_machine_init, stk::parallel_machine_finalize
 
 int main(int argc, char** argv) {
   // Initialize MPI and Kokkos

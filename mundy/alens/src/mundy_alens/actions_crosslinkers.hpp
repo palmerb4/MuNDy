@@ -72,7 +72,7 @@ enum BINDING_STATE_CHANGE : unsigned {
 inline bool unbind_crosslinker_from_node(mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
                                          const int &conn_ordinal) {
   MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
-                           "unbind_crosslinker_from_node: The mesh must be in a modification cycle.");
+                     "unbind_crosslinker_from_node: The mesh must be in a modification cycle.");
   // Maybe unsafe?
   // MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
   // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
@@ -110,9 +110,9 @@ inline bool unbind_crosslinker_from_node(mundy::mesh::BulkData &bulk_data, const
 inline bool bind_crosslinker_to_node(mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
                                      const stk::mesh::Entity &new_node, const int &conn_ordinal) {
   MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
-                           "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
+                     "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
   MUNDY_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
-                           "bind_crosslinker_to_node: The node must have NODE_RANK.");
+                     "bind_crosslinker_to_node: The node must have NODE_RANK.");
   // Maybe unsafe?
   // MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
   // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
@@ -151,9 +151,9 @@ inline bool bind_crosslinker_to_node_unbind_existing(mundy::mesh::BulkData &bulk
                                                      const stk::mesh::Entity &crosslinker,
                                                      const stk::mesh::Entity &new_node, const int &conn_ordinal) {
   MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
-                           "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
+                     "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
   MUNDY_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
-                           "bind_crosslinker_to_node: The node must have NODE_RANK.");
+                     "bind_crosslinker_to_node: The node must have NODE_RANK.");
   // Maybe unsafe?
   // MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
   // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
