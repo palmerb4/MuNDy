@@ -3566,7 +3566,7 @@ class HP1 {
     }
 
     // Apply the RPY kernel from spheres to spheres
-    mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
+    mundy::alens::periphery::apply_rpyc_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
                                               sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
     // mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions,
     // sphere_positions, sphere_forces, sphere_velocities);
@@ -3585,7 +3585,7 @@ class HP1 {
       Kokkos::deep_copy(surface_radii, 0.0);
 
       // Apply the RPY kernel from spheres to periphery
-      mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, surface_positions,
+      mundy::alens::periphery::apply_rpyc_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, surface_positions,
                                                 sphere_radii, surface_radii, sphere_forces, surface_velocities);
       // mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions,
       //                                              surface_positions, sphere_forces, surface_velocities);

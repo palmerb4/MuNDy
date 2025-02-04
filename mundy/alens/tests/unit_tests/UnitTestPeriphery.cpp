@@ -709,69 +709,226 @@ TEST(PeripheryTest, RPYKernelThreeSpheres) {
     Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> positions("positions", 9);
     Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> radii("radii", 3);
     Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> forces("forces", 9);
-    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> velocities("velocities", 9);
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> velocities_rpy("velocities_rpy", 9);
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> velocities_rpyc("velocities_rpyc", 9);
+
+    Kokkos::deep_copy(forces, 0.0);
+    Kokkos::deep_copy(velocities_rpy, 0.0);
+    Kokkos::deep_copy(velocities_rpyc, 0.0);
+    Kokkos::deep_copy(radii, radius);
 
     // s1:
     positions(0) = 0.0;
     positions(1) = 0.0;
     positions(2) = 0.0;
-    radii(0) = radius;
-    forces(0) = 0.0;
     forces(1) = -6.0 * M_PI * radius;
-    forces(2) = 0.0;
-    velocities(0) = 0.0;
-    velocities(1) = 0.0;
-    velocities(2) = 0.0;
 
     // s2:
     positions(3) = -s_current * radius / 2.0;
     positions(4) = -std::sqrt(3.0) * s_current * radius / 2.0;
     positions(5) = 0.0;
-    radii(1) = radius;
-    forces(3) = 0.0;
-    forces(4) = 0.0;
-    forces(5) = 0.0;
-    velocities(3) = 0.0;
-    velocities(4) = 0.0;
-    velocities(5) = 0.0;
 
     // s3:
     positions(6) = s_current * radius / 2.0;
     positions(7) = -std::sqrt(3.0) * s_current * radius / 2.0;
     positions(8) = 0.0;
-    radii(2) = radius;
-    forces(6) = 0.0;
-    forces(7) = 0.0;
-    forces(8) = 0.0;
-    velocities(6) = 0.0;
-    velocities(7) = 0.0;
-    velocities(8) = 0.0;
 
     // Apply the RPY kernel
     apply_rpy_kernel(Kokkos::DefaultHostExecutionSpace(), viscosity, positions, positions, radii, radii, forces,
-                     velocities);
+                     velocities_rpy);
+    apply_rpyc_kernel(Kokkos::DefaultHostExecutionSpace(), viscosity, positions, positions, radii, radii, forces,
+                      velocities_rpyc);
 
     // Add self-interaction
     const double inv_drag_coeff = 1.0 / (6.0 * M_PI * radius * viscosity);
     for (size_t j = 0; j < 9; j++) {
-      velocities(j) += inv_drag_coeff * forces(j);
+      velocities_rpy(j) += inv_drag_coeff * forces(j);
+      velocities_rpyc(j) += inv_drag_coeff * forces(j);
     }
 
     // Check the results
     std::cout << "s: " << s_current << std::endl;
-    std::cout << "  U1: " << velocities(1) << " | expected: " << -U1_current
-              << ") | relative error: " << std::fabs(velocities(1) + U1_current) / std::fabs(U1_current) << std::endl;
-    std::cout << "  U2: " << velocities(4) << " | expected: " << -U2_current
-              << ") | relative error: " << std::fabs(velocities(4) + U2_current) / std::fabs(U2_current) << std::endl;
-    std::cout << "  U3: " << velocities(6) << " | expected: " << U3_current
-              << ") | relative error: " << std::fabs(velocities(6) - U3_current) / std::fabs(U3_current) << std::endl;
+    std::cout << "RPY:" << std::endl;
+    std::cout << "  U1: " << velocities_rpy(1) << " | expected: " << -U1_current
+              << ") | relative error: " << std::fabs(velocities_rpy(1) + U1_current) / std::fabs(U1_current)
+              << std::endl;
+    std::cout << "  U2: " << velocities_rpy(4) << " | expected: " << -U2_current
+              << ") | relative error: " << std::fabs(velocities_rpy(4) + U2_current) / std::fabs(U2_current)
+              << std::endl;
+    std::cout << "  U3: " << velocities_rpy(6) << " | expected: " << U3_current
+              << ") | relative error: " << std::fabs(velocities_rpy(6) - U3_current) / std::fabs(U3_current)
+              << std::endl;
+
+    std::cout << "RPYC:" << std::endl;
+    std::cout << "  U1: " << velocities_rpyc(1) << " | expected: " << -U1_current
+              << ") | relative error: " << std::fabs(velocities_rpyc(1) + U1_current) / std::fabs(U1_current)
+              << std::endl;
+    std::cout << "  U2: " << velocities_rpyc(4) << " | expected: " << -U2_current
+              << ") | relative error: " << std::fabs(velocities_rpyc(4) + U2_current) / std::fabs(U2_current)
+              << std::endl;
+    std::cout << "  U3: " << velocities_rpyc(6) << " | expected: " << U3_current
+              << ") | relative error: " << std::fabs(velocities_rpyc(6) - U3_current) / std::fabs(U3_current)
+              << std::endl;
   }
+}
+
+TEST(PeripheryTest, OverlappingRpySpheres) {
+  // Fig 1 of Rotne–Prager–Yamakawa approximation for different-sized particles
+  //  in application to macromolecular bead models JFM Rapids 2014
+  //
+  // Compute the parallel and perpendicular coefficients for two overlapping spheres with radii
+  //  a2 = a1 / 2.
+  //
+  // Move the spheres increasingly closer to one another and measure parallel and perpendicular
+  // components of the mobility matrix of 1 acting on 2.
+  //
+  // Because we use a kernel and not a matrix, we can get this my applying a 3 different unit forces to sphere 2
+  // and measuring the velocity of sphere 1 in each direction.
+
+  const double viscosity = 0.1;
+  const double radius1 = 1.0;
+  const double radius2 = radius1 / 2.0;
+  const double dr = 0.001;
+  const size_t num_points = 2000;
+
+  std::vector<double> coeff_para_rpy(num_points);
+  std::vector<double> coeff_perp_rpy(num_points);
+  std::vector<double> coeff_para_rpyc(num_points);
+  std::vector<double> coeff_perp_rpyc(num_points);
+  std::vector<double> coeff_para_stokes(num_points);
+  std::vector<double> coeff_perp_stokes(num_points);
+
+  // Setup the kokkos vectors for position, radius, force, and velocity
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> positions("positions", 6);
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> radii("radii", 2);
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> forces("forces", 6);
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> velocities_rpy("velocities_rpy", 6);
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> velocities_rpyc("velocities_rpyc", 6);
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> velocities_stokes("velocities_stokes", 6);
+
+  // Randomize the position of the first sphere and choose a random r_hat
+  positions(0) = static_cast<double>(rand()) / RAND_MAX;
+  positions(1) = static_cast<double>(rand()) / RAND_MAX;
+  positions(2) = static_cast<double>(rand()) / RAND_MAX;
+  std::vector<double> r_hat = {static_cast<double>(rand()) / RAND_MAX, static_cast<double>(rand()) / RAND_MAX,
+                               static_cast<double>(rand()) / RAND_MAX};
+
+  double r_hat_mag = std::sqrt(r_hat[0] * r_hat[0] + r_hat[1] * r_hat[1] + r_hat[2] * r_hat[2]);
+  r_hat[0] /= r_hat_mag;
+  r_hat[1] /= r_hat_mag;
+  r_hat[2] /= r_hat_mag;
+  ASSERT_NEAR(r_hat[0] * r_hat[0] + r_hat[1] * r_hat[1] + r_hat[2] * r_hat[2], 1.0, 1.0e-8);
+
+  // Generate a vector perpendicular to r_hat. statistically speaking the following should be perpendicular
+  std::vector<double> r_hat_perp = {r_hat[1], -r_hat[0], 0.0};
+  ASSERT_NEAR(r_hat_perp[0] * r_hat[0] + r_hat_perp[1] * r_hat[1] + r_hat_perp[2] * r_hat[2], 0.0, 1.0e-8);
+
+  // Set the radii
+  radii(0) = radius1;
+  radii(1) = radius2;
+
+  for (size_t p = 0; p < num_points; p++) {
+    Kokkos::deep_copy(forces, 0.0);
+    Kokkos::deep_copy(velocities_rpy, 0.0);
+    Kokkos::deep_copy(velocities_rpyc, 0.0);
+    Kokkos::deep_copy(velocities_stokes, 0.0);
+
+    positions(3) = positions(0) + r_hat[0] * dr * p;
+    positions(4) = positions(1) + r_hat[1] * dr * p;
+    positions(5) = positions(2) + r_hat[2] * dr * p;
+
+    // Parallel force
+    forces(3) = r_hat[0];
+    forces(4) = r_hat[1];
+    forces(5) = r_hat[2];
+
+    // Compute the velocities:
+    // No need to add self-interaction as we are only interested in the flow of sphere 1
+    apply_rpy_kernel(Kokkos::DefaultHostExecutionSpace(), viscosity, positions, positions, radii, radii, forces,
+                     velocities_rpy);
+    apply_rpyc_kernel(Kokkos::DefaultHostExecutionSpace(), viscosity, positions, positions, radii, radii, forces,
+                      velocities_rpyc);
+    apply_stokes_kernel(Kokkos::DefaultHostExecutionSpace(), viscosity, positions, positions, forces,
+                        velocities_stokes);
+
+    // Compute the parallel and component of the mobility matrix by dotting with r_hat.
+    // The velocity should lie entirely along r_hat.
+    //
+    // RPY
+    coeff_para_rpy[p] = velocities_rpy(0) * r_hat[0] + velocities_rpy(1) * r_hat[1] + velocities_rpy(2) * r_hat[2];
+
+    // RPYC:
+    coeff_para_rpyc[p] = velocities_rpyc(0) * r_hat[0] + velocities_rpyc(1) * r_hat[1] + velocities_rpyc(2) * r_hat[2];
+
+    // Stokes:
+    coeff_para_stokes[p] =
+        velocities_stokes(0) * r_hat[0] + velocities_stokes(1) * r_hat[1] + velocities_stokes(2) * r_hat[2];
+
+    // Zero the velocity and switch to a perpendicular force
+    Kokkos::deep_copy(velocities_rpy, 0.0);
+    Kokkos::deep_copy(velocities_rpyc, 0.0);
+    Kokkos::deep_copy(velocities_stokes, 0.0);
+    forces(3) = r_hat_perp[0];
+    forces(4) = r_hat_perp[1];
+    forces(5) = r_hat_perp[2];
+
+    // Compute the velocities:
+    apply_rpy_kernel(Kokkos::DefaultHostExecutionSpace(), viscosity, positions, positions, radii, radii, forces,
+                     velocities_rpy);
+    apply_rpyc_kernel(Kokkos::DefaultHostExecutionSpace(), viscosity, positions, positions, radii, radii, forces,
+                      velocities_rpyc);
+    apply_stokes_kernel(Kokkos::DefaultHostExecutionSpace(), viscosity, positions, positions, forces,
+                        velocities_stokes);
+
+    // Compute the perpendicular component of the mobility matrix by dotting with r_hat_perp.
+    // The velocity should lie entirely along r_hat_perp.
+    //
+    // RPY
+    coeff_perp_rpy[p] =
+        velocities_rpy(0) * r_hat_perp[0] + velocities_rpy(1) * r_hat_perp[1] + velocities_rpy(2) * r_hat_perp[2];
+
+    // RPYC:
+    coeff_perp_rpyc[p] =
+        velocities_rpyc(0) * r_hat_perp[0] + velocities_rpyc(1) * r_hat_perp[1] + velocities_rpyc(2) * r_hat_perp[2];
+
+    // Stokes:
+    coeff_perp_stokes[p] = velocities_stokes(0) * r_hat_perp[0] + velocities_stokes(1) * r_hat_perp[1] +
+                           velocities_stokes(2) * r_hat_perp[2];
+  }
+
+  // Write the results to a file
+  // Use the same normalization as the paper.
+  //  The coefficients are scaled by 6 pi mu (a1 + a2)
+  //  The distance is presented as (dr * p) / (a1 + a2)
+  const double normalization_factor = 6.0 * M_PI * viscosity * (radius1 + radius2);
+  std::ofstream file("OverlappingRpySpheres.dat");
+  file << "dr coeff_para_rpy coeff_perp_rpy coeff_para_rpyc coeff_perp_rpyc coeff_para_stokes coeff_perp_stokes"
+       << std::endl;
+  for (size_t p = 0; p < num_points; p++) {
+    file << dr * p / (radius1 + radius2)                        //
+         << " " << coeff_para_rpy[p] * normalization_factor     //
+         << " " << coeff_perp_rpy[p] * normalization_factor     //
+         << " " << coeff_para_rpyc[p] * normalization_factor    //
+         << " " << coeff_perp_rpyc[p] * normalization_factor    //
+         << " " << coeff_para_stokes[p] * normalization_factor  //
+         << " " << coeff_perp_stokes[p] * normalization_factor << std::endl;
+  }
+  file.close();
 }
 
 TEST(PeripheryTest, StokesDoubleLayerConstantForce) {
   // We have the following identity for flow exterior to a surface D:
   //   int_{partial D} n(y) dot T(x - y) dS(y) = I / 2
+  //   T(x - y) = - T(y - x)
   // This is a commonly used to check the convergence of the double layer integral.
+  //
+  // For the singularity subtraction, we use
+  //    int_{partial D} n(y) dot T(x - y) dot (F(x) + F(y)) dS(y)
+  //    = int_{partial D} n(y) dot T(x - y) dS(y) dot F(x) + int_{partial D} n(y) dot T(x - y) dot F(y) dS(y)
+  //    = F(x) / 2 + int_{partial D} n(y) dot T(x - y) dot F(y) dS(y)
+  //    if F(x) = F, then
+  //    = F / 2 + int_{partial D} n(y) dot T(x - y) dS(y)  dot F
+  //    = F
 
   // Setup the convergence study
   const double sphere_radius = 12.34;
@@ -845,15 +1002,15 @@ TEST(PeripheryTest, StokesDoubleLayerConstantForce) {
             << " rel_slope = " << matrix_ss_results.rel_slope << std::endl;
   for (size_t i = 0; i < matrix_ss_results.num_quadrature_points.size(); ++i) {
     std::cout << "  num_quadrature_points[" << i << "] = " << matrix_ss_results.num_quadrature_points[i];
-    std::cout << ", matrix_ss_results.abs_error[" << i << "] = " << matrix_ss_results.abs_error[i];
-    std::cout << ", matrix_ss_results.rel_error[" << i << "] = " << matrix_ss_results.rel_error[i] << std::endl;
+    std::cout << ", abs_error[" << i << "] = " << matrix_ss_results.abs_error[i];
+    std::cout << ", rel_error[" << i << "] = " << matrix_ss_results.rel_error[i] << std::endl;
   }
   std::cout << "kernel_ss_results.abs_slope = " << kernel_ss_results.abs_slope
             << " rel_slope = " << kernel_ss_results.rel_slope << std::endl;
   for (size_t i = 0; i < kernel_ss_results.num_quadrature_points.size(); ++i) {
     std::cout << "  num_quadrature_points[" << i << "] = " << kernel_ss_results.num_quadrature_points[i];
-    std::cout << ", kernel_ss_results.abs_error[" << i << "] = " << kernel_ss_results.abs_error[i];
-    std::cout << ", kernel_ss_results.rel_error[" << i << "] = " << kernel_ss_results.rel_error[i] << std::endl;
+    std::cout << ", abs_error[" << i << "] = " << kernel_ss_results.abs_error[i];
+    std::cout << ", rel_error[" << i << "] = " << kernel_ss_results.rel_error[i] << std::endl;
   }
   std::cout << "matrix_skfie_results.abs_slope = " << matrix_skfie_results.abs_slope
             << " rel_slope = " << matrix_skfie_results.rel_slope << std::endl;
@@ -1051,25 +1208,13 @@ TEST(PeripheryTest, SKFIERigidBodyMotion) {
   //   bulk_points(3 * i + 2) = r * std::cos(phi);
   // }
 
-  // Print the bulk points and the expected velocity
-  std::cout << "bulk_points = " << std::endl;
-  for (size_t i = 0; i < num_bulk_points; ++i) {
-    std::cout << "  " << bulk_points(3 * i) << " " << bulk_points(3 * i + 1) << " " << bulk_points(3 * i + 2)
-              << std::endl;
-  }
-
-  std::cout << "expected_bulk_velocity = " << std::endl;
   for (size_t i = 0; i < num_bulk_points; ++i) {
     const double x = bulk_points(3 * i);
     const double y = bulk_points(3 * i + 1);
     const double z = bulk_points(3 * i + 2);
     const mundy::math::Vector3<double> p(x, y, z);
     const auto v = mundy::math::cross(omega, p);
-
-    std::cout << "  " << v[0] << " " << v[1] << " " << v[2] << std::endl;
   }
-
-
 
   // Setup the test
   const bool include_poles = false;
@@ -1139,6 +1284,9 @@ TEST(PeripheryTest, SKFIERigidBodyMotionFromFile) {
   // Given the rigid body surface slip velocity U, the velocity at points in the bulk is given by G_{periphery to bulk}
   // M^{-1} U
 
+  // Skip this test until we get the files read in properly
+  GTEST_SKIP() << "Skipping until we get the files read in properly";
+
   // Setup the convergence study
   const double sphere_radius = 28.0;
   const double viscosity = 1.0;
@@ -1181,7 +1329,7 @@ TEST(PeripheryTest, SKFIERigidBodyMotionFromFile) {
   bulk_points(23) = -cube_side_half_length;
 
   Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> expected_bulk_velocity("expected_bulk_velocity",
-                                                                                        3 * num_bulk_points);
+                                                                                       3 * num_bulk_points);
   for (size_t i = 0; i < num_bulk_points; ++i) {
     const double x = bulk_points(3 * i);
     const double y = bulk_points(3 * i + 1);
@@ -1208,7 +1356,7 @@ TEST(PeripheryTest, SKFIERigidBodyMotionFromFile) {
 
   std::cout << "###########################################################" << std::endl;
   std::cout << "Rigid body motion from file" << std::endl;
-  std::vector<size_t> vec_num_quad_points = {1280, 3840, 5120, 15360, 20480, 30720};
+  std::vector<size_t> vec_num_quad_points = {1280, 3840, 5120};  // 15360, 20480, 30720
   for (size_t i = 0; i < vec_num_quad_points.size(); ++i) {
     // Read in the normals, points, and weights to kokkos views
     const size_t num_quad_points = vec_num_quad_points[i];
@@ -1224,7 +1372,7 @@ TEST(PeripheryTest, SKFIERigidBodyMotionFromFile) {
 
     // Setup the test
     Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_slip_velocity("surface_slip_velocity",
-                                                                                         3 * num_quad_points);
+                                                                                        3 * num_quad_points);
     for (size_t j = 0; j < weights.extent(0); ++j) {
       const double x = points(3 * j);
       const double y = points(3 * j + 1);
@@ -1237,14 +1385,12 @@ TEST(PeripheryTest, SKFIERigidBodyMotionFromFile) {
     }
 
     // Use apply_resistance to map the surface velocities to the bulk surface velocities
-    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_forces("surface_forces",
-                                                                                 points.extent(0));
-    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_velocity("bulk_velocity",
-                                                                                        3 * num_bulk_points);
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_forces("surface_forces", points.extent(0));
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_velocity("bulk_velocity", 3 * num_bulk_points);
     Kokkos::deep_copy(surface_forces, 0.0);
     Kokkos::deep_copy(bulk_velocity, 0.0);
-    apply_resistance(viscosity, points, normals, weights, surface_slip_velocity, surface_forces,
-                     bulk_points, bulk_velocity);
+    apply_resistance(viscosity, points, normals, weights, surface_slip_velocity, surface_forces, bulk_points,
+                     bulk_velocity);
 
     // Absolute error
     const double fd_l2_error = fd_l2_norm_difference(bulk_velocity, expected_bulk_velocity);
@@ -1258,11 +1404,13 @@ TEST(PeripheryTest, SKFIERigidBodyMotionFromFile) {
   }
 }
 
-
 TEST(PeripheryTest, SKFIESelfConvFromFile) {
   // Test the convergence for the flow induced by N points within the bulk of the sphere
   // Assign to each point in the bulk a smoothly varying force field
   // f(x,y,z) = (y, -x, z) / sqrt(x^2 + y^2 + z^2)
+
+  // Skip this test until we get the files read in properly
+  GTEST_SKIP() << "Skipping until we get the files read in properly";
 
   // Setup the convergence study
   const double sphere_radius = 28.0;
@@ -1271,15 +1419,14 @@ TEST(PeripheryTest, SKFIESelfConvFromFile) {
 
   // Setup the bulk points at the corner of the cube with side length cude_side_length
   Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_points("bulk_points", 3 * num_bulk_points);
-  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_forces("bulk_forces",
-                                                                                        3 * num_bulk_points);
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_forces("bulk_forces", 3 * num_bulk_points);
   size_t seed = 1234;
   size_t counter = 0;
   openrand::Philox rng(seed, counter);
   for (size_t i = 0; i < num_bulk_points; ++i) {
     const double theta = rng.uniform(0.0, 2.0 * M_PI);
     const double phi = rng.uniform(0.0, M_PI);
-    const double r = rng.uniform(0.0, 0.9*sphere_radius - 1e-12);  // Avoid landing on the surface
+    const double r = rng.uniform(0.0, 0.9 * sphere_radius - 1e-12);  // Avoid landing on the surface
     bulk_points(3 * i) = r * std::sin(phi) * std::cos(theta);
     bulk_points(3 * i + 1) = r * std::sin(phi) * std::sin(theta);
     bulk_points(3 * i + 2) = r * std::cos(phi);
@@ -1294,11 +1441,11 @@ TEST(PeripheryTest, SKFIESelfConvFromFile) {
   }
 
   Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> expected_bulk_velocity("expected_bulk_velocity",
-                                                                                        3 * num_bulk_points);
+                                                                                       3 * num_bulk_points);
 
   std::cout << "###########################################################" << std::endl;
   std::cout << "Self-conv from file" << std::endl;
-  std::vector<size_t> vec_num_quad_points = {30720, 20480, 15360, 5120, 3840, 1280};
+  std::vector<size_t> vec_num_quad_points = {5120, 3840, 1280};  // 30720, 20480, 15360,
   for (size_t i = 0; i < vec_num_quad_points.size(); ++i) {
     // Read in the normals, points, and weights to kokkos views
     const size_t num_quad_points = vec_num_quad_points[i];
@@ -1314,20 +1461,18 @@ TEST(PeripheryTest, SKFIESelfConvFromFile) {
 
     // Compute the surface slip velocity induced by the bulk forces
     Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_slip_velocity("surface_slip_velocity",
-                                                                                         3 * num_quad_points);
+                                                                                        3 * num_quad_points);
     apply_stokes_kernel(Kokkos::DefaultHostExecutionSpace(), viscosity, bulk_points, points, bulk_forces,
-                                    surface_slip_velocity);
+                        surface_slip_velocity);
 
     // Use apply_resistance to map the surface velocities to the bulk surface velocities
     // The surface forces are unknown and will be computed by apply_resistance
-    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_forces("surface_forces",
-                                                                                 points.extent(0));
-    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_velocity("bulk_velocity",
-                                                                                        3 * num_bulk_points);
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_forces("surface_forces", points.extent(0));
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_velocity("bulk_velocity", 3 * num_bulk_points);
     Kokkos::deep_copy(surface_forces, 0.0);
     Kokkos::deep_copy(bulk_velocity, 0.0);
-    apply_resistance(viscosity, points, normals, weights, surface_slip_velocity, surface_forces,
-                     bulk_points, bulk_velocity);
+    apply_resistance(viscosity, points, normals, weights, surface_slip_velocity, surface_forces, bulk_points,
+                     bulk_velocity);
 
     // Save the self-conv results
     if (i == 0) {

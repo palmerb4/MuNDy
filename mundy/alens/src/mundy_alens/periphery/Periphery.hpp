@@ -112,15 +112,16 @@ void gen_sphere_quadrature(const int &order, const double &radius, std::vector<d
 
   // Between north and south pole:
   // from north pole (1) to south pole (-1), picking the points from nodes_gl in reversed order
-  const double weightfactor = radius * radius * 2 * M_PI / (2 * order + 2);
+  constexpr double pi = Kokkos::numbers::pi_v<double>;
+  const double weightfactor = radius * radius * 2 * pi / (2 * order + 2);
   for (int j = 0; j < order + 1; j++) {
     for (int k = 0; k < 2 * order + 2; k++) {
       const double costhetaj = nodes_gl[order - j];
-      const double phik = 2 * M_PI * k / (2 * order + 2);
-      const double sinthetaj = std::sqrt(1 - costhetaj * costhetaj);
+      const double phik = 2 * pi * k / (2 * order + 2);
+      const double sinthetaj = Kokkos::sqrt(1 - costhetaj * costhetaj);
       const int index = (j * (2 * order + 2)) + k + (include_poles ? 1 : 0);
-      points[3 * index] = sinthetaj * std::cos(phik);
-      points[3 * index + 1] = sinthetaj * std::sin(phik);
+      points[3 * index] = sinthetaj * Kokkos::cos(phik);
+      points[3 * index + 1] = sinthetaj * Kokkos::sin(phik);
       points[3 * index + 2] = costhetaj;
       weights[index] = weightfactor * weights_gl[order - j];  // area element = sin thetaj
     }
@@ -158,13 +159,12 @@ void gen_sphere_quadrature(const int &order, const double &radius, std::vector<d
 template <class ExecutionSpace, typename MatrixType1, typename MatrixType2>
 void invert_matrix([[maybe_unused]] const ExecutionSpace &space, const MatrixType1 &matrix,
                    const MatrixType2 &matrix_inv) {
-  static_assert(
-      Kokkos::is_view<MatrixType1>::value && Kokkos::is_view<MatrixType2>::value,
-      "The matrices must be a Kokkos::View");
+  static_assert(Kokkos::is_view<MatrixType1>::value && Kokkos::is_view<MatrixType2>::value,
+                "The matrices must be a Kokkos::View");
   static_assert(std::is_same_v<typename MatrixType1::value_type, double> &&
-                                                               std::is_same_v<typename MatrixType2::value_type, double>,
-                                                           "invert_matrix: The view must have 'double' as its value "
-                                                           "type");
+                    std::is_same_v<typename MatrixType2::value_type, double>,
+                "invert_matrix: The view must have 'double' as its value "
+                "type");
   static_assert(MatrixType1::rank == 2 && MatrixType2::rank == 2,
                 "invert_matrix: The view must have rank 2 (i.e., double**)");
   static_assert(std::is_same_v<typename MatrixType1::memory_space, typename MatrixType2::memory_space>,
@@ -179,7 +179,8 @@ void invert_matrix([[maybe_unused]] const ExecutionSpace &space, const MatrixTyp
                      std::invalid_argument, "invert_matrix: matrix_inv must be the same size as the matrix to invert.");
 
   // Create a view to store the pivots
-  Kokkos::View<int *, typename MatrixType1::array_layout, typename MatrixType1::memory_space> pivots("pivots", matrix_size);
+  Kokkos::View<int *, typename MatrixType1::array_layout, typename MatrixType1::memory_space> pivots("pivots",
+                                                                                                     matrix_size);
 
   // Fill matrix_inv with the identity matrix
   Kokkos::deep_copy(matrix_inv, 0.0);
@@ -654,8 +655,8 @@ void panelize_velocity_kernel_over_target_points([[maybe_unused]] const Executio
 
         // After processing, update the global output using a single thread per team
         Kokkos::single(Kokkos::PerTeam(team_member),
-                       VelocityKernelTeamTeamAccumulator<panel_size, VectorType>(target_velocities, local_vx, local_vy, local_vz,
-                                                                     panel_start, panel_end));
+                       VelocityKernelTeamTeamAccumulator<panel_size, VectorType>(target_velocities, local_vx, local_vy,
+                                                                                 local_vz, panel_start, panel_end));
       });
 }
 
@@ -687,10 +688,10 @@ void apply_stokes_kernel([[maybe_unused]] const ExecutionSpace &space,  //
                     std::is_same_v<typename TargetVelocityVectorType::value_type, double>,
                 "apply_stokes_kernel: The input vectors must have 'double' as their value type.");
   static_assert(
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
-                "apply_stokes_kernel: The input vectors must have the same memory space.");
+      std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
+      "apply_stokes_kernel: The input vectors must have the same memory space.");
 
   const size_t num_source_points = source_positions.extent(0) / 3;
   const size_t num_target_points = target_positions.extent(0) / 3;
@@ -714,20 +715,20 @@ void apply_stokes_kernel([[maybe_unused]] const ExecutionSpace &space,  //
     const double fz = source_forces(3 * s + 2);
 
     const double r2 = dx * dx + dy * dy + dz * dz;
-    const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(r2);
+    const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / Kokkos::sqrt(r2);
     const double rinv3 = rinv * rinv * rinv;
 
-    const double inner_prod = fx * dx + fy * dy + fz * dz;
+    const double f_dot_r = fx * dx + fy * dy + fz * dz;
     const double scale_factor_rinv3 = scale_factor * rinv3;
 
     // Accumulate velocity contribution to local variables
-    vx_accum += scale_factor_rinv3 * (r2 * fx + dx * inner_prod);
-    vy_accum += scale_factor_rinv3 * (r2 * fy + dy * inner_prod);
-    vz_accum += scale_factor_rinv3 * (r2 * fz + dz * inner_prod);
+    vx_accum += scale_factor_rinv3 * (r2 * fx + dx * f_dot_r);
+    vy_accum += scale_factor_rinv3 * (r2 * fy + dy * f_dot_r);
+    vz_accum += scale_factor_rinv3 * (r2 * fz + dz * f_dot_r);
   };
 
   panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
-                                                 stokes_computation);
+                                                   stokes_computation);
 }
 
 /// \brief Apply the stokes kernel to map source forces to target velocities: u_target += M f_source
@@ -761,11 +762,11 @@ void apply_weighted_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, 
                     std::is_same_v<typename TargetVelocityVectorType::value_type, double>,
                 "apply_stokes_kernel: The input vectors must have 'double' as their value type.");
   static_assert(
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceWeightVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
-                "apply_stokes_kernel: The input vectors must have the same memory space.");
+      std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceWeightVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
+      "apply_stokes_kernel: The input vectors must have the same memory space.");
 
   const size_t num_source_points = source_positions.extent(0) / 3;
   const size_t num_target_points = target_positions.extent(0) / 3;
@@ -802,20 +803,20 @@ void apply_weighted_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, 
     // vz_accum += scale_factor_rinv3 * (r2 * fz + dz * inner_prod);
 
     const double r2 = dx * dx + dy * dy + dz * dz;
-    const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(r2);
+    const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / Kokkos::sqrt(r2);
     const double rinv2 = rinv * rinv;
 
-    const double inner_prod_rinv2 = (fx * dx + fy * dy + fz * dz) * rinv2;
+    const double f_dot_r_rinv2 = (fx * dx + fy * dy + fz * dz) * rinv2;
     const double scale_factor_rinv = scale_factor * rinv;
 
     // Accumulate velocity contribution to local variables
-    vx_accum += scale_factor_rinv * (fx + dx * inner_prod_rinv2);
-    vy_accum += scale_factor_rinv * (fy + dy * inner_prod_rinv2);
-    vz_accum += scale_factor_rinv * (fz + dz * inner_prod_rinv2);
+    vx_accum += scale_factor_rinv * (fx + dx * f_dot_r_rinv2);
+    vy_accum += scale_factor_rinv * (fy + dy * f_dot_r_rinv2);
+    vz_accum += scale_factor_rinv * (fz + dz * f_dot_r_rinv2);
   };
 
   panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
-                                                 weighted_stokes_computation);
+                                                   weighted_stokes_computation);
 }
 
 /// \brief Apply the RPY kernel to map source forces to target velocities: u_target += M f_source
@@ -855,12 +856,12 @@ void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space,  //
                     std::is_same_v<typename TargetVelocityVectorType::value_type, double>,
                 "apply_rpy_kernel: The input vectors must have 'double' as their value type.");
   static_assert(
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceRadiusVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetRadiusVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
-                "apply_rpy_kernel: The input vectors must have the same memory space.");
+      std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceRadiusVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetRadiusVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
+      "apply_rpy_kernel: The input vectors must have the same memory space.");
 
   const size_t num_source_points = source_positions.extent(0) / 3;
   const size_t num_target_points = target_positions.extent(0) / 3;
@@ -889,7 +890,7 @@ void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space,  //
 
     const double a2_over_three = (1.0 / 3.0) * a * a;
     const double r2 = dx * dx + dy * dy + dz * dz;
-    const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(r2);
+    const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / Kokkos::sqrt(r2);
     const double rinv3 = rinv * rinv * rinv;
     const double rinv5 = rinv * rinv * rinv3;
     const double fdotr = fx * dx + fy * dy + fz * dz;
@@ -919,7 +920,150 @@ void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space,  //
   };
 
   panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
-                                                 rpy_computation);
+                                                   rpy_computation);
+}
+
+/// \brief Apply the corrected RPY kernel to map source forces to target velocities: u_target += M f_source
+///
+/// Note, this does not include self-interaction. If that is desired simply add 1/(6 pi mu) * f to u
+///
+/// \param space The execution space
+/// \param[in] viscosity The viscosity
+/// \param[in] source_positions The positions of the source points (size num_source_points x 3)
+/// \param[in] target_positions The positions of the target points (size num_target_points x 3)
+/// \param[in] source_forces The source values (size num_source_points x 3)
+/// \param[out] target_values The target values (size num_target_points x 3)
+template <class ExecutionSpace, typename SourcePosVectorType, typename TargetPosVectorType,
+          typename SourceRadiusVectorType, typename TargetRadiusVectorType, typename SourceForceVectorType,
+          typename TargetVelocityVectorType>
+void apply_rpyc_kernel([[maybe_unused]] const ExecutionSpace &space,  //
+                       const double viscosity,                        //
+                       const SourcePosVectorType &source_positions,   //
+                       const TargetPosVectorType &target_positions,   //
+                       const SourceRadiusVectorType &source_radii,    //
+                       const TargetRadiusVectorType &target_radii,    //
+                       const SourceForceVectorType &source_forces,    //
+                       const TargetVelocityVectorType &target_velocities) {
+  static_assert(Kokkos::is_view<SourcePosVectorType>::value && Kokkos::is_view<TargetPosVectorType>::value &&
+                    Kokkos::is_view<SourceRadiusVectorType>::value && Kokkos::is_view<TargetRadiusVectorType>::value &&
+                    Kokkos::is_view<SourceForceVectorType>::value && Kokkos::is_view<TargetVelocityVectorType>::value,
+                "apply_rpyc_kernel: The input vectors must be a Kokkos::View.");
+  static_assert(SourcePosVectorType::rank == 1 && TargetPosVectorType::rank == 1 && SourceRadiusVectorType::rank == 1 &&
+                    TargetRadiusVectorType::rank == 1 && SourceForceVectorType::rank == 1 &&
+                    TargetVelocityVectorType::rank == 1,
+                "apply_rpyc_kernel: The input vectors must be rank 1.");
+  static_assert(std::is_same_v<typename SourcePosVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetPosVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceRadiusVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetRadiusVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceForceVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetVelocityVectorType::value_type, double>,
+                "apply_rpyc_kernel: The input vectors must have 'double' as their value type.");
+  static_assert(
+      std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceRadiusVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetRadiusVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
+      "apply_rpyc_kernel: The input vectors must have the same memory space.");
+
+  const size_t num_source_points = source_positions.extent(0) / 3;
+  const size_t num_target_points = target_positions.extent(0) / 3;
+  MUNDY_THROW_ASSERT(source_forces.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "apply_rpyc_kernel: source_forces must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(target_velocities.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "apply_rpyc_kernel: target_velocities must have size 3 * num_target_points.");
+  MUNDY_THROW_ASSERT(source_radii.extent(0) == num_source_points, std::invalid_argument,
+                     "apply_rpyc_kernel: source_radii must have size num_source_points.");
+  MUNDY_THROW_ASSERT(target_radii.extent(0) == num_target_points, std::invalid_argument,
+                     "apply_rpyc_kernel: target_radii must have size num_target_points.");
+
+  // Launch the parallel kernel
+  constexpr double one_over_eight = 1.0 / 8.0;
+  constexpr double one_over_six = 1.0 / 6.0;
+  constexpr double one_over_three = 1.0 / 3.0;
+  constexpr double one_over_32 = 1.0 / 32.0;
+  constexpr double inv_pi = 1.0 / Kokkos::numbers::pi_v<double>;
+  const double inv_viscosity = 1.0 / viscosity;
+  auto rpyc_computation =
+      KOKKOS_LAMBDA(const size_t t, const size_t s, double &vx_accum, double &vy_accum, double &vz_accum) {
+    // Compute the distance vector
+    const double dx = target_positions(3 * t + 0) - source_positions(3 * s + 0);
+    const double dy = target_positions(3 * t + 1) - source_positions(3 * s + 1);
+    const double dz = target_positions(3 * t + 2) - source_positions(3 * s + 2);
+
+    const double fx = source_forces(3 * s + 0);
+    const double fy = source_forces(3 * s + 1);
+    const double fz = source_forces(3 * s + 2);
+    const double a = source_radii(s);
+    const double b = target_radii(t);
+
+    const double r2 = dx * dx + dy * dy + dz * dz;
+    const double r = Kokkos::sqrt(r2);
+    const double r3 = r * r2;
+    const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / r;
+    const double rinv2 = rinv * rinv;
+    const double rinv3 = rinv2 * rinv;
+
+    const double dx_hat = dx * rinv;
+    const double dy_hat = dy * rinv;
+    const double dz_hat = dz * rinv;
+
+    const double f_dot_rhat = fx * dx_hat + fy * dy_hat + fz * dz_hat;
+
+    if (a + b < r) {
+      // If a + b < r, regular RPY
+      // M = coeff * (tmp1 * I + tmp2 * r_hat outer r_hat)
+      //   coeff = 1 / (8 pi mu r_norm)
+      //   tmp1 = 1 + (a**2 + b**2) / (3 * r_norm**2)
+      //   tmp2 = 1 - (a**2 + b**2) / (r_norm**2)
+      //   r_hat = r / r_norm
+      const double a2 = a * a;
+      const double b2 = b * b;
+      const double a2_plus_b2_rinv2 = (a2 + b2) * rinv2;
+      const double scale_factor = one_over_eight * inv_pi * inv_viscosity * rinv;
+      const double tmp1_scaled = scale_factor * (1. + a2_plus_b2_rinv2 * one_over_three);
+      const double tmp2_scaled = scale_factor * (1. - a2_plus_b2_rinv2);
+      vx_accum += tmp1_scaled * fx + tmp2_scaled * (f_dot_rhat * dx_hat);
+      vy_accum += tmp1_scaled * fy + tmp2_scaled * (f_dot_rhat * dy_hat);
+      vz_accum += tmp1_scaled * fz + tmp2_scaled * (f_dot_rhat * dz_hat);
+    } else if (Kokkos::abs(a - b) < r && a > DOUBLE_ZERO && b > DOUBLE_ZERO) {
+      // If neither radius is zero and if abs(a - b) < r < a + b, corrected RPY
+      // M = 1/(6 pi mu a b) * (tmp1 I + tmp2 r_hat outer r_hat) f
+      //  tmp1 = (16 r^3 (a + b) - ((a - b)^2 + 3 r^2)^2) / (32 r^3)
+      //  tmp2 = 3 ((a - b)^2 - r^2)^2 / (32 r^3)
+      //  r_hat = r / r_norm
+      const double a_plus_b = a + b;
+      const double a_minus_b = a - b;
+      const double a_minus_b2 = a_minus_b * a_minus_b;
+      const double tmp3 = a_minus_b2 + 3 * r2;
+      const double tmp4 = a_minus_b2 - r2;
+
+      const double scale_factor = one_over_six * inv_pi * inv_viscosity / (a * b);
+      const double tmp1_scaled = scale_factor * (16.0 * r3 * a_plus_b - tmp3 * tmp3) * one_over_32 * rinv3;
+      const double tmp2_scaled = scale_factor * 3.0 * tmp4 * tmp4 * one_over_32 * rinv3;
+
+      vx_accum += tmp1_scaled * fx + tmp2_scaled * (f_dot_rhat * dx_hat);
+      vy_accum += tmp1_scaled * fy + tmp2_scaled * (f_dot_rhat * dy_hat);
+      vz_accum += tmp1_scaled * fz + tmp2_scaled * (f_dot_rhat * dz_hat);
+    } else {
+      //  if r < abs(a - b), Local drag
+      // v = 1 / (6 pi mu max(a, b)) * f
+      if (r2 < DOUBLE_ZERO) {
+        // Skip self interaction
+        return;
+      }     
+      
+      const double max_a_b = Kokkos::max(a, b);
+      const double scale_factor = one_over_six * inv_pi * inv_viscosity / max_a_b;
+      vx_accum += scale_factor * fx;
+      vy_accum += scale_factor * fy;
+      vz_accum += scale_factor * fz;
+    }
+  };
+
+  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
+                                                   rpyc_computation);
 }
 
 /// \brief Apply the stokes double layer kernel with singularity subtraction) to map source forces to target velocities:
@@ -965,12 +1109,13 @@ void apply_stokes_double_layer_kernel_ss([[maybe_unused]] const ExecutionSpace &
                     std::is_same_v<typename TargetVelocityVectorType::value_type, double>,
                 "apply_stokes_double_layer_kernel_ss: The input vectors must have 'double' as their value type.");
   static_assert(
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceNormalVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename QuadratureWeightVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
-                "apply_stokes_double_layer_kernel_ss: The input vectors must have the same memory space.");
+      std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceNormalVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space,
+                         typename QuadratureWeightVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
+      "apply_stokes_double_layer_kernel_ss: The input vectors must have the same memory space.");
 
   MUNDY_THROW_ASSERT(source_positions.extent(0) == 3 * num_source_points, std::invalid_argument,
                      "apply_stokes_double_layer_kernel_ss: source_positions must have size 3 * num_source_points.");
@@ -1001,7 +1146,7 @@ void apply_stokes_double_layer_kernel_ss([[maybe_unused]] const ExecutionSpace &
 
     // Compute rinv5. If r is zero, set rinv5 to zero, effectively setting the diagonal of K to zero.
     const double dr2 = dx * dx + dy * dy + dz * dz;
-    const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(dr2);
+    const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / Kokkos::sqrt(dr2);
     const double rinv2 = rinv * rinv;
     const double rinv5 = rinv * rinv2 * rinv2;
 
@@ -1037,7 +1182,7 @@ void apply_stokes_double_layer_kernel_ss([[maybe_unused]] const ExecutionSpace &
   };
 
   panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
-                                                 stokes_double_layer_computation);
+                                                   stokes_double_layer_computation);
 }
 
 /// \brief Apply the stokes double layer kernel to map source forces to target velocities: u_target += M f_source
@@ -1082,12 +1227,13 @@ void apply_stokes_double_layer_kernel([[maybe_unused]] const ExecutionSpace &spa
                     std::is_same_v<typename TargetVelocityVectorType::value_type, double>,
                 "apply_stokes_double_layer_kernel: The input vectors must have 'double' as their value type.");
   static_assert(
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceNormalVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename QuadratureWeightVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
-    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
-                "apply_stokes_double_layer_kernel: The input vectors must have the same memory space.");
+      std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceNormalVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space,
+                         typename QuadratureWeightVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
+      "apply_stokes_double_layer_kernel: The input vectors must have the same memory space.");
 
   MUNDY_THROW_ASSERT(source_positions.extent(0) == 3 * num_source_points, std::invalid_argument,
                      "apply_stokes_double_layer_kernel: source_positions must have size 3 * num_source_points.");
@@ -1118,7 +1264,7 @@ void apply_stokes_double_layer_kernel([[maybe_unused]] const ExecutionSpace &spa
 
     // Compute rinv5. If r is zero, set rinv5 to zero, effectively setting the diagonal of K to zero.
     const double dr2 = dx * dx + dy * dy + dz * dz;
-    const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(dr2);
+    const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / Kokkos::sqrt(dr2);
     const double rinv2 = rinv * rinv;
     const double rinv5 = rinv * rinv2 * rinv2;
 
@@ -1145,7 +1291,7 @@ void apply_stokes_double_layer_kernel([[maybe_unused]] const ExecutionSpace &spa
   };
 
   panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
-                                                 stokes_double_layer_contribution);
+                                                   stokes_double_layer_contribution);
 }
 
 /// \brief Apply local drag to the sphere velocities v += 1/(6 pi mu r) f
@@ -1167,9 +1313,10 @@ void apply_local_drag([[maybe_unused]] const ExecutionSpace &space,       //
                     std::is_same_v<typename SphereRadiusVectorType::value_type, double>,
                 "apply_local_drag: The input vectors must have 'double' as their value type.");
   static_assert(
-    std::is_same_v<typename SphereVelocityVectorType::memory_space, typename SphereForceVectorType::memory_space> &&
-        std::is_same_v<typename SphereVelocityVectorType::memory_space, typename SphereRadiusVectorType::memory_space>,
-                "apply_local_drag: The input vectors must have the same memory space.");
+      std::is_same_v<typename SphereVelocityVectorType::memory_space, typename SphereForceVectorType::memory_space> &&
+          std::is_same_v<typename SphereVelocityVectorType::memory_space,
+                         typename SphereRadiusVectorType::memory_space>,
+      "apply_local_drag: The input vectors must have the same memory space.");
 
   MUNDY_THROW_ASSERT(sphere_velocities.extent(0) == 3 * sphere_radii.extent(0), std::invalid_argument,
                      "apply_local_drag: sphere_velocities must have size 3 * num_spheres.");
@@ -1225,11 +1372,11 @@ void fill_stokes_double_layer_matrix([[maybe_unused]] const ExecutionSpace &spac
                     std::is_same_v<typename MatrixType::value_type, double>,
                 "fill_stokes_double_layer_matrix: The input vectors must have 'double' as their value type.");
   static_assert(
-    std::is_same_v<typename MatrixType::memory_space, typename SourcePosVectorType::memory_space> &&
-        std::is_same_v<typename MatrixType::memory_space, typename TargetPosVectorType::memory_space> &&
-        std::is_same_v<typename MatrixType::memory_space, typename SourceNormalVectorType::memory_space> &&
-        std::is_same_v<typename MatrixType::memory_space, typename QuadratureWeightVectorType::memory_space>,
-                "fill_stokes_double_layer_matrix: The input vectors must have the same memory space.");
+      std::is_same_v<typename MatrixType::memory_space, typename SourcePosVectorType::memory_space> &&
+          std::is_same_v<typename MatrixType::memory_space, typename TargetPosVectorType::memory_space> &&
+          std::is_same_v<typename MatrixType::memory_space, typename SourceNormalVectorType::memory_space> &&
+          std::is_same_v<typename MatrixType::memory_space, typename QuadratureWeightVectorType::memory_space>,
+      "fill_stokes_double_layer_matrix: The input vectors must have the same memory space.");
 
   MUNDY_THROW_ASSERT(source_positions.extent(0) == 3 * num_source_points, std::invalid_argument,
                      "fill_stokes_double_layer_matrix: source_positions must have size 3 * num_source_points.");
@@ -1256,7 +1403,7 @@ void fill_stokes_double_layer_matrix([[maybe_unused]] const ExecutionSpace &spac
 
         // Compute rinv5. If r is zero, set rinv5 to zero, effectively setting the diagonal of K to zero.
         const double dr2 = dx * dx + dy * dy + dz * dz;
-        const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / std::sqrt(dr2);
+        const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / Kokkos::sqrt(dr2);
         const double rinv2 = rinv * rinv;
         const double rinv5 = rinv * rinv2 * rinv2;
 
@@ -1394,6 +1541,8 @@ void add_complementary_matrix([[maybe_unused]] const ExecutionSpace &space,     
 
   const size_t num_source_points = T.extent(1) / 3;
   const size_t num_target_points = T.extent(0) / 3;
+  MUNDY_THROW_ASSERT(num_source_points == num_target_points, std::invalid_argument,
+                     "add_complementary_matrix: The number of source and target points must be the same.");
   MUNDY_THROW_ASSERT(source_normals.extent(0) == 3 * num_source_points, std::invalid_argument,
                      "add_complementary_matrix: source_normals must have size 3 * num_source_points.");
   MUNDY_THROW_ASSERT(quadrature_weights.extent(0) == num_source_points, std::invalid_argument,
@@ -1499,7 +1648,7 @@ void add_complementary_kernel([[maybe_unused]] const ExecutionSpace &space,     
   };
 
   panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
-                                                 complementary_contribution);
+                                                   complementary_contribution);
 }
 
 /// \brief Fill the second kind Fredholm integral equation matrix for Stokes flow induced by a boundary due to
@@ -1624,6 +1773,8 @@ void apply_skfie([[maybe_unused]] const ExecutionSpace &space,          //
           std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
       "apply_skfie: The input vectors must have the same memory space.");
 
+  MUNDY_THROW_ASSERT(num_source_points == num_target_points, std::invalid_argument,
+                     "apply_skfie: The number of source and target points must be the same.");
   MUNDY_THROW_ASSERT(source_positions.extent(0) == 3 * num_source_points, std::invalid_argument,
                      "apply_skfie: source_positions must have size 3 * num_source_points.");
   MUNDY_THROW_ASSERT(target_positions.extent(0) == 3 * num_target_points, std::invalid_argument,
@@ -1659,13 +1810,13 @@ void apply_skfie([[maybe_unused]] const ExecutionSpace &space,          //
     const double force_s0 = source_forces(3 * s + 0);
     const double force_s1 = source_forces(3 * s + 1);
     const double force_s2 = source_forces(3 * s + 2);
-    const double force_t0 = source_forces(3 * t + 0);
+    const double force_t0 = source_forces(3 * t + 0);  // Assumes that we have the same number of sources and targets
     const double force_t1 = source_forces(3 * t + 1);
     const double force_t2 = source_forces(3 * t + 2);
 
     // Compute rinv5. If r is zero, set rinv5 to zero, effectively setting the diagonal of K to zero.
     const double dr2 = dx * dx + dy * dy + dz * dz;
-    const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(dr2);
+    const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / Kokkos::sqrt(dr2);
     const double rinv2 = rinv * rinv;
     const double rinv5 = rinv * rinv2 * rinv2;
 
@@ -1686,18 +1837,17 @@ void apply_skfie([[maybe_unused]] const ExecutionSpace &space,          //
     coeff += (syz + szy) * dy * dz;
     coeff *= -scale_factor * rinv5;
 
-    // TODO(palmerb4): The following only works with normal source...
-    // Compute the complementarity term v += normal(s) * normal(s) dot f(s) w(s)
+    // Compute the complementarity term v += normal(t) * normal(s) dot f(s) w(s)
     const double scaled_normal_dot_force =
         (normal_s0 * force_s0 + normal_s1 * force_s1 + normal_s2 * force_s2) * quadrature_weight_s;
 
-    vx_accum += dx * coeff + scaled_normal_dot_force;
-    vy_accum += dy * coeff + scaled_normal_dot_force;
-    vz_accum += dz * coeff + scaled_normal_dot_force;
+    vx_accum += dx * coeff + scaled_normal_dot_force * normal_t0;
+    vy_accum += dy * coeff + scaled_normal_dot_force * normal_t1;
+    vz_accum += dz * coeff + scaled_normal_dot_force * normal_t2;
   };
 
   panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
-                                                 skfie_contribution);
+                                                   skfie_contribution);
 }
 
 class Periphery {
