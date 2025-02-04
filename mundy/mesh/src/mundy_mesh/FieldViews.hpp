@@ -40,7 +40,7 @@
 #include <mundy_math/Matrix3.hpp>          // for mundy::math::get_matrix3_view and mundy::math::Matrix3
 #include <mundy_math/Quaternion.hpp>       // for mundy::math::get_quaternion_view and mundy::math::Quaternion
 #include <mundy_math/Vector3.hpp>          // for mundy::math::get_vector3_view and mundy::math::Vector3
-
+#include <mundy_math/ScalarWrapper.hpp>    // for mundy::math::get_scalar_view and mundy::math::ScalarView
 namespace mundy {
 
 namespace mesh {
@@ -50,10 +50,11 @@ namespace mesh {
 
 /// \brief A helper function for getting a view of a field's data as a scalar. 1 scalar per entity.
 template <class FieldType, typename StkDebugger = stk::mesh::DefaultStkFieldSyncDebugger>
-inline auto& scalar_field_data(const FieldType& f, stk::mesh::Entity e,
+inline auto scalar_field_data(const FieldType& f, stk::mesh::Entity e,
                                stk::mesh::DummyOverload dummyArg = stk::mesh::DummyOverload(),
                                const char* fileName = HOST_DEBUG_FILE_NAME, int lineNumber = HOST_DEBUG_LINE_NUMBER) {
-  return stk::mesh::field_data(f, e, dummyArg, fileName, lineNumber)[0];
+  return math::get_scalar_view<typename FieldType::value_type>(
+      stk::mesh::field_data(f, e, dummyArg, fileName, lineNumber));
 }
 
 /// \brief A helper function for getting a view of a field's data as a Vector3. 3 scalars per entity.
@@ -104,6 +105,12 @@ inline auto aabb_field_data(const FieldType& f, stk::mesh::Entity e,
 
 //! \name stk::mesh::NgpField data views
 ///@{
+
+/// \brief A helper function for getting a view of a field's data as a ScalarWrapper.
+template <class FieldType>
+inline auto scalar_field_data(FieldType& f, const stk::mesh::FastMeshIndex& i) {
+  return math::get_owning_scalar<typename FieldType::value_type>(f(i));
+}
 
 /// \brief A helper function for getting a view of a field's data as a Vector3
 template <class FieldType>

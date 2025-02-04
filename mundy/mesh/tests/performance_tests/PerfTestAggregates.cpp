@@ -145,8 +145,8 @@ std::pair<TimingResults, TimingResults> run_test_for_fields(const stk::mesh::Bul
   sphere_data.for_each([one_over_6pi_mu](auto& sphere_view) {
     auto force = sphere_view.template get<FORCE>(0);
     auto velocity = sphere_view.template get<VELOCITY>(0);
-    double& radius = sphere_view.template get<RADIUS>();
-    velocity = one_over_6pi_mu * force / radius;
+    auto radius = sphere_view.template get<RADIUS>();
+    velocity = one_over_6pi_mu * force / radius[0];
   });
   double acc_velocity_time = acc_velocity_timer.seconds();
 
@@ -213,7 +213,7 @@ void run_test() {
     vector3_field_data(node_center_field, node).set(1.1 * i, 2.2 * i, 3.3);
     vector3_field_data(node_force_field, node).set(5.0, 6.0, 7.0);
     vector3_field_data(node_velocity_field, node).set(1.0, 2.0, 3.0);
-    scalar_field_data(elem_radius_field, elem) = 0.5;
+    scalar_field_data(elem_radius_field, elem).set(0.5);
   }
   bulk_data.modification_end();
 

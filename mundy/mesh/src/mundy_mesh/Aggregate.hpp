@@ -134,11 +134,8 @@ class ScalarFieldComponent : public FieldComponentBase {
   }
 
   /// \brief Fetch the value of the field at the given entity
-  /// Notice that we follow view conventions and return a non-const reference to the ScalarType
-  /// even when this object is const. This is because a const view simply states that the view itself
-  /// cannot be modified, not that the data it points to cannot be modified.
-  inline ScalarType& operator()(stk::mesh::Entity entity) const {
-    return stk::mesh::field_data(field_, entity)[0];
+  inline decltype(auto) operator()(stk::mesh::Entity entity) const {
+    return scalar_field_data(field_, entity);
   }
 
   inline stk::mesh::Field<ScalarType>& field() {
@@ -168,7 +165,7 @@ class NgpScalarFieldComponent : public NgpFieldComponentBase {
   /// \brief Fetch the value of the field at the given entity index
   KOKKOS_INLINE_FUNCTION
   decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
-    return ngp_field_(entity_index, 0);
+    return scalar_field_data(ngp_field_, entity_index);
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -1249,8 +1246,10 @@ class EntityView {
   /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
   /// Only works for components of the same rank as the entity
   template <typename Tag>
-    requires(std::decay_t<decltype(parent_.template get_component<Tag>())>::rank == OurRank)
   decltype(auto) get() {
+    static_assert(
+        std::decay_t<decltype(parent_.template get_component<Tag>())>::rank == OurRank,
+        "EntityView::get() called with a tag that does not correspond to a component of the same rank as the entity");
     auto& comp = parent_.template get_component<Tag>();
     return comp(entity_);
   }
@@ -1258,8 +1257,10 @@ class EntityView {
   /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
   /// Only works for components of the same rank as the entity
   template <typename Tag>
-    requires(std::decay_t<decltype(parent_.template get_component<Tag>())>::rank == OurRank)
   decltype(auto) get() const {
+    static_assert(
+        std::decay_t<decltype(parent_.template get_component<Tag>())>::rank == OurRank,
+        "EntityView::get() called with a tag that does not correspond to a component of the same rank as the entity");
     auto& comp = parent_.template get_component<Tag>();
     return comp(entity_);
   }
@@ -1267,8 +1268,11 @@ class EntityView {
   /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
   /// Only works for components of a different rank then the entity
   template <typename Tag>
-    requires(std::decay_t<decltype(parent_.template get_component<Tag>())>::rank != OurRank)
   decltype(auto) get(unsigned connectivity_ordinal) {
+    static_assert(std::decay_t<decltype(parent_.template get_component<Tag>())>::rank != OurRank,
+                  "EntityView::get(ordinal) called with a tag that does not correspond to a component of a different "
+                  "rank than the entity");
+
     using TaggedComponentType = std::decay_t<decltype(parent_.template get_component<Tag>())>;
     static constexpr auto comp_rank = TaggedComponentType::rank;
     auto& comp = parent_.template get_component<Tag>();
@@ -1294,8 +1298,11 @@ class EntityView {
   /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
   /// Only works for components of a different rank then the entity
   template <typename Tag>
-    requires(std::decay_t<decltype(parent_.template get_component<Tag>())>::rank != OurRank)
   decltype(auto) get(unsigned connectivity_ordinal) const {
+    static_assert(std::decay_t<decltype(parent_.template get_component<Tag>())>::rank != OurRank,
+                  "EntityView::get(ordinal) called with a tag that does not correspond to a component of a different "
+                  "rank than the entity");
+
     using TaggedComponentType = std::decay_t<decltype(parent_.template get_component<Tag>())>;
     static constexpr auto comp_rank = TaggedComponentType::rank;
     auto& comp = parent_.template get_component<Tag>();
@@ -1358,8 +1365,10 @@ class NgpEntityView {
   /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
   /// Only works for components of the same rank as the entity
   template <typename Tag>
-    requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank == OurRank)
   KOKKOS_INLINE_FUNCTION decltype(auto) get() {
+    static_assert(
+        std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank == OurRank,
+        "EntityView::get() called with a tag that does not correspond to a component of the same rank as the entity");
     auto& comp = find_component<Tag>(ngp_components_);
     return comp(entity_index_);
   }
@@ -1367,8 +1376,10 @@ class NgpEntityView {
   /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
   /// Only works for components of the same rank as the entity
   template <typename Tag>
-    requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank == OurRank)
   KOKKOS_INLINE_FUNCTION decltype(auto) get() const {
+    static_assert(
+        std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank == OurRank,
+        "EntityView::get() called with a tag that does not correspond to a component of the same rank as the entity");
     auto& comp = find_component<Tag>(ngp_components_);
     return comp(entity_index_);
   }
@@ -1376,8 +1387,11 @@ class NgpEntityView {
   /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
   /// Only works for components of a different rank then the entity
   template <typename Tag>
-    requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank != OurRank)
   KOKKOS_INLINE_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) {
+    static_assert(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank != OurRank,
+                  "EntityView::get(ordinal) called with a tag that does not correspond to a component of a different "
+                  "rank than the entity");
+
     using TaggedComponentType = std::decay_t<decltype(find_component<Tag>(ngp_components_))>;
     static constexpr auto comp_rank = TaggedComponentType::rank;
     auto& comp = find_component<Tag>(ngp_components_);
@@ -1399,8 +1413,11 @@ class NgpEntityView {
   /// \brief Get the data marked by the given tag and fetched using the corresponding accessor
   /// Only works for components of a different rank then the entity
   template <typename Tag>
-    requires(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank != OurRank)
   KOKKOS_INLINE_FUNCTION decltype(auto) get(unsigned connectivity_ordinal) const {
+    static_assert(std::decay_t<decltype(find_component<Tag>(ngp_components_))>::rank != OurRank,
+                  "EntityView::get(ordinal) called with a tag that does not correspond to a component of a different "
+                  "rank than the entity");
+
     using TaggedComponentType = std::decay_t<decltype(find_component<Tag>(ngp_components_))>;
     static constexpr auto comp_rank = TaggedComponentType::rank;
     auto& comp = find_component<Tag>(ngp_components_);

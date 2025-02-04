@@ -151,12 +151,12 @@ TEST(UnitTestAggregate, Accessors) {
   // Fetch the data for the entity via the accessor's operator()
   for (size_t i = 0; i < num_nodes; ++i) {
     stk::mesh::Entity node = bulk_data.get_entity(stk::topology::NODE_RANK, i + 1);
-    double& scalar = scalar_accessor(node);
+    auto scalar = scalar_accessor(node);
     auto vector3 = vector3_accessor(node);
     auto matrix3 = matrix3_accessor(node);
     auto quaternion = quaternion_accessor(node);
     auto aabb = aabb_accessor(node);
-    EXPECT_DOUBLE_EQ(scalar, expected_scalar_data[0]);
+    EXPECT_DOUBLE_EQ(scalar[0], expected_scalar_data[0]);
     for (size_t j = 0; j < 3; ++j) {
       EXPECT_DOUBLE_EQ(vector3[j], expected_vector3_data[j]);
     }
@@ -215,11 +215,11 @@ TEST(UnitTestAggregate, BasicUsage) {
 
   // Fetch the data for the entity via the accessor's operator()
   auto center = center_accessor(node1);
-  double& radius = radius_accessor(elem1);
+  auto radius = radius_accessor(elem1);
   EXPECT_DOUBLE_EQ(center[0], expected_center[0]);
   EXPECT_DOUBLE_EQ(center[1], expected_center[1]);
   EXPECT_DOUBLE_EQ(center[2], expected_center[2]);
-  EXPECT_DOUBLE_EQ(radius, expected_radius);
+  EXPECT_DOUBLE_EQ(radius[0], expected_radius);
 
   // Create an aggregate for the spheres
   const auto collision_sphere_data = make_aggregate<stk::topology::PARTICLE>(bulk_data, sphere_part)
@@ -242,31 +242,35 @@ TEST(UnitTestAggregate, BasicUsage) {
   EXPECT_EQ(sphere_view.topology(), stk::topology::PARTICLE);
   unsigned center_node_con_ordinal = 0;
   auto also_center = sphere_view.get<CENTER>(center_node_con_ordinal);
-  double& also_radius = sphere_view.get<COLLISION_RADIUS>();
+  auto also_radius = sphere_view.get<COLLISION_RADIUS>();
   EXPECT_DOUBLE_EQ(also_center[0], expected_center[0]);
   EXPECT_DOUBLE_EQ(also_center[1], expected_center[1]);
   EXPECT_DOUBLE_EQ(also_center[2], expected_center[2]);
-  EXPECT_DOUBLE_EQ(also_radius, expected_radius);
+  EXPECT_DOUBLE_EQ(also_radius[0], expected_radius);
 
   collision_sphere_data.for_each([&expected_center, &expected_radius, &elem1](auto& other_sphere_view) {
-    // Because calling .template get<TAG>() is syntactically awkward, we offer a get<TAG>(view) method
+    // To avoid having users worry about the return type of get<TAG>() and if it returns a reference or a view,
+    // we switched to always returning a view even if the return type is a scalar. This means that you should always
+    // use auto to capture the return value of get<TAG>(). ScalarViews are just VectorViews of size 1, so they should
+    // feel the same to the user and have all the same operators/operations.
     auto c = other_sphere_view.template get<CENTER>(0);
-    double& r = other_sphere_view.template get<COLLISION_RADIUS>();
+    auto r = other_sphere_view.template get<COLLISION_RADIUS>();
 
+    // Because calling .template get<TAG>() is syntactically awkward, we offer a get<TAG>(view) method
     auto c2 = get<CENTER>(other_sphere_view, 0);
-    double& r2 = get<COLLISION_RADIUS>(other_sphere_view);
+    auto r2 = get<COLLISION_RADIUS>(other_sphere_view);
 
     // There is only one sphere, so we can perform the same checks as above
     EXPECT_DOUBLE_EQ(c[0], expected_center[0]);
     EXPECT_DOUBLE_EQ(c[1], expected_center[1]);
     EXPECT_DOUBLE_EQ(c[2], expected_center[2]);
-    EXPECT_DOUBLE_EQ(r, expected_radius);
+    EXPECT_DOUBLE_EQ(r[0], expected_radius);
 
     EXPECT_DOUBLE_EQ(c2[0], expected_center[0]);
     EXPECT_DOUBLE_EQ(c2[1], expected_center[1]);
     EXPECT_DOUBLE_EQ(c2[2], expected_center[2]);
-    EXPECT_DOUBLE_EQ(r2, expected_radius);
-    
+    EXPECT_DOUBLE_EQ(r2[0], expected_radius);
+
     EXPECT_EQ(other_sphere_view.entity(), elem1);
     EXPECT_EQ(other_sphere_view.rank(), stk::topology::ELEM_RANK);
     EXPECT_EQ(other_sphere_view.topology(), stk::topology::PARTICLE);
@@ -315,8 +319,8 @@ TEST(UnitTestAggregate, CanonicalExample) {
     vector3_field_data(node_center_field, node).set(1.1 * i, 2.2 * i, 3.3);
     vector3_field_data(node_force_field, node).set(5.0, 6.0, 7.0);
     vector3_field_data(node_velocity_field, node).set(1.0, 2.0, 3.0);
-    scalar_field_data(elem_radius_field, elem) = 0.5;
-    scalar_field_data(elem_mass_field, elem) = 1.0;
+    scalar_field_data(elem_radius_field, elem).set(0.5);
+    scalar_field_data(elem_mass_field, elem).set(1.0);
   }
   bulk_data.modification_end();
 

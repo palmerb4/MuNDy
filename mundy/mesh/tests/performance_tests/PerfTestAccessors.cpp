@@ -136,8 +136,8 @@ void run_test() {
   for (size_t t = 0; t < num_trials; ++t) {
     for (size_t i = 0; i < num_nodes; ++i) {
       stk::mesh::Entity node = nodes[i];
-      double& scalar = scalar_accessor(node);
-      scalar += i;
+      auto scalar = scalar_accessor(node);
+      scalar[0] += i;
     }
   }
   double scalar_accessor_time = scalar_accessor_timer.seconds() / num_trials;
