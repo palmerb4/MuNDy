@@ -17,6 +17,7 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 SET(NOINSTALLHEADERS 
   src/mundy_core/attribute_unused.hpp
   src/mundy_core/MakeStringArray.hpp
+  src/mundy_core/NgpPool.hpp
   src/mundy_core/NgpView.hpp
   src/mundy_core/OurAnyNumberParameterEntryValidator.hpp
   src/mundy_core/StringLiteral.hpp
