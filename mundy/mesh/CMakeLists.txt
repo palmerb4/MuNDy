@@ -15,14 +15,18 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find src/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 SET(NOINSTALLHEADERS 
+  src/mundy_mesh/Aggregate.hpp
   src/mundy_mesh/BulkData.hpp
   src/mundy_mesh/DeclareEntities.hpp
   src/mundy_mesh/FieldViews.hpp
   src/mundy_mesh/fmt_stk_types.hpp
   src/mundy_mesh/ForEachEntity.hpp
+  src/mundy_mesh/impl/LinkedBucketConn.hpp
   src/mundy_mesh/impl/NgpFieldBLASImpl.hpp
+  src/mundy_mesh/LinkData.hpp
   src/mundy_mesh/MeshBuilder.hpp
   src/mundy_mesh/MetaData.hpp
+  src/mundy_mesh/NgpEntityPool.hpp
   src/mundy_mesh/NgpFieldBLAS.hpp
   src/mundy_mesh/NgpUtils.hpp
   src/mundy_mesh/StringToSelector.hpp
@@ -36,9 +40,9 @@ SET(NOINSTALLHEADERS
   )
 
 SET(SOURCES 
+  src/mundy_mesh/DeclareEntities.cpp
   src/mundy_mesh/MeshBuilder.cpp
   src/mundy_mesh/MetaData.cpp
-  src/mundy_mesh/DeclareEntities.cpp
   src/mundy_mesh/StringToSelector.cpp
   src/mundy_mesh/StringToTopology.cpp
   src/mundy_mesh/utils/DestroyFlaggedEntities.cpp

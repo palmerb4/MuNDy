@@ -44,10 +44,12 @@
 #include <stk_mesh/base/Types.hpp>        // for stk::mesh::EntityRank
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>       // for mundy::mesh::BulkData
-#include <mundy_mesh/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
-#include <mundy_mesh/MetaData.hpp>       // for mundy::mesh::MetaData
+#include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
+#include <mundy_mesh/ForEachEntity.hpp>          // for mundy::mesh::for_each_entity_run
+#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
+#include <mundy_mesh/NgpFieldBLAS.hpp>           // for mundy::mesh::field_copy
+#include <mundy_mesh/impl/LinkedBucketConn.hpp>  // for mundy::mesh::impl::LinkedBucketConn
 
 namespace mundy {
 
@@ -90,12 +92,12 @@ namespace mesh {
 /// Instead, use the link data's declare_relation(linker, linked_entity, link_ordinal). This requires that the linker
 /// and linked entity be valid and must be performed consistently for each process that locally owns or shares the given
 /// linker or linked entity. It does not, however, require that the mesh be within a modification cycle. Instead, it
-/// flags the linker as "out-of_sync", requiring that the link_data.synchronize() be called before using
+/// flags the linker as "out-of_sync", requiring that the link_data.propagate_updates() be called before using
 /// for_each_linked_entity or entering a modification cycle. Notice that for_each_link does not require this
 /// synchronization, meaning that dynamic linker creation and destruction can be done in parallel within a for_each_link
 /// loop AND you can continue to perform for_each_link loops while the link data is out-of_sync. Note, even if you plan
-/// on never using for_each_linked_entity, we still need the linked data to be synchronized before entering a
-/// modification cycle so we can properly catch mesh modifications that would invalidate the links.
+/// on never using for_each_linked_entity, we still need the changes to the linked data to be propagated before entering
+/// a modification cycle so we can properly catch mesh modifications that would invalidate the links.
 ///
 /// ## Looping over Links and Linked Entities
 /// Through details which are intentionally hidden, users can either loop over each link (thread parallel
@@ -299,6 +301,7 @@ class LinkMetaData {
     meta_data_.declare_part_subset(universal_link_part_, part);
     return part;
   }
+  //@}
 
  protected:
   //! \name Internal aliases
@@ -323,6 +326,7 @@ class LinkMetaData {
         meta_data_(meta_data),
         link_rank_(link_rank),
         linked_entities_field_(meta_data.declare_field<entity_value_t>(link_rank_, "MUNDY_LINKED_ENTITIES")),
+        linked_entities_crs_field_(meta_data.declare_field<entity_value_t>(link_rank_, "MUNDY_LINKED_ENTITIES_CRS")),
         linked_entity_ids_field_(meta_data.declare_field<entity_id_value_t>(link_rank_, "MUNDY_LINKED_ENTITY_IDS")),
         linked_entity_ranks_field_(
             meta_data.declare_field<entity_rank_value_t>(link_rank_, "MUNDY_LINKED_ENTITY_RANKS")),
@@ -353,6 +357,14 @@ class LinkMetaData {
   }
   linked_entities_field_t &linked_entities_field() {
     return linked_entities_field_;
+  }
+
+  /// \brief Fetch the linked entities field (as last seen by the CRS).
+  const linked_entities_field_t &linked_entities_crs_field() const {
+    return linked_entities_crs_field_;
+  }
+  linked_entities_field_t &linked_entities_crs_field() {
+    return linked_entities_crs_field_;
   }
 
   /// \brief Fetch the linked entity bucket id field.
@@ -391,6 +403,7 @@ class LinkMetaData {
         link_dimensionality, static_cast<entity_rank_value_t>(stk::topology::INVALID_RANK));
     int initial_link_crs_needs_updated[1] = {true};
     stk::mesh::put_field_on_mesh(linked_entities_field_, part, link_dimensionality, initial_linked_entities.data());
+    stk::mesh::put_field_on_mesh(linked_entities_crs_field_, part, link_dimensionality, initial_linked_entities.data());
     stk::mesh::put_field_on_mesh(linked_entity_ids_field_, part, link_dimensionality, initial_linked_entity_ids.data());
     stk::mesh::put_field_on_mesh(linked_entity_ranks_field_, part, link_dimensionality,
                                  initial_linked_entity_ranks.data());
@@ -417,6 +430,7 @@ class LinkMetaData {
   MetaData &meta_data_;
   stk::mesh::EntityRank link_rank_;
   linked_entities_field_t &linked_entities_field_;
+  linked_entities_field_t &linked_entities_crs_field_;
   linked_entity_ids_field_t &linked_entity_ids_field_;
   linked_entity_ranks_field_t &linked_entity_ranks_field_;
   linked_entity_bucket_ids_field_t &linked_entity_bucket_ids_field_;
@@ -529,7 +543,8 @@ class LinkData {
     stk::mesh::field_data(linked_es_field, linker)[link_ordinal] = linked_entity.local_offset();
     stk::mesh::field_data(linked_e_ids_field, linker)[link_ordinal] = bulk_data_.identifier(linked_entity);
     stk::mesh::field_data(linked_e_ranks_field, linker)[link_ordinal] = bulk_data_.entity_rank(linked_entity);
-    stk::mesh::field_data(linked_e_bucket_ids_field, linker)[link_ordinal] = bulk_data_.bucket(linked_entity).bucket_id();
+    stk::mesh::field_data(linked_e_bucket_ids_field, linker)[link_ordinal] =
+        bulk_data_.bucket(linked_entity).bucket_id();
     stk::mesh::field_data(linked_e_bucket_ords_field, linker)[link_ordinal] = bulk_data_.bucket_ordinal(linked_entity);
     stk::mesh::field_data(link_needs_updated_field, linker)[0] = true;
   }
@@ -550,6 +565,7 @@ class LinkData {
     auto &linked_e_bucket_ords_field = link_meta_data_.linked_entity_bucket_ords_field();
     auto &link_needs_updated_field = link_meta_data_.link_crs_needs_updated_field();
 
+    // Intentionally avoids updating the CRS linked entities field so that we can properly detect deletions.
     stk::mesh::field_data(linked_es_field, linker)[link_ordinal] = stk::mesh::Entity().local_offset();
     stk::mesh::field_data(linked_e_ids_field, linker)[link_ordinal] = stk::mesh::EntityId();
     stk::mesh::field_data(linked_e_ranks_field, linker)[link_ordinal] =
@@ -600,12 +616,145 @@ class LinkData {
     auto &linked_e_ranks_field = link_meta_data_.linked_entity_ranks_field();
     return static_cast<stk::mesh::EntityRank>(stk::mesh::field_data(linked_e_ranks_field, linker)[link_ordinal]);
   }
+
+  void propagate_updates() {
+    // 1. get each stk link bucket,
+    // 2. get the key for that bucket's partition,
+    // 3. insert a new partition conn into the map if one doesn't already exist,
+    // 4. loop over each link in said stk partition
+    // 5. if the link is out of sync, loop over each of the linked entities and its crs version
+    // 6. if the linked entity and its crs version are the same, the connectivity is in sync, skip
+    // 7. if the linked entity is valid add the linker to the end of the linked entity's connectivity
+    // 8. set all entities to up-to-data and stash current crs entities.
+    using ConnectedEntities = stk::util::StridedArray<const stk::mesh::Entity>;
+
+    stk::mesh::BucketVector link_buckets =
+        bulk_data_.get_buckets(link_meta_data_.link_rank(), link_meta_data_.universal_link_part());
+    for (stk::mesh::Bucket *link_bucket : link_buckets) {
+      unsigned link_dim = get_linker_dimensionality(*link_bucket);
+      PartitionKey partition_key = get_partition_key(link_bucket->supersets());
+      LinkedPartitionConn &linked_partition_conn = partition_to_linked_conn[partition_key];
+      for (const stk::mesh::Entity &linker : *link_bucket) {
+        const auto &link_needs_updated = link_meta_data_.link_crs_needs_updated_field();
+        const bool is_out_of_sync = stk::mesh::field_data(link_needs_updated, linker)[0];
+        if (!is_out_of_sync) {
+          continue;
+        }
+
+        const auto &linked_es_field = link_meta_data_.linked_entities_field();
+        const auto &linked_es_field_crs = link_meta_data_.linked_entities_crs_field();
+        for (unsigned i = 0; i < link_dim; ++i) {
+          stk::mesh::Entity linked_entity = get_linked_entity(linker, i);
+          stk::mesh::Entity old_linked_entity = get_linked_entity_crs(linker, i);
+
+          if (linked_entity == old_linked_entity) {
+            // Already up to date, skip
+            continue;
+          }
+
+          // If the old_linked_entity is valid, remove the linker from its connectivity
+          if (bulk_data_.is_valid(old_linked_entity)) {
+            unsigned old_linked_entity_ord = bulk_data_.bucket_ordinal(old_linked_entity);
+            impl::LinkedBucketConn &old_linked_bucket_conn =
+                linked_partition_conn[bulk_data_.bucket_ptr(old_linked_entity)];
+
+            // Determine where in our connectivity the linker is located and remove it
+            ConnectedEntities connected_links = old_linked_bucket_conn.get_connected_entities(old_linked_entity_ord);
+            unsigned num_connected_links = connected_links.size();
+            for (unsigned j = 0; j < num_connected_links; ++j) {
+              if (connected_links[j] == linker) {
+                old_linked_bucket_conn.remove_connectivity(old_linked_entity_ord, linker, j);
+                break;
+              }
+            }
+          }
+
+          // If the new linked entity is valid, add the linker to the end of its connectivity
+          // PLEASE NOTE: We assume that a link will never link to the same entity multiple times
+          //  we enforce this in debug mode.
+          if (bulk_data_.is_valid(linked_entity)) {
+            unsigned linked_entity_ord = bulk_data_.bucket_ordinal(linked_entity);
+            impl::LinkedBucketConn &linked_bucket_conn = linked_partition_conn[bulk_data_.bucket_ptr(linked_entity)];
+
+            // Check if the linker is already connected to the linked entity
+            ConnectedEntities connected_links = linked_bucket_conn.get_connected_entities(linked_entity_ord);
+            unsigned num_connected_links = connected_links.size();
+
+#ifndef NDEBUG
+            // If in debug, check if the linker is already connected to the linked entity.
+            bool linker_already_connected = false;
+            for (unsigned j = 0; j < num_connected_links; ++j) {
+              if (connected_links[j] == linker) {
+                linker_already_connected = true;
+              }
+            }
+            MUNDY_THROW_ASSERT(
+                !linker_already_connected, std::logic_error,
+                "Attempting to add a linker to linked entity crs relation that somehow already exists???."
+                "This is possible if the link somehow links the same entity multiple times.");
+#endif
+            // Assume that the linker is not already connected and add it to the end
+            linked_bucket_conn.add_connectivity(linked_entity_ord, linker, num_connected_links);
+          }
+        }
+
+        // At this point, the CRS and COO link connectivity for this link are in sync.
+        // We can now reset the out-of-sync flag.
+        stk::mesh::field_data(link_needs_updated, linker)[0] = false;
+      }
+    }
+
+    // At this point, all links are in sync. We can copy the current linked entities field to the crs linked entities
+    // field for the current set of links.
+    using entity_value_t = stk::mesh::Entity::entity_value_type;
+    field_copy<entity_value_t>(link_meta_data_.linked_entities_field(),      // source
+                                            link_meta_data_.linked_entities_crs_field(),  // target
+                                            link_meta_data_.universal_link_part(),        //
+                                            stk::ngp::HostExecSpace());
+  }
   //@}
 
  protected:
-  //! \name Constructor
+  //! \name Internal getters
   //@{
 
+  /// \brief Get the (CRS) linked entity for a given linker and link ordinal.
+  ///
+  /// \param linker [in] The linker (must be valid and of the correct rank).
+  /// \param link_ordinal [in] The ordinal of the linked entity.
+  /// \return The linked entity.
+  inline stk::mesh::Entity get_linked_entity_crs(const stk::mesh::Entity &linker, unsigned link_ordinal) const {
+    MUNDY_THROW_ASSERT(link_meta_data_.link_rank() == bulk_data_.entity_rank(linker), std::invalid_argument,
+                       "Linker is not of the correct rank.");
+    MUNDY_THROW_ASSERT(bulk_data_.is_valid(linker), std::invalid_argument, "Linker is not valid.");
+
+    auto &linked_es_field = link_meta_data_.linked_entities_crs_field();
+    return stk::mesh::Entity(stk::mesh::field_data(linked_es_field, linker)[link_ordinal]);
+  }
+
+  /// \brief Get the dimensionality of a linker
+  /// \param linker [in] The linker (must be valid and of the correct rank).
+  /// \return The dimensionality of the linker.
+  inline unsigned get_linker_dimensionality(const stk::mesh::Entity &linker) const {
+    MUNDY_THROW_ASSERT(link_meta_data_.link_rank() == bulk_data_.entity_rank(linker), std::invalid_argument,
+                       "Linker is not of the correct rank.");
+    MUNDY_THROW_ASSERT(bulk_data_.is_valid(linker), std::invalid_argument, "Linker is not valid.");
+
+    return stk::mesh::field_scalars_per_entity(link_meta_data_.linked_entities_field(), linker);
+  }
+
+  /// \brief Get the dimensionality of a linker bucket
+  /// \param linker_bucket [in] The linker bucket (must be of the correct rank and a subset of our universal link part).
+  /// \return The dimensionality of linkers in the bucket.
+  inline unsigned get_linker_dimensionality(const stk::mesh::Bucket &linker_bucket) const {
+    MUNDY_THROW_ASSERT(link_meta_data_.link_rank() == linker_bucket.entity_rank(), std::invalid_argument,
+                       "Linker bucket is not of the correct rank.");
+    MUNDY_THROW_ASSERT(linker_bucket.member(link_meta_data_.universal_link_part()), std::invalid_argument,
+                       "Linker bucket is not a subset of our universal link part.");
+
+    auto &linked_es_field = link_meta_data_.linked_entities_field();
+    return stk::mesh::field_scalars_per_entity(linked_es_field, linker_bucket);
+  }
   //@}
 
  private:
@@ -615,12 +764,38 @@ class LinkData {
   friend class NgpLinkData;
   //@}
 
+  //! \name Type aliases
+  //@{
+
+  using PartitionKey = stk::mesh::OrdinalVector;  // sorted list of part ordinals
+  using LinkedPartitionConn = std::map<const stk::mesh::Bucket *, impl::LinkedBucketConn>;
+  //@}
+
+  //! \name Private helpers
+  //@{
+
+  PartitionKey get_partition_key(const stk::mesh::PartVector &link_parts) {
+    size_t num_parts = link_parts.size();
+    stk::mesh::OrdinalVector link_part_ords(num_parts);
+    for (size_t i = 0; i < num_parts; ++i) {
+      link_part_ords[i] = link_parts[i]->mesh_meta_data_ordinal();
+    }
+    return get_partition_key(link_part_ords);
+  }
+
+  PartitionKey get_partition_key(stk::mesh::OrdinalVector link_part_ords) {
+    std::sort(link_part_ords.begin(), link_part_ords.end());
+    return link_part_ords;
+  }
+  //@}
+
   //! \name Internal members
   //@{
 
   BulkData &bulk_data_;
   MetaData &mesh_meta_data_;
   LinkMetaData link_meta_data_;
+  std::map<PartitionKey, LinkedPartitionConn> partition_to_linked_conn;  ///< Our CRS connectivity per link partition
   //@}
 };  // LinkData
 

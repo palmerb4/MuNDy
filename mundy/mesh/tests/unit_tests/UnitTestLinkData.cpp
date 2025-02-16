@@ -57,7 +57,7 @@ TEST(UnitTestLinkData, BasicUsage) {
   // Setup
   MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_spatial_dimension(3);
-  builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+  builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "LINK"});
   std::shared_ptr<MetaData> meta_data_ptr = builder.create_meta_data();
   MetaData& meta_data = *meta_data_ptr;
   meta_data.use_simple_fields();
