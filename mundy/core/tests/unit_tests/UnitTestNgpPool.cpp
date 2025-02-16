@@ -231,7 +231,7 @@ TEST(NgpPoolTest, BatchedAdditionsFetches) {
   }
 
   // Acquire all values
-  auto values = pool.acquire(capacity);
+  auto values = pool.batch_acquire(capacity);
   EXPECT_EQ(values.extent(0), capacity);
   EXPECT_EQ(pool.size(), 0);
   for (size_t i = 0; i < values.extent(0); ++i) {
@@ -240,7 +240,7 @@ TEST(NgpPoolTest, BatchedAdditionsFetches) {
   }
 
   // Add the values back
-  pool.add(values);
+  pool.batch_add(values);
   EXPECT_EQ(pool.size(), 10);
   for (size_t i = 0; i < 10; ++i) {
     EXPECT_EQ(pool.acquire(), 33);
@@ -248,8 +248,8 @@ TEST(NgpPoolTest, BatchedAdditionsFetches) {
   EXPECT_EQ(pool.size(), 0);
 
   // Acquire a subset of the values
-  pool.add(values);
-  auto values2 = pool.acquire(capacity - 4);
+  pool.batch_add(values);
+  auto values2 = pool.batch_acquire(capacity - 4);
   EXPECT_EQ(values2.extent(0), capacity - 4);
   for (size_t i = 0; i < values2.extent(0); ++i) {
     EXPECT_EQ(values2.view_device()(i), 33);

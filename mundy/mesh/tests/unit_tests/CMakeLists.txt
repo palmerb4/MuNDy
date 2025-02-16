@@ -45,6 +45,14 @@ tribits_add_executable_and_test(
 )
 
 tribits_add_executable_and_test(
+  UnitTestLinkData
+  SOURCES
+    UnitTestLinkData.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
+
+tribits_add_executable_and_test(
   UnitTestStringToSelector
   SOURCES
     UnitTestStringToSelector.cpp
@@ -60,16 +68,23 @@ tribits_add_executable_and_test(
   )
 
 tribits_add_executable_and_test(
+  UnitTestEntityPool
+  SOURCES
+  UnitTestEntityPool.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  )
+
+tribits_add_executable_and_test(
   UnitTestFieldBLAS
   SOURCES
   UnitTestFieldBLAS.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
   )
 
-  tribits_add_executable_and_test(
-    UnitTestAggregate
-    SOURCES
-    UnitTestAggregate.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    NUM_MPI_PROCS 1
-  )
+tribits_add_executable_and_test(
+  UnitTestAggregate
+  SOURCES
+  UnitTestAggregate.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1
+)
