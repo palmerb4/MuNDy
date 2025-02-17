@@ -253,7 +253,7 @@ TEST(UnitTestLinkData, BasicUsage) {
     ngp_link_data.sync_to_host();
   };
   run_ngp_test();
-  
+
   // The host ordering should now be swapped
   for (unsigned i = 0; i < link_and_3_linked_entities.size(); ++i) {
     const auto& [link, linked_entity_a, linked_entity_b, linked_entity_c] = link_and_3_linked_entities[i];
@@ -273,6 +273,31 @@ TEST(UnitTestLinkData, BasicUsage) {
     EXPECT_EQ(link_data.get_linked_entity_id(link, 1), bulk_data.entity_key(linked_entity_b).id());
     EXPECT_EQ(link_data.get_linked_entity_id(link, 2), bulk_data.entity_key(linked_entity_a).id());
   }
+
+  // Ok, now, take these changes and propagate them to the crs connectivity
+  link_data.propagate_updates();
+
+  std::cout << "for_each_linked_entity_run" << std::endl;
+  for_each_linked_entity_run(link_data, [](const LinkData& link_data, const stk::mesh::Entity& linked_entity,
+                                           const stk::mesh::Entity& linker) {
+    // Print if the entities are valid. and if so print their key
+    bool linked_entity_is_valid = link_data.bulk_data().is_valid(linked_entity);
+    bool linker_is_valid = link_data.bulk_data().is_valid(linker);
+
+    if (linked_entity_is_valid) {
+      std::cout << "linked_entity: " << link_data.bulk_data().entity_key(linked_entity);
+    } else {
+      std::cout << "linked_entity: INVALID";
+    }
+
+    if (linker_is_valid) {
+      std::cout << " linker: " << link_data.bulk_data().entity_key(linker);
+    } else {
+      std::cout << " linker: INVALID";
+    }
+
+    std::cout << std::endl;
+  });
 }
 
 }  // namespace

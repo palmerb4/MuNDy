@@ -708,9 +708,9 @@ class LinkData {
     // field for the current set of links.
     using entity_value_t = stk::mesh::Entity::entity_value_type;
     field_copy<entity_value_t>(link_meta_data_.linked_entities_field(),      // source
-                                            link_meta_data_.linked_entities_crs_field(),  // target
-                                            link_meta_data_.universal_link_part(),        //
-                                            stk::ngp::HostExecSpace());
+                               link_meta_data_.linked_entities_crs_field(),  // target
+                               link_meta_data_.universal_link_part(),        //
+                               stk::ngp::HostExecSpace());
   }
   //@}
 
@@ -762,13 +762,17 @@ class LinkData {
   //@{
 
   friend class NgpLinkData;
+
+  template <typename FunctionToRunPerLinkedEntity>
+  friend void for_each_linked_entity_run(const LinkData &, const stk::mesh::Selector &, const stk::mesh::Selector &,
+                                         const FunctionToRunPerLinkedEntity &);
   //@}
 
   //! \name Type aliases
   //@{
 
   using PartitionKey = stk::mesh::OrdinalVector;  // sorted list of part ordinals
-  using LinkedPartitionConn = std::map<const stk::mesh::Bucket *, impl::LinkedBucketConn>;
+  using LinkedPartitionConn = std::map<stk::mesh::Bucket *, impl::LinkedBucketConn>;
   //@}
 
   //! \name Private helpers
@@ -1033,18 +1037,44 @@ inline NgpLinkData get_updated_ngp_data(const LinkData &link_data) {
   return NgpLinkData(link_data);
 }
 
+//! \name Link iteration
+//@{
+
 template <typename FunctionToRunPerLink>
 void for_each_link_run(const LinkData &link_data, const stk::mesh::Selector &linker_subset_selector,
                        const FunctionToRunPerLink &functor) {
-  ::mundy::mesh::for_each_entity_run(link_data.bulk_data(), link_data.link_meta_data().link_rank(),
-                                     linker_subset_selector & link_data.link_meta_data().universal_link_part(),
-                                     functor);
+  if constexpr (std::is_invocable_v<FunctionToRunPerLink, const BulkData &, const stk::mesh::Entity &>) {
+    // Just use the standard for_each_entity_run
+    ::mundy::mesh::for_each_entity_run(link_data.bulk_data(), link_data.link_meta_data().link_rank(),
+                                       linker_subset_selector & link_data.link_meta_data().universal_link_part(),
+                                       functor);
+  } else {
+    // Use the link data version
+    const stk::mesh::BucketVector &buckets =
+        link_data.bulk_data().get_buckets(link_data.link_meta_data().link_rank(),
+                                          linker_subset_selector & link_data.link_meta_data().universal_link_part());
+    const size_t num_buckets = buckets.size();
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+    for (size_t j = 0; j < num_buckets; j++) {
+      stk::mesh::Bucket *bucket = buckets[j];
+      const size_t bucket_size = bucket->size();
+      for (size_t i = 0; i < bucket_size; i++) {
+        if constexpr (std::is_invocable_v<FunctionToRunPerLink, const stk::mesh::BulkData &,
+                                          const stk::mesh::MeshIndex &>) {
+          functor(link_data, stk::mesh::MeshIndex({bucket, i}));
+        } else {
+          functor(link_data, (*bucket)[i]);
+        }
+      }
+    }
+  }
 }
 
 template <typename FunctionToRunPerLink>
 void for_each_link_run(const LinkData &link_data, const FunctionToRunPerLink &functor) {
-  ::mundy::mesh::for_each_entity_run(link_data.bulk_data(), link_data.link_meta_data().link_rank(),
-                                     link_data.link_meta_data().universal_link_part(), functor);
+  for_each_link_run(link_data, link_data.link_meta_data().universal_link_part(), functor);
 }
 
 template <typename FunctionToRunPerLink>
@@ -1057,9 +1087,96 @@ void for_each_link_run(const NgpLinkData &ngp_link_data, const stk::mesh::Select
 
 template <typename FunctionToRunPerLink>
 void for_each_link_run(const NgpLinkData &ngp_link_data, const FunctionToRunPerLink &functor) {
-  ::mundy::mesh::for_each_entity_run(ngp_link_data.ngp_mesh(), ngp_link_data.link_rank(),
-                                     ngp_link_data.host_link_data().link_meta_data().universal_link_part(), functor);
+  for_each_link_run(ngp_link_data, ngp_link_data.host_link_data().link_meta_data().universal_link_part(), functor);
 }
+//@}
+
+//! \name Linked entity iteration
+//@{
+
+template <typename FunctionToRunPerLinkedEntity>
+void for_each_linked_entity_run(const LinkData &link_data, const stk::mesh::Selector &linked_entity_selector,
+                                const stk::mesh::Selector &linker_subset_selector,
+                                const FunctionToRunPerLinkedEntity &functor) {
+  // Procedure:
+  //  1. If in debug, validate that all links are up to date
+  //  2. Loop over each linker partition in serial and check if the partition is in the given selector
+  //  3. Loop over each linked bucket in parallel
+  //  4. For each entity in the bucket, loop over each of its linked entities in serial and evaluate the functor
+
+#ifndef NDEBUG
+  for_each_link_run(link_data, [](const LinkData &link_data, const stk::mesh::Entity &linker) {
+    const auto &link_needs_updated = link_data.link_meta_data().link_crs_needs_updated_field();
+    MUNDY_THROW_ASSERT(!stk::mesh::field_data(link_needs_updated, linker)[0], std::logic_error,
+                       "Linker is out of sync with its linked entities. Make sure to call propagate_updates() before "
+                       "using the for_each_linked_entity_run() function.");
+  });
+#endif
+
+  for (auto &[partition_key, linked_partition_conn] : link_data.partition_to_linked_conn) {
+    stk::mesh::PartVector link_parts(partition_key.size());
+    for (size_t i = 0; i < partition_key.size(); ++i) {
+      link_parts[i] = &link_data.mesh_meta_data().get_part(partition_key[i]);
+    }
+
+    stk::mesh::Selector partition_subset = stk::mesh::selectIntersection(link_parts) & linker_subset_selector;
+    stk::mesh::BucketVector link_buckets_in_subset =
+        link_data.bulk_data().get_buckets(link_data.link_meta_data().link_rank(), partition_subset);
+    if (link_buckets_in_subset.empty()) {
+      continue;  // No link buckets in this partition are in the given selector
+    }
+
+    // Get each bucket in the linked_partition_conn keys that is in the given selector.
+    stk::mesh::BucketVector linked_buckets_in_subset;
+    for (auto &[linked_bucket, _] : linked_partition_conn) {
+      if (linked_entity_selector(linked_bucket)) {
+        linked_buckets_in_subset.push_back(linked_bucket);
+      }
+    }
+
+    // Loop over each linked bucket in parallel
+    size_t num_linked_buckets = linked_buckets_in_subset.size();
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+    for (size_t i = 0; i < num_linked_buckets; ++i) {
+      stk::mesh::Bucket *linked_bucket = linked_buckets_in_subset[i];
+
+      auto it = linked_partition_conn.find(linked_bucket); // can't use operator[] because it could insert a new entry
+      MUNDY_THROW_ASSERT(it != linked_partition_conn.end(), std::logic_error,
+                     "Linked bucket not found in linked partition conn map. This is a bug.");
+
+      const impl::LinkedBucketConn &linked_bucket_conn = it->second;
+      size_t linked_bucket_size = linked_bucket->size();
+      for (size_t j = 0; j < linked_bucket_size; ++j) {
+        stk::mesh::Entity linked_entity = (*linked_bucket)[j];
+        using ConnectedEntities = stk::util::StridedArray<const stk::mesh::Entity>;
+        ConnectedEntities connected_links = linked_bucket_conn.get_connected_entities(j);
+        unsigned num_connected_links = connected_links.size();
+
+        // Loop over each of the linked entities in serial and evaluate the functor
+        for (unsigned k = 0; k < num_connected_links; ++k) {
+          stk::mesh::Entity linker = connected_links[k];
+
+          // Two options for functors. Accepts BulkData/LinkData.
+          if constexpr (std::is_invocable_v<FunctionToRunPerLinkedEntity, const stk::mesh::BulkData &,
+                                            const stk::mesh::Entity &, const stk::mesh::Entity &>) {
+            functor(link_data.bulk_data(), linked_entity, linker);
+          } else {
+            functor(link_data, linked_entity, linker);
+          }
+        }
+      }
+    }
+  }
+}
+
+template <typename FunctionToRunPerLinkedEntity>
+void for_each_linked_entity_run(const LinkData &link_data, const FunctionToRunPerLinkedEntity &functor) {
+  for_each_linked_entity_run(link_data, link_data.bulk_data().mesh_meta_data().universal_part(),  //
+                             link_data.link_meta_data().universal_link_part(), functor);
+}
+//@}
 
 }  // namespace mesh
 
