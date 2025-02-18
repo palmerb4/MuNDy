@@ -1591,19 +1591,20 @@ TEST(PeripheryRPYC, SphereQuadPeripheryRPYC) {
   }
 
   // Create a set of tests where we move the sphere towards the periphery in various directions
-  std::vector<std::string> test_types = {"SphereQuadXFx", "SphereQuadYFy", "SphereQuadZFz"};
-  std::vector<mundy::math::Vector3<double>> director = {mundy::math::Vector3<double>(1.0, 0.0, 0.0),
-                                                        mundy::math::Vector3<double>(0.0, 1.0, 0.0),
-                                                        mundy::math::Vector3<double>(0.0, 0.0, 1.0)};
-  std::vector<mundy::math::Vector3<double>> force_director = {mundy::math::Vector3<double>(1.0, 0.0, 0.0),
-                                                              mundy::math::Vector3<double>(0.0, 1.0, 0.0),
-                                                              mundy::math::Vector3<double>(0.0, 0.0, 1.0)};
+  std::vector<std::string> test_types = {"SphereQuadXFx", "SphereQuadYFy", "SphereQuadZFz", "Random"};
+  std::vector<mundy::math::Vector3<double>> director = {
+      mundy::math::Vector3<double>(1.0, 0.0, 0.0), mundy::math::Vector3<double>(0.0, 1.0, 0.0),
+      mundy::math::Vector3<double>(0.0, 0.0, 1.0), mundy::math::Vector3<double>(1.0, 1.0, 1.0)};
+  std::vector<mundy::math::Vector3<double>> force_director = {
+      mundy::math::Vector3<double>(1.0, 0.0, 0.0), mundy::math::Vector3<double>(0.0, 1.0, 0.0),
+      mundy::math::Vector3<double>(0.0, 0.0, 1.0), mundy::math::Vector3<double>(1.0, 1.0, 1.0)};
 
   mfile << "TestType, Order, NumSurfacePoints, Viscosity, SphereRadius, PeripheryRadius, X, Y, Z, Fx, Fy, Fz, Vx, "
-               "Vy, Vz\n";
+           "Vy, Vz\n";
 
   // Build a periphery of a given spectral order (or later, from an external file)
   for (int order = 2; order <= 64; order *= 2) {
+    std::cout << "Order = " << order << std::endl;
     // Create a periphery according to the constructor
     std::vector<double> points_vec;
     std::vector<double> weights_vec;
@@ -1615,15 +1616,21 @@ TEST(PeripheryRPYC, SphereQuadPeripheryRPYC) {
                                                    &normals_vec, include_poles, invert);
     // Create the periphery object
     const size_t num_surface_nodes = weights_vec.size();
-    auto periphery_ptr_ = std::make_shared<mundy::alens::periphery::Periphery>(num_surface_nodes, viscosity);
-    periphery_ptr_->set_surface_positions(points_vec.data())
+    auto periphery_ptr = std::make_shared<mundy::alens::periphery::Periphery>(num_surface_nodes, viscosity);
+    periphery_ptr->set_surface_positions(points_vec.data())
         .set_quadrature_weights(weights_vec.data())
         .set_surface_normals(normals_vec.data());
-    periphery_ptr_->build_inverse_self_interaction_matrix(false);
+    periphery_ptr->build_inverse_self_interaction_matrix(false);
 
     // Loop over the test types (what direction we are moving and the force director)
     for (auto itest = 0; itest < test_types.size(); ++itest) {
       // Loop over the sphere positions moving from the center to the periphery
+      // If the test is the random one, pick a quadrature point at random to look at
+      int random_index = 0;
+      if (itest == 3) {
+        openrand::Philox rng(0, 0);
+        random_index = rng.uniform(0, static_cast<int>(num_surface_nodes) - 1);
+      }
       for (double r = periphery_radius - 5.0; r < periphery_radius; r += dr) {
         // Setup the kokkos vectors for position, radius, force, and velocity, do it here to prevent things from leaking
         // out of scope...
@@ -1633,6 +1640,20 @@ TEST(PeripheryRPYC, SphereQuadPeripheryRPYC) {
         Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> sphere_forces("sphere_forces", 3 * num_spheres);
         Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> sphere_velocities("sphere_velocities",
                                                                                         3 * num_spheres);
+
+        // If the test is the random one, pick a quadrature point at random to look at
+        if (itest == 3) {
+          director[itest][0] = points_vec[3 * random_index];
+          director[itest][1] = points_vec[3 * random_index + 1];
+          director[itest][2] = points_vec[3 * random_index + 2];
+          // Normalize the director for use later with the periphery radius
+          // director[itest] = director[itest] / director[itest].norm();
+          director[itest] = director[itest] / norm(director[itest]);
+          // Force in the same direction as this
+          force_director[itest][0] = director[itest][0];
+          force_director[itest][1] = director[itest][1];
+          force_director[itest][2] = director[itest][2];
+        }
         sphere_positions(0) = director[itest][0] * r;
         sphere_positions(1) = director[itest][1] * r;
         sphere_positions(2) = director[itest][2] * r;
@@ -1648,12 +1669,12 @@ TEST(PeripheryRPYC, SphereQuadPeripheryRPYC) {
 
         // Run the RPYC-Periphery interaction
         auto [final_sphere_velocity, final_sphere_force] = run_periphery_rpyc(
-            viscosity, num_spheres, sphere_positions, sphere_radii, sphere_forces, sphere_velocities, periphery_ptr_);
+            viscosity, num_spheres, sphere_positions, sphere_radii, sphere_forces, sphere_velocities, periphery_ptr);
         mfile << test_types[itest] << ", " << order << ", " << num_surface_nodes << ", " << viscosity << ", "
-                  << sphere_radius << ", " << periphery_radius << ", " << sphere_positions(0) << ", "
-                  << sphere_positions(1) << ", " << sphere_positions(2) << ", " << final_sphere_force[0] << ", "
-                  << final_sphere_force[1] << ", " << final_sphere_force[2] << ", " << final_sphere_velocity[0]
-                  << ", " << final_sphere_velocity[1] << ", " << final_sphere_velocity[2] << std::endl;
+              << sphere_radius << ", " << periphery_radius << ", " << sphere_positions(0) << ", " << sphere_positions(1)
+              << ", " << sphere_positions(2) << ", " << final_sphere_force[0] << ", " << final_sphere_force[1] << ", "
+              << final_sphere_force[2] << ", " << final_sphere_velocity[0] << ", " << final_sphere_velocity[1] << ", "
+              << final_sphere_velocity[2] << std::endl;
       }
     }
   }
@@ -1678,75 +1699,92 @@ TEST(PeripheryRPYC, ExternalQuadPeripheryRPYC) {
   }
 
   // Create a set of tests where we move the sphere towards the periphery in various directions
-  std::vector<std::string> test_types = {"Ndiv3Nelm1280"};
-  std::vector<std::string> external_quadrature_points_filname = {"./sphere_triangle_points_1280.dat"};
-  std::vector<std::string> external_quadrature_weights_filename = {"./sphere_triangle_weights_1280.dat"};
-  std::vector<std::string> external_quadrature_normals_filename = {"./sphere_triangle_normals_1280.dat"};
-  std::vector<mundy::math::Vector3<double>> director = {mundy::math::Vector3<double>(1.0, 0.0, 0.0),
-                                                        mundy::math::Vector3<double>(0.0, 1.0, 0.0),
-                                                        mundy::math::Vector3<double>(0.0, 0.0, 1.0)};
-  std::vector<mundy::math::Vector3<double>> force_director = {mundy::math::Vector3<double>(1.0, 0.0, 0.0),
-                                                              mundy::math::Vector3<double>(0.0, 1.0, 0.0),
-                                                              mundy::math::Vector3<double>(0.0, 0.0, 1.0)};
+  std::vector<std::string> test_types = {"SphereQuadXFx", "SphereQuadYFy", "SphereQuadZFz", "Random"};
+  std::vector<std::string> external_names = {"Ndiv3Nelm1280", "Ndiv3Nelm3840", "Ndiv3Nelm5120"};
+  std::vector<int> external_num_quadrature_points = {1280, 3840, 5120};
+  std::vector<std::string> external_quadrature_points_filename = {
+      "./sphere_triangle_points_1280.dat", "./sphere_triangle_points_3840.dat", "./sphere_triangle_points_5120.dat"};
+  std::vector<std::string> external_quadrature_weights_filename = {
+      "./sphere_triangle_weights_1280.dat", "./sphere_triangle_weights_3840.dat", "./sphere_triangle_weights_5120.dat"};
+  std::vector<std::string> external_quadrature_normals_filename = {
+      "./sphere_triangle_normals_1280.dat", "./sphere_triangle_normals_3840.dat", "./sphere_triangle_normals_5120.dat"};
+  std::vector<mundy::math::Vector3<double>> director = {
+      mundy::math::Vector3<double>(1.0, 0.0, 0.0), mundy::math::Vector3<double>(0.0, 1.0, 0.0),
+      mundy::math::Vector3<double>(0.0, 0.0, 1.0), mundy::math::Vector3<double>(1.0, 1.0, 1.0)};
+  std::vector<mundy::math::Vector3<double>> force_director = {
+      mundy::math::Vector3<double>(1.0, 0.0, 0.0), mundy::math::Vector3<double>(0.0, 1.0, 0.0),
+      mundy::math::Vector3<double>(0.0, 0.0, 1.0), mundy::math::Vector3<double>(1.0, 1.0, 1.0)};
 
-  mfile << "TestType, Order, NumSurfacePoints, Viscosity, SphereRadius, PeripheryRadius, X, Y, Z, Fx, Fy, Fz, Vx, "
-               "Vy, Vz\n";
+  mfile << "TestType, QuadFile, NumSurfacePoints, Viscosity, SphereRadius, PeripheryRadius, X, Y, Z, Fx, Fy, Fz, Vx, "
+           "Vy, Vz\n";
 
-  // // Build a periphery of a given spectral order (or later, from an external file)
-  // for (int order = 2; order <= 64; order *= 2) {
-  //   // Create a periphery according to the constructor
-  //   std::vector<double> points_vec;
-  //   std::vector<double> weights_vec;
-  //   std::vector<double> normals_vec;
-  //   const bool invert = true;
-  //   const bool include_poles = false;
-  //   const size_t spectral_order = order;
-  //   mundy::alens::periphery::gen_sphere_quadrature(spectral_order, periphery_radius, &points_vec, &weights_vec,
-  //                                                  &normals_vec, include_poles, invert);
-  //   // Create the periphery object
-  //   const size_t num_surface_nodes = weights_vec.size();
-  //   auto periphery_ptr_ = std::make_shared<mundy::alens::periphery::Periphery>(num_surface_nodes, viscosity);
-  //   periphery_ptr_->set_surface_positions(points_vec.data())
-  //       .set_quadrature_weights(weights_vec.data())
-  //       .set_surface_normals(normals_vec.data());
-  //   periphery_ptr_->build_inverse_self_interaction_matrix(false);
+  // Loop over the external names, rather than the order of the scheme, for these
+  for (auto itype = 0; itype < external_names.size(); ++itype) {
+    auto periphery_ptr =
+        std::make_shared<mundy::alens::periphery::Periphery>(external_num_quadrature_points[itype], viscosity);
+    periphery_ptr->set_surface_positions(external_quadrature_points_filename[itype].c_str())
+        .set_quadrature_weights(external_quadrature_weights_filename[itype].c_str())
+        .set_surface_normals(external_quadrature_normals_filename[itype].c_str());
+    periphery_ptr->build_inverse_self_interaction_matrix(false);
 
-  //   // Loop over the test types (what direction we are moving and the force director)
-  //   for (auto itest = 0; itest < test_types.size(); ++itest) {
-  //     // Loop over the sphere positions moving from the center to the periphery
-  //     for (double r = periphery_radius - 5.0; r < periphery_radius; r += dr) {
-  //       // Setup the kokkos vectors for position, radius, force, and velocity, do it here to prevent things from leaking
-  //       // out of scope...
-  //       Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> sphere_positions("sphere_positions",
-  //                                                                                      3 * num_spheres);
-  //       Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> sphere_radii("sphere_radii", 1 * num_spheres);
-  //       Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> sphere_forces("sphere_forces", 3 * num_spheres);
-  //       Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> sphere_velocities("sphere_velocities",
-  //                                                                                       3 * num_spheres);
-  //       sphere_positions(0) = director[itest][0] * r;
-  //       sphere_positions(1) = director[itest][1] * r;
-  //       sphere_positions(2) = director[itest][2] * r;
-  //       sphere_radii(0) = sphere_radius;
-  //       // Unit force along the X-axis
-  //       sphere_forces(0) = force_director[itest][0];
-  //       sphere_forces(1) = force_director[itest][1];
-  //       sphere_forces(2) = force_director[itest][2];
-  //       // Include the dry velocity along the X-axis
-  //       sphere_velocities(0) = force_director[itest][0] / (6.0 * M_PI * viscosity * sphere_radius);
-  //       sphere_velocities(1) = force_director[itest][1] / (6.0 * M_PI * viscosity * sphere_radius);
-  //       sphere_velocities(2) = force_director[itest][2] / (6.0 * M_PI * viscosity * sphere_radius);
+    // Loop over the test types (what direction we are moving and the force director)
+    for (auto itest = 0; itest < test_types.size(); ++itest) {
+      // Loop over the sphere positions moving from the center to the periphery
+      // If the test is the random one, pick a quadrature point at random to look at
+      int random_index = 0;
+      if (itest == 3) {
+        openrand::Philox rng(0, 0);
+        random_index = rng.uniform(0, static_cast<int>(external_num_quadrature_points[itype]) - 1);
+      }
+      for (double r = periphery_radius - 5.0; r < periphery_radius; r += dr) {
+        // Setup the kokkos vectors for position, radius, force, and velocity, do it here to prevent things from
+        // leaking out of scope...
+        Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> sphere_positions("sphere_positions",
+                                                                                       3 * num_spheres);
+        Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> sphere_radii("sphere_radii", 1 * num_spheres);
+        Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> sphere_forces("sphere_forces", 3 * num_spheres);
+        Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> sphere_velocities("sphere_velocities",
+                                                                                        3 * num_spheres);
 
-  //       // Run the RPYC-Periphery interaction
-  //       auto [final_sphere_velocity, final_sphere_force] = run_periphery_rpyc(
-  //           viscosity, num_spheres, sphere_positions, sphere_radii, sphere_forces, sphere_velocities, periphery_ptr_);
-  //       mfile << test_types[itest] << ", " << order << ", " << num_surface_nodes << ", " << viscosity << ", "
-  //                 << sphere_radius << ", " << periphery_radius << ", " << sphere_positions(0) << ", "
-  //                 << sphere_positions(1) << ", " << sphere_positions(2) << ", " << final_sphere_force[0] << ", "
-  //                 << final_sphere_force[1] << ", " << final_sphere_force[2] << ", " << final_sphere_velocity[0]
-  //                 << ", " << final_sphere_velocity[1] << ", " << final_sphere_velocity[2] << std::endl;
-  //     }
-  //   }
-  // }
+        // If the test is the random one, pick a quadrature point at random to look at
+        if (itest == 3) {
+          auto surface_positions = periphery_ptr->get_surface_positions();
+          director[itest][0] = surface_positions[3 * random_index];
+          director[itest][1] = surface_positions[3 * random_index + 1];
+          director[itest][2] = surface_positions[3 * random_index + 2];
+          // Normalize the director for use later with the periphery radius
+          // director[itest] = director[itest] / director[itest].norm();
+          director[itest] = director[itest] / norm(director[itest]);
+          // Force in the same direction as this
+          force_director[itest][0] = director[itest][0];
+          force_director[itest][1] = director[itest][1];
+          force_director[itest][2] = director[itest][2];
+        }
+
+        sphere_positions(0) = director[itest][0] * r;
+        sphere_positions(1) = director[itest][1] * r;
+        sphere_positions(2) = director[itest][2] * r;
+        sphere_radii(0) = sphere_radius;
+        // Unit force along the X-axis
+        sphere_forces(0) = force_director[itest][0];
+        sphere_forces(1) = force_director[itest][1];
+        sphere_forces(2) = force_director[itest][2];
+        // Include the dry velocity along the X-axis
+        sphere_velocities(0) = force_director[itest][0] / (6.0 * M_PI * viscosity * sphere_radius);
+        sphere_velocities(1) = force_director[itest][1] / (6.0 * M_PI * viscosity * sphere_radius);
+        sphere_velocities(2) = force_director[itest][2] / (6.0 * M_PI * viscosity * sphere_radius);
+
+        // Run the RPYC-Periphery interaction
+        auto [final_sphere_velocity, final_sphere_force] = run_periphery_rpyc(
+            viscosity, num_spheres, sphere_positions, sphere_radii, sphere_forces, sphere_velocities, periphery_ptr);
+        mfile << test_types[itest] << ", " << external_names[itype] << ", " << external_num_quadrature_points[itype]
+              << ", " << viscosity << ", " << sphere_radius << ", " << periphery_radius << ", " << sphere_positions(0)
+              << ", " << sphere_positions(1) << ", " << sphere_positions(2) << ", " << final_sphere_force[0] << ", "
+              << final_sphere_force[1] << ", " << final_sphere_force[2] << ", " << final_sphere_velocity[0] << ", "
+              << final_sphere_velocity[1] << ", " << final_sphere_velocity[2] << std::endl;
+      }
+    }
+  }
   mfile.close();
 }
 //@}
