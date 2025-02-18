@@ -305,7 +305,7 @@ inline void fill_box_id_vector(mundy::mesh::BulkData &bulk_data, mundy::mesh::Me
 void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
                         const stk::mesh::Selector &range_input_selector) {
   // Step 1: Copy the AABBs, owning procs, and entity keys into a separate contiguous vector for the sources and
-  // targets.<< value << std::endl
+  // targets.
   const int parallel_size = bulk_data_ptr_->parallel_size();
   const int parallel_rank = bulk_data_ptr_->parallel_rank();
 

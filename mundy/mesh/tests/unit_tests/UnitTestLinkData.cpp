@@ -49,15 +49,37 @@ namespace mesh {
 
 namespace {
 
+/// @brief Unit test basic usage of LinkData in Mundy.
+///
+/// This test covers the following:
+/// - Setting up the mesh and metadata.
+/// - Declaring link metadata and parts.
+/// - Adding link support to parts.
+/// - Declaring entities and links between them.
+/// - Validating the links and their connected entities.
+/// - Running parallel operations on links.
+/// - Synchronizing link data between host and device.
 TEST(UnitTestLinkData, BasicUsage) {
   if (stk::parallel_machine_size(MPI_COMM_WORLD) != 1) {
     GTEST_SKIP();
   }
 
+  using stk::mesh::Entity;
+  using stk::mesh::EntityId;
+  using stk::mesh::EntityRank;
+  using stk::mesh::FastMeshIndex;
+  using stk::mesh::Field;
+  using stk::mesh::Part;
+  using stk::mesh::PartVector;
+  using stk::topology::EDGE_RANK;
+  using stk::topology::ELEM_RANK;
+  using stk::topology::FACE_RANK;
+  using stk::topology::NODE_RANK;
+
   // Setup
   MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_spatial_dimension(3);
-  builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "LINK"});
+  builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
   std::shared_ptr<MetaData> meta_data_ptr = builder.create_meta_data();
   MetaData& meta_data = *meta_data_ptr;
   meta_data.use_simple_fields();
@@ -65,22 +87,21 @@ TEST(UnitTestLinkData, BasicUsage) {
   BulkData& bulk_data = *bulk_data_ptr;
 
   // Create the link meta data
-  stk::mesh::EntityRank linker_rank = stk::topology::NODE_RANK;
+  EntityRank linker_rank = NODE_RANK;
   LinkMetaData link_meta_data = declare_link_meta_data(meta_data, "ALL_LINKS", linker_rank);
   EXPECT_EQ(link_meta_data.link_rank(), linker_rank);
   EXPECT_TRUE(link_meta_data.name() == "ALL_LINKS");
   EXPECT_EQ(link_meta_data.universal_link_part().primary_entity_rank(), linker_rank);
 
   // Create a part and then add link support to it
-  stk::mesh::Part& link_part_a = meta_data.declare_part("LINK_PART_A", link_meta_data.link_rank());
+  Part& link_part_a = meta_data.declare_part("LINK_PART_A", link_meta_data.link_rank());
   link_meta_data.add_link_support_to_part(link_part_a, 2 /*Link dimensionality within this part*/);
 
   // or declare a link part directly
-  stk::mesh::Part& link_part_b =
-      link_meta_data.declare_link_part("LINK_PART_B", 3 /*Link dimensionality within this part*/);
+  Part& link_part_b = link_meta_data.declare_link_part("LINK_PART_B", 3 /*Link dimensionality within this part*/);
 
   // Create a superset part and add the link parts to it
-  stk::mesh::Part& link_part_c = link_meta_data.declare_link_assembly_part("LINK_PART_C");
+  Part& link_part_c = link_meta_data.declare_link_assembly_part("LINK_PART_C");
   meta_data.declare_part_subset(link_part_c, link_part_a);
   meta_data.declare_part_subset(link_part_c, link_part_b);
   meta_data.commit();
@@ -93,24 +114,22 @@ TEST(UnitTestLinkData, BasicUsage) {
   bulk_data.modification_begin();
 
   std::vector<unsigned> entity_counts(5, 0);
-  std::vector<std::array<stk::mesh::EntityRank, 2>> linked_entity_ranks_a = {
-      {stk::topology::ELEM_RANK, stk::topology::ELEM_RANK}, {stk::topology::NODE_RANK, stk::topology::ELEM_RANK}};
-  std::vector<std::array<stk::mesh::EntityRank, 3>> linked_entity_ranks_b = {
-      {stk::topology::ELEM_RANK, stk::topology::EDGE_RANK, stk::topology::NODE_RANK},
-      {stk::topology::NODE_RANK, stk::topology::ELEM_RANK, stk::topology::EDGE_RANK}};
+  std::vector<std::array<EntityRank, 2>> linked_entity_ranks_a = {{ELEM_RANK, ELEM_RANK}, {NODE_RANK, ELEM_RANK}};
+  std::vector<std::array<EntityRank, 3>> linked_entity_ranks_b = {{ELEM_RANK, EDGE_RANK, NODE_RANK},
+                                                                  {NODE_RANK, ELEM_RANK, EDGE_RANK}};
 
-  std::vector<std::array<stk::mesh::Entity, 3>> link_and_2_linked_entities;
-  std::vector<std::array<stk::mesh::Entity, 4>> link_and_3_linked_entities;
-  stk::mesh::PartVector empty_part_vector;
+  std::vector<std::array<Entity, 3>> link_and_2_linked_entities;
+  std::vector<std::array<Entity, 4>> link_and_3_linked_entities;
+  PartVector empty_part_vector;
   for (const auto& [source_rank, target_rank] : linked_entity_ranks_a) {
-    link_and_2_linked_entities.push_back(std::array<stk::mesh::Entity, 3>{
-        bulk_data.declare_entity(linker_rank, ++entity_counts[linker_rank], stk::mesh::PartVector{&link_part_a}),
+    link_and_2_linked_entities.push_back(std::array<Entity, 3>{
+        bulk_data.declare_entity(linker_rank, ++entity_counts[linker_rank], PartVector{&link_part_a}),
         bulk_data.declare_entity(source_rank, ++entity_counts[source_rank], empty_part_vector),
         bulk_data.declare_entity(target_rank, ++entity_counts[target_rank], empty_part_vector)});
   }
   for (const auto& [left_rank, middle_rank, right_rank] : linked_entity_ranks_b) {
-    link_and_3_linked_entities.push_back(std::array<stk::mesh::Entity, 4>{
-        bulk_data.declare_entity(linker_rank, ++entity_counts[linker_rank], stk::mesh::PartVector{&link_part_b}),
+    link_and_3_linked_entities.push_back(std::array<Entity, 4>{
+        bulk_data.declare_entity(linker_rank, ++entity_counts[linker_rank], PartVector{&link_part_b}),
         bulk_data.declare_entity(left_rank, ++entity_counts[left_rank], empty_part_vector),
         bulk_data.declare_entity(middle_rank, ++entity_counts[middle_rank], empty_part_vector),
         bulk_data.declare_entity(right_rank, ++entity_counts[right_rank], empty_part_vector)});
@@ -168,22 +187,22 @@ TEST(UnitTestLinkData, BasicUsage) {
   }
 
   // Loop over the links in parallel
-  for_each_link_run(link_data, link_part_b,
-                    [&link_part_a, &link_part_b, &link_part_c, &link_data](const stk::mesh::BulkData& bulk_data,
-                                                                           const stk::mesh::Entity& link) {
-                      // Check the link itself
-                      EXPECT_TRUE(bulk_data.is_valid(link));
-                      EXPECT_TRUE(bulk_data.entity_rank(link) == link_data.link_meta_data().link_rank());
-                      EXPECT_TRUE(bulk_data.bucket(link).member(link_data.link_meta_data().universal_link_part()));
-                      EXPECT_TRUE(bulk_data.bucket(link).member(link_part_b));
-                      EXPECT_TRUE(bulk_data.bucket(link).member(link_part_c));
-                      EXPECT_FALSE(bulk_data.bucket(link).member(link_part_a));
+  for_each_link_run(
+      link_data, link_part_b,
+      [&link_part_a, &link_part_b, &link_part_c, &link_data](const stk::mesh::BulkData& bulk_data, const Entity& link) {
+        // Check the link itself
+        EXPECT_TRUE(bulk_data.is_valid(link));
+        EXPECT_TRUE(bulk_data.entity_rank(link) == link_data.link_meta_data().link_rank());
+        EXPECT_TRUE(bulk_data.bucket(link).member(link_data.link_meta_data().universal_link_part()));
+        EXPECT_TRUE(bulk_data.bucket(link).member(link_part_b));
+        EXPECT_TRUE(bulk_data.bucket(link).member(link_part_c));
+        EXPECT_FALSE(bulk_data.bucket(link).member(link_part_a));
 
-                      // Check the connected entities
-                      for (unsigned link_ordinal = 0; link_ordinal < 3; ++link_ordinal) {
-                        EXPECT_TRUE(bulk_data.is_valid(link_data.get_linked_entity(link, link_ordinal)));
-                      }
-                    });
+        // Check the connected entities
+        for (unsigned link_ordinal = 0; link_ordinal < 3; ++link_ordinal) {
+          EXPECT_TRUE(bulk_data.is_valid(link_data.get_linked_entity(link, link_ordinal)));
+        }
+      });
 
   // Get NGP_compatable link data
   NgpLinkData ngp_link_data = get_updated_ngp_data(link_data);
@@ -200,7 +219,7 @@ TEST(UnitTestLinkData, BasicUsage) {
 
     // The lambda allows us to scope what is or is not copied by the KOKKOS_LAMBDA since bulk_data cannot be copied
     for_each_link_run(
-        ngp_link_data, link_part_b, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex& linker_index) {
+        ngp_link_data, link_part_b, KOKKOS_LAMBDA(const FastMeshIndex& linker_index) {
           // Check the link itself
           EXPECT_TRUE(ngp_link_data.ngp_mesh()
                           .get_bucket(ngp_link_data.link_rank(), linker_index.bucket_id)
@@ -218,11 +237,9 @@ TEST(UnitTestLinkData, BasicUsage) {
           // Check the connected entities
           for (unsigned link_ordinal = 0; link_ordinal < 3; ++link_ordinal) {
             // TODO(palmerb4): Test that these are set via some device-compatable map.
-            [[maybe_unused]] stk::mesh::FastMeshIndex linked_entity =
-                ngp_link_data.get_linked_entity(linker_index, link_ordinal);
-            [[maybe_unused]] stk::mesh::EntityId linked_entity_id =
-                ngp_link_data.get_linked_entity_id(linker_index, link_ordinal);
-            [[maybe_unused]] stk::mesh::EntityRank linked_entity_rank =
+            [[maybe_unused]] FastMeshIndex linked_entity = ngp_link_data.get_linked_entity(linker_index, link_ordinal);
+            [[maybe_unused]] EntityId linked_entity_id = ngp_link_data.get_linked_entity_id(linker_index, link_ordinal);
+            [[maybe_unused]] EntityRank linked_entity_rank =
                 ngp_link_data.get_linked_entity_rank(linker_index, link_ordinal);
           }
         });
@@ -230,15 +247,15 @@ TEST(UnitTestLinkData, BasicUsage) {
     // Not only can you fetch linked entities on the device, you can declare and delete relations in parallel and
     // without thread contention.
     for_each_link_run(
-        ngp_link_data, link_part_b, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex& linker_index) {
+        ngp_link_data, link_part_b, KOKKOS_LAMBDA(const FastMeshIndex& linker_index) {
           // Get the linked entities and swap their order
-          stk::mesh::FastMeshIndex linked_entity_0 = ngp_link_data.get_linked_entity(linker_index, 0);
-          stk::mesh::FastMeshIndex linked_entity_1 = ngp_link_data.get_linked_entity(linker_index, 1);
-          stk::mesh::FastMeshIndex linked_entity_2 = ngp_link_data.get_linked_entity(linker_index, 2);
+          FastMeshIndex linked_entity_0 = ngp_link_data.get_linked_entity(linker_index, 0);
+          FastMeshIndex linked_entity_1 = ngp_link_data.get_linked_entity(linker_index, 1);
+          FastMeshIndex linked_entity_2 = ngp_link_data.get_linked_entity(linker_index, 2);
 
-          stk::mesh::EntityRank entity_0_rank = ngp_link_data.get_linked_entity_rank(linker_index, 0);
-          stk::mesh::EntityRank entity_1_rank = ngp_link_data.get_linked_entity_rank(linker_index, 1);
-          stk::mesh::EntityRank entity_2_rank = ngp_link_data.get_linked_entity_rank(linker_index, 2);
+          EntityRank entity_0_rank = ngp_link_data.get_linked_entity_rank(linker_index, 0);
+          EntityRank entity_1_rank = ngp_link_data.get_linked_entity_rank(linker_index, 1);
+          EntityRank entity_2_rank = ngp_link_data.get_linked_entity_rank(linker_index, 2);
 
           ngp_link_data.delete_relation(linker_index, 0);
           ngp_link_data.delete_relation(linker_index, 1);
@@ -277,14 +294,13 @@ TEST(UnitTestLinkData, BasicUsage) {
   // Ok, now, take these changes and propagate them to the crs connectivity
   link_data.propagate_updates();
 
-  for_each_linked_entity_run(link_data, [](const LinkData& link_data, const stk::mesh::Entity& linked_entity,
-                                           const stk::mesh::Entity& linker) {
-    // Print if the entities are valid. and if so print their key
-    bool linked_entity_is_valid = link_data.bulk_data().is_valid(linked_entity);
-    bool linker_is_valid = link_data.bulk_data().is_valid(linker);
-    EXPECT_TRUE(linked_entity_is_valid);
-    EXPECT_TRUE(linker_is_valid);
-  });
+  for_each_linked_entity_run(link_data,
+                             [](const LinkData& link_data, const Entity& linked_entity, const Entity& linker) {
+                               bool linked_entity_is_valid = link_data.bulk_data().is_valid(linked_entity);
+                               bool linker_is_valid = link_data.bulk_data().is_valid(linker);
+                               EXPECT_TRUE(linked_entity_is_valid);
+                               EXPECT_TRUE(linker_is_valid);
+                             });
 }
 
 }  // namespace

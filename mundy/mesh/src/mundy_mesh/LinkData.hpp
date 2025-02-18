@@ -55,6 +55,13 @@ namespace mundy {
 
 namespace mesh {
 
+//! \name Forward declarations
+//@{
+
+class LinkData;
+class NgpLinkData;
+//@}
+
 /// \class LinkData
 /// \brief The main interface for interacting with the link data on the mesh.
 ///
@@ -74,118 +81,93 @@ namespace mesh {
 /// another entity in a way that cannot be expressed topologically. For example, a quad face storing a set of nodes that
 /// are "attached" to it at locations other than the corners.
 ///
-/// From a user's perspective, links are Entities with a connected entities field. You are free to use links like
-/// regular entities by adding them to parts, using subset relations/selectors, and by adding additional fields to them.
-/// Importantly, they may even be written out to the EXO file using standard STK_IO functionality with care to avoid
-/// accidentally loadbalancing them if they don't have a spacial information.
+/// From a user's perspective, links are Entities with a connected entity ids and connected entity rank field. You are
+/// free to use links like regular entities by adding them to parts, using subset relations/selectors, and by adding
+/// additional fields to them. This makes them fully compatible with our Aggregates. Importantly, they may even be
+/// written out to the EXO file using standard STK_IO functionality with care to avoid accidentally loadbalancing them
+/// if they don't have spacial information.
 ///
 /// # LinkData
 /// The LinkData class is the main interface for interacting with the link data on the mesh. It is meant to mirror
 /// BulkData's connectivity interface while allowing multiple LinkData objects to be used on the same mesh, each with
-/// separately managed data. Use it to connect links to linked entities and to get the linked entities for a given link.
-/// And similarly, use non-member functions acting on the LinkData to loop over links and linked entities.
+/// separately managed data. Use LinkData to connect links to linked entities and to get the linked entities for a given
+/// link. And similar to STK's for_each_entity_run, use non-member functions acting on the LinkData to loop over links
+/// and linked entities.
 ///
-/// ## Declaring Links
+/// ## Declaring/Connecting Links
 /// Declaring links can be done via the standard declare_entity interface, however, connecting these links to their
-/// linked entities must be mediated via the link data; although, this mediation may be delayed. For this reason,
-/// we provide only const access to the linked entities field. Use it to view the connections, not to modify them.
-/// Instead, use the link data's declare_relation(linker, linked_entity, link_ordinal). This requires that the linker
-/// and linked entity be valid and must be performed consistently for each process that locally owns or shares the given
-/// linker or linked entity. It does not, however, require that the mesh be within a modification cycle. Instead, it
-/// flags the linker as "out-of_sync", requiring that the link_data.propagate_updates() be called before using
-/// for_each_linked_entity or entering a modification cycle. Notice that for_each_link does not require this
-/// synchronization, meaning that dynamic linker creation and destruction can be done in parallel within a for_each_link
-/// loop AND you can continue to perform for_each_link loops while the link data is out-of_sync. Note, even if you plan
-/// on never using for_each_linked_entity, we still need the changes to the linked data to be propagated before entering
-/// a modification cycle so we can properly catch mesh modifications that would invalidate the links.
+/// linked entities must be mediated via the link data. For this reason, we provide only const access to the linked
+/// entities field. Use it to ~view~ the connections, not to ~modify~ them. Instead, use the link data's
+/// declare_relation(linker, linked_entity, link_ordinal) and delete_relation(linker, link_ordinal) to modify the
+/// relationship between a link and its linked entities. These functions are thread-safe and may be called in parallel
+/// so long as you do not call declare_relation(linker, *, link_ordinal) for the same linker and ordinal on two
+/// different threads (something that would be weird to do anyway).
 ///
-/// ## Looping over Links and Linked Entities
-/// Through details which are intentionally hidden, users can either loop over each link (thread parallel
-/// over the link buckets) using for_each_link, or loop over the entities to which they are connected (thread parallel
-/// over the buckets of the linked entities) using for_each_linked_entity. In general, for_each_link is more efficient,
-/// as we are able to assign one team per linker bucket with threading over the entities in each bucket, whereas
-/// for_each_linked_entity requires one team per linked entity bucket with threading over the entities in that bucket
-/// and a non-parallel for loop over that entity's linkers.
+/// Some comments on requirements:
+///  - Both declare_relation and delete_relation require that the linker be valid, but not necessarily the linked
+///  entity.
+///  - To maintain parallel consistency, we require that declare/delete_relation be performed consistently for each
+/// process that locally owns or shares the given linker or linked entity.
 ///
-/// In practice, we prefer to use a single LinkData object to store all links of a given rank and to use
-/// selectors to filter the links and linked entities. So even if you have a set of surface links and a set of neighbor
-/// links, they are best stored in the same LinkData object. This makes interacting with the link data feel more like
-/// working with the bulk data.
+/// \note Once a relationship between a link and a linked entity is declared or destroyed, the link data is marked as
+/// "needs updated", as the changes to the linked data are only reflected by the get_linked_entity function and not some
+/// of the other infrastructure needed to maintain parallel consistency. As such, you must call propagate_updates()
+/// before entering a modification cycle or before using the for_each_linked_entity_run function.
 ///
+/// ## Getting Linked Entities
+/// In contrast to STK's connectivity, links are designed to be declared dynamically and to be created and destroyed at
+/// any time. This must be done *outside* of a mesh modification cycle. Once a relation between a link and a linked
+/// entity is declared, you may call get_linked_entity(linker, link_ordinal) to get the linked entity at the given
+/// ordinal. If no relation exists, this will return an invalid entity and is valid so
+/// long as link_ordinal is less than the linker dimensionality, otherwise, it will throw an exception (in debug).
+/// This function is thread-safe and immediately reflects any changes made to the link data.
 ///
+/// Note, we do not offer a get_linked_entities function, as this would require either dynamic memory allocation or
+/// compile-time link dimensionality. Similarly, we do not offer a get_connected_links(entity) function. Instead, we
+/// offer two for_each_entity_run-esk functions for looping over links and linked entities.
+///
+///  - for_each_link_run(link_data, link_subset_selector, functor) works the same as for_each_entity_run, but for links.
+///  The functor must either have an
+///     operator(const stk::mesh::BulkData& bulk_data, const stk::mesh::Entity& linker) or an
+//      operator(const LinkData& link_data, const stk::mesh::Entity& linker).
+///  This function is thread parallel over each link in the given link_data that falls within the given
+///  link_subset_selector. Notice that for_each_link does not require this synchronization, meaning that
+/// dynamic linker creation and destruction can be done in parallel within a for_each_link loop AND you can continue
+/// to perform for_each_link loops while the link data is out-of_sync.
+///
+/// - for_each_linked_entity_run(link_data, linked_entity_selector, linker_subset_selector, functor)
+/// The functor must either have an
+///     operator(const stk::mesh::BulkData&, const stk::mesh::Entity&linked_entity, const stk::mesh::Entity&linker) or
+///     an operator(const LinkData&, const stk::mesh::Entity& linked_entity, const stk::mesh::Entity& linker).
+/// This functions is thread parallel over each linked entity in the given linked_entity_selector that falls within a
+/// bucket that a linker in the given linker_subset_selector connects to. This means that the functor will be called in
+/// serial for each link that connects to a linked entity. Importantly, this function requires infrastructure that
+/// requires the link data to be "up-to-date" (i.e., you must call link_data.propagate_updates() before using it if you
+/// have modified the link data).
+///
+/// You might think, why not just provide a get_connected_links(entity) function? The reason is that the links
+/// themselves are heterogeneous and bucketized. As such, there is no practical way to provide contiguous access to the
+/// set of links that an entity connects to while supporting subset selection of links and without dynamic memory
+/// allocation.
+///
+/// \note To Devs: Hi! Welcome. If you want to better understand the LinkData or our links in general, I recommend
+/// looking at it as maintaining two connectivity structures: a COO-like structure providing access from a linker to its
+/// linked entities and a CRS-like structure providing access from a linked entity to its linkers. The COO is the
+/// dynamic "driver" that is trivial to modify (even in parallel) and the CRS is a more heavy-weight sparse data
+/// structure that is non-trivial to modify in parallel since it often requires memory allocation. The propagate_updates
+/// function is responsible for mapping all of the modifications to the COO structure to the CRS structure. There are
+/// some operations that fundamentally require a CRS-like structure such as maintaining parallel consistency as entities
+/// are removed from the mesh or change parallel ownership/sharing or performing operations that require a serial loop
+/// over each linker that connects to a given linked entity.
+///
+/// # NgpLinkData
 /// Following STK's lead, we provide an NgpLinkData class, which is device compatible and a
 /// get_updated_ngp_data(link_data)-> NgpLinkData for getting the NgpLinkData for a given LinkData. With the
-/// NgpLinkData, you may perform declare_relation on either the host or device and we offer modify_on_host/device and
-/// synchronize_on_host/device functions same as all of our Ngp* classes. We also offer an ngp versions of
-/// for_each_link_run; although, we do not currently support for_each_linked_entity_run on the device.
-///
-/// Internal details: (To be deleted)
-/// - All links will be managed by a single LinkData, which has a LinkMetaData. Both of their constructors will be
-/// protected.
-/// - Link parts may have any rank or dimensionality (num linked entities) and are declared via the LinkMetaData.
-/// - No duplicate links per link partition
-/// - LinkData stores a vector or view of LinkedPartitions, which we grow or shrink as needed. Because links are
-/// declared in bulk,
-///    we know which partitions to add them to.
-/// - Link partitions store their contribution to the CRS connectivity by storing one LinkedBucket per bucket of an
-/// entity that is linked by a link in said partition. The LinkedBucket will store a modified (thread-safe?)
-/// DynamicConnectivity object.
-/// - LinkData will offer a for_each_link (COO-like parallel over links) and a for_each_linked_entity (CRS-like parallel
-/// over linked entities, but two entities connected to the same linker may be acted on simultaneously by different
-/// threads).
-///
-/// LinkPartition -> LinkedBucket -> DynamicConnectivity -> get_connected_links(entity)
-///
-///
-///
-/// // Declare the link meta data pre-commit:
-/// //   Declares an "overarching_name_universal" part, which will contain all linkers in this link data.
-/// //   Declares a linked entities field of the given rank.
-/// //   Has other internal effects related to setting up the link data.
-/// LinkMetaData link_meta_data = mundy::mesh::declare_link_meta_data(meta_data, "overarching name", link_rank)
-///
-/// // Use it to declare a link-compatible part (compatible with the current link data):
-/// //   Declares the part, adds the linked entities field to it with the given dimensionality, and makes the part a
-/// subpart of
-/// //   the universal link part.
-/// Part& some_link_part = link_meta_data.declare_link_part("name", link_dimensionality_for_this_part);
-///
-/// // Make an existing part into a link-compatible part:
-/// //   Adds the linked entities field to the part with the given dimensionality and
-/// //   makes the part a subpart of the universal link part.
-/// Part& some_existing_part = link_meta_data.add_link_info_to_part(some_existing_part,
-/// link_dimensionality_for_this_part);
-///
-/// // Declare the link data (may be done pre- or post-commit):
-/// //   As a shared_ptr:
-/// std::shared_ptr<LinkData> link_data = mundy::mesh::declare_link_data(std::shared_ptr<bulk_data>, link_meta_data);
-///
-/// //   Directly:
-/// LinkData link_data = mundy::mesh::declare_link_data(bulk_data, link_meta_data);
-///
-///
-/// LinkMetaData has the following interface:
-/// - link_part() -> Part&
-/// - link_rank() -> stk::mesh::EntityRank
-/// - linked_entities_field() -> const Field&
-/// - universal_link_part() -> Part&
-/// - mesh_meta_data() -> MetaData&
-/// - link_dimension() -> unsigned (max number of linked entities per link)
-///
-/// LinkData has the following interface:
-/// - mesh_meta_data() -> MetaData&
-/// - link_meta_data() -> LinkMetaData&
-/// - declare_relation(linker, linked_entity, link_ordinal) -> void (host only)
-///
-///
-/// We also offer non-member for-each-entity-like functions:
-/// - for_each_linked_entity(link_data, linked_entity_selector, linker_selector, [](const
-///     stk::mesh::Entity&linked_entity, const stk::mesh::Entity& linker){...});
-///
-/// - for_each_link(link_data, linker_selector, [](const stk::mesh::Entity& linker){...});
-
-class LinkData;     // Forward declaration
-class NgpLinkData;  // Forward declaration
+/// NgpLinkData, you may perform declare/delete_relation and get_linked_entity on either the host or device. As with all
+/// of our Ngp* classes, modifications need to be synchronized to and from the host via the modify_on_host/device and
+/// and sync_to_host/device functions. We also offer an ngp versions of
+/// for_each_link_run; although, we do not currently support for_each_linked_entity_run on the device. We hope to
+/// add support for this in the future.
 
 class LinkMetaData {
  public:
@@ -226,7 +208,7 @@ class LinkMetaData {
 
   /// \brief Fetch the linked entity ids field.
   ///
-  /// \note Users should not exit this field yourself. We expose it to you because it's how you'll interact with the
+  /// \note Users should not edit this field yourself. We expose it to you because it's how you'll interact with the
   /// linked entities when doing things like post-processing the output EXO file, but it should be seen as read-only.
   /// Use declare/delete_relation to modify it since they perform additional behind-the-scenes bookkeeping.
   const linked_entity_ids_field_t &linked_entity_ids_field() const {
@@ -621,6 +603,10 @@ class LinkData {
     return static_cast<stk::mesh::EntityRank>(stk::mesh::field_data(linked_e_ranks_field, linker)[link_ordinal]);
   }
 
+  /// \brief Propagate changes made via the declare/delete_relation functions to internal data structures.
+  ///
+  /// This function must be called before either entering a modification cycle or using the for_each_linked_entity_run
+  /// function.
   void propagate_updates() {
     // 1. get each stk link bucket,
     // 2. get the key for that bucket's partition,
@@ -790,6 +776,7 @@ class LinkData {
   //! \name Private helpers
   //@{
 
+  /// \brief Get the partition key for a given set of link parts (sorted vector of part ordinals)
   PartitionKey get_partition_key(const stk::mesh::PartVector &link_parts) {
     size_t num_parts = link_parts.size();
     stk::mesh::OrdinalVector link_part_ords(num_parts);
@@ -799,6 +786,7 @@ class LinkData {
     return get_partition_key(link_part_ords);
   }
 
+  /// \brief Get the partition key for a given set of link parts (sorted vector of part ordinals)
   PartitionKey get_partition_key(stk::mesh::OrdinalVector link_part_ords) {
     std::sort(link_part_ords.begin(), link_part_ords.end());
     return link_part_ords;
@@ -917,7 +905,7 @@ class NgpLinkData {
   /// are assigned a dimensionality. If a link belongs to multiple link parts, then the maximum dimensionality of
   /// those parts is the link's dimensionality.
   ///
-  /// TODO(palmerb4): Bounds check the link ordinal.
+  /// TODO(palmerb4): Bounds check the link ordinal using the link dimensionality.
   ///
   /// \param linker [in] The linker (must be valid and of the correct rank).
   /// \param linked_entity [in] The linked entity (may be invalid).
@@ -1052,6 +1040,13 @@ inline NgpLinkData get_updated_ngp_data(const LinkData &link_data) {
 //! \name Link iteration
 //@{
 
+/// \brief Run a host function over each link in the link_data that falls in the given selector in parallel.
+///
+/// The functor must have one of the following signatures:
+///   1. operator()(const BulkData &, const Entity &) -> void
+///   2. operator()(const BulkData &, const MeshIndex &) -> void
+///   3. operator()(const LinkData &, const Entity &) -> void
+///   4. operator()(const LinkData &, const MeshIndex &) -> void
 template <typename FunctionToRunPerLink>
 void for_each_link_run(const LinkData &link_data, const stk::mesh::Selector &linker_subset_selector,
                        const FunctionToRunPerLink &functor) {
@@ -1084,11 +1079,20 @@ void for_each_link_run(const LinkData &link_data, const stk::mesh::Selector &lin
   }
 }
 
+/// \brief Run a host function over each link in the link_data in parallel.
+/// See for_each_link_run(const LinkData &, const stk::mesh::Selector &, const FunctionToRunPerLink &)
 template <typename FunctionToRunPerLink>
 void for_each_link_run(const LinkData &link_data, const FunctionToRunPerLink &functor) {
   for_each_link_run(link_data, link_data.link_meta_data().universal_link_part(), functor);
 }
 
+/// \brief Run an ngp-compatible function over each link in the ngp_link_data that falls in the given selector in
+/// parallel.
+///
+/// Thread parallel over each link.
+///
+/// The functor must have the following signature:
+///   operator()(const FastMeshIndex &) -> void
 template <typename FunctionToRunPerLink>
 void for_each_link_run(const NgpLinkData &ngp_link_data, const stk::mesh::Selector &linker_subset_selector,
                        const FunctionToRunPerLink &functor) {
@@ -1097,6 +1101,8 @@ void for_each_link_run(const NgpLinkData &ngp_link_data, const stk::mesh::Select
       ngp_link_data.host_link_data().link_meta_data().universal_link_part() & linker_subset_selector, functor);
 }
 
+/// \brief Run an ngp-compatible function over each link in the ngp_link_data in parallel.
+/// See for_each_link_run(const NgpLinkData &, const stk::mesh::Selector &, const FunctionToRunPerLink &)
 template <typename FunctionToRunPerLink>
 void for_each_link_run(const NgpLinkData &ngp_link_data, const FunctionToRunPerLink &functor) {
   for_each_link_run(ngp_link_data, ngp_link_data.host_link_data().link_meta_data().universal_link_part(), functor);
@@ -1106,6 +1112,14 @@ void for_each_link_run(const NgpLinkData &ngp_link_data, const FunctionToRunPerL
 //! \name Linked entity iteration
 //@{
 
+/// \brief Run a host function over each linked entity in the given selector and each of its connected links in
+/// parallel.
+///
+/// Thread parallel over each linked entity. Serial over each link.
+///
+/// Same function signature as for_each_link_run.
+///
+/// Must call link_data.propagate_updates() before using this function.
 template <typename FunctionToRunPerLinkedEntity>
 void for_each_linked_entity_run(const LinkData &link_data, const stk::mesh::Selector &linked_entity_selector,
                                 const stk::mesh::Selector &linker_subset_selector,
@@ -1182,6 +1196,9 @@ void for_each_linked_entity_run(const LinkData &link_data, const stk::mesh::Sele
   }
 }
 
+/// \brief Run a host function over each linked entity in the link_data in parallel.
+/// See for_each_linked_entity_run(const LinkData &, const stk::mesh::Selector &, const stk::mesh::Selector &,
+/// const FunctionToRunPerLinkedEntity &)
 template <typename FunctionToRunPerLinkedEntity>
 void for_each_linked_entity_run(const LinkData &link_data, const FunctionToRunPerLinkedEntity &functor) {
   for_each_linked_entity_run(link_data, link_data.bulk_data().mesh_meta_data().universal_part(),  //
