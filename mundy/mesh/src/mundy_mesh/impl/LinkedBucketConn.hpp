@@ -52,10 +52,14 @@
 #include <stk_util/util/SortAndUnique.hpp>
 #include <stk_util/util/StridedArray.hpp>
 
-#define BUCKET_ORDINAL_ERROR_MESSAGE(function_name, bucket_ord, bucket_capacity) \
-  MUNDY_THROW_ASSERT(bucket_ord < bucket_capacity, std::invalid_argument,        \
-                     "LinkedBucketConn::" function_name ": bucket_ordinal("      \
-                         << bucket_ord << ") must be less than bucket_capacity(" << bucket_capacity << ")")
+// Mundy
+#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/fmt_stk_types.hpp>
+
+#define BUCKET_ORDINAL_ERROR_MESSAGE(function_name, bucket_ord, bucket_size)                                   \
+  MUNDY_THROW_ASSERT(bucket_ord < bucket_size, std::invalid_argument,                                      \
+                     fmt::format("LinkedBucketConn::{}: bucket_ordinal({}) must be less than bucket_size({})", \
+                                 function_name, bucket_ord, bucket_size))
 
 namespace mundy {
 
@@ -126,13 +130,13 @@ class LinkedBucketConn {
   }
 
   unsigned num_connectivity(unsigned bucket_ord) const {
-    BUCKET_ORDINAL_ERROR_MESSAGE("num_connectivity", bucket_ord, bucket_capacity_);
+    BUCKET_ORDINAL_ERROR_MESSAGE("num_connectivity", bucket_ord, bucket_size());
     auto [first, second] = offsets_[bucket_ord];
     return second - first;
   }
 
   const ConnectedEntities get_connected_entities(unsigned bucket_ord) const {
-    BUCKET_ORDINAL_ERROR_MESSAGE("get_connected_entities", bucket_ord, bucket_capacity_);
+    BUCKET_ORDINAL_ERROR_MESSAGE("get_connected_entities", bucket_ord, bucket_size());
     auto [first, second] = connectivity_.empty() ? IndexRange{0, 0} : offsets_[bucket_ord];
     const unsigned len = second - first;
     const Entity* ptr = len == 0 ? nullptr : connectivity_.data() + first;
@@ -140,29 +144,29 @@ class LinkedBucketConn {
   }
 
   const Entity* begin(unsigned bucket_ord) const {
-    BUCKET_ORDINAL_ERROR_MESSAGE("begin", bucket_ord, bucket_capacity_);
+    BUCKET_ORDINAL_ERROR_MESSAGE("begin", bucket_ord, bucket_size());
     return connectivity_.empty() ? nullptr : connectivity_.data() + offsets_[bucket_ord].first;
   }
   Entity* begin(unsigned bucket_ord) {
-    BUCKET_ORDINAL_ERROR_MESSAGE("begin", bucket_ord, bucket_capacity_);
+    BUCKET_ORDINAL_ERROR_MESSAGE("begin", bucket_ord, bucket_size());
     return connectivity_.empty() ? nullptr : connectivity_.data() + offsets_[bucket_ord].first;
   }
 
   const Entity* end(unsigned bucket_ord) const {
-    BUCKET_ORDINAL_ERROR_MESSAGE("end", bucket_ord, bucket_capacity_);
+    BUCKET_ORDINAL_ERROR_MESSAGE("end", bucket_ord, bucket_size());
     return connectivity_.empty() ? nullptr : connectivity_.data() + offsets_[bucket_ord].second;
   }
   Entity* end(unsigned bucket_ord) {
-    BUCKET_ORDINAL_ERROR_MESSAGE("end", bucket_ord, bucket_capacity_);
+    BUCKET_ORDINAL_ERROR_MESSAGE("end", bucket_ord, bucket_size());
     return connectivity_.empty() ? nullptr : connectivity_.data() + offsets_[bucket_ord].second;
   }
 
   const ConnectivityOrdinal* begin_ordinals(unsigned bucket_ord) const {
-    BUCKET_ORDINAL_ERROR_MESSAGE("begin_ordinals", bucket_ord, bucket_capacity_);
+    BUCKET_ORDINAL_ERROR_MESSAGE("begin_ordinals", bucket_ord, bucket_size());
     return ordinals_.empty() ? nullptr : ordinals_.data() + offsets_[bucket_ord].first;
   }
   const ConnectivityOrdinal* end_ordinals(unsigned bucket_ord) const {
-    BUCKET_ORDINAL_ERROR_MESSAGE("end_ordinals", bucket_ord, bucket_capacity_);
+    BUCKET_ORDINAL_ERROR_MESSAGE("end_ordinals", bucket_ord, bucket_size());
     return ordinals_.empty() ? nullptr : ordinals_.data() + offsets_[bucket_ord].second;
   }
   //@}
@@ -171,12 +175,12 @@ class LinkedBucketConn {
   //@{
 
   bool add_connectivity(unsigned bucket_ord, Entity entity, ConnectivityOrdinal ordinal) {
-    BUCKET_ORDINAL_ERROR_MESSAGE("add_connectivity", bucket_ord, bucket_capacity_);
+    BUCKET_ORDINAL_ERROR_MESSAGE("add_connectivity", bucket_ord, bucket_size());
     return insert_connectivity(bucket_ord, entity, ordinal);
   }
 
   bool remove_connectivity(unsigned bucket_ord, Entity entity, ConnectivityOrdinal ordinal) {
-    BUCKET_ORDINAL_ERROR_MESSAGE("remove_connectivity", bucket_ord, bucket_capacity_);
+    BUCKET_ORDINAL_ERROR_MESSAGE("remove_connectivity", bucket_ord, bucket_size());
     IndexRange& indices = offsets_[bucket_ord];
     UpwardConnIndexType idx = indices.second;
     for (UpwardConnIndexType i = indices.first; i < indices.second; ++i) {
@@ -202,7 +206,7 @@ class LinkedBucketConn {
   }
 
   bool remove_connectivity(unsigned bucket_ord) {
-    BUCKET_ORDINAL_ERROR_MESSAGE("remove_connectivity", bucket_ord, bucket_capacity_);
+    BUCKET_ORDINAL_ERROR_MESSAGE("remove_connectivity", bucket_ord, bucket_size());
     IndexRange& indices = offsets_[bucket_ord];
     for (UpwardConnIndexType i = indices.first; i < indices.second; ++i) {
       ordinals_[i] = INVALID_CONNECTIVITY_ORDINAL;
@@ -216,7 +220,7 @@ class LinkedBucketConn {
 
   bool replace_connectivity(unsigned bucket_ord, unsigned given_num_connectivity, const Entity* connectivity,
                             const ConnectivityOrdinal* ordinals) {
-    BUCKET_ORDINAL_ERROR_MESSAGE("replace_connectivity", bucket_ord, bucket_capacity_);
+    BUCKET_ORDINAL_ERROR_MESSAGE("replace_connectivity", bucket_ord, bucket_size());
     IndexRange& indices = offsets_[bucket_ord];
     const unsigned num_existing = num_connectivity(bucket_ord);
     const unsigned num_to_replace = std::min(given_num_connectivity, num_existing);
@@ -242,8 +246,8 @@ class LinkedBucketConn {
   }
 
   bool swap_connectivity(unsigned bktOrdinal1, unsigned bktOrdinal2) {
-    BUCKET_ORDINAL_ERROR_MESSAGE("swap_connectivity", bktOrdinal1, bucket_capacity_);
-    BUCKET_ORDINAL_ERROR_MESSAGE("swap_connectivity", bktOrdinal2, bucket_capacity_);
+    BUCKET_ORDINAL_ERROR_MESSAGE("swap_connectivity", bktOrdinal1, bucket_size());
+    BUCKET_ORDINAL_ERROR_MESSAGE("swap_connectivity", bktOrdinal2, bucket_size());
     IndexRange tmp = offsets_[bktOrdinal1];
     offsets_[bktOrdinal1] = offsets_[bktOrdinal2];
     offsets_[bktOrdinal2] = tmp;
@@ -288,6 +292,12 @@ class LinkedBucketConn {
                         "Internal LinkedBucketConn::compress_connectivity ERROR, indices out of sync with data.");
   }
 
+  void resize(unsigned new_size) {
+    if (new_size != 0) {
+      grow_if_necessary(new_size - 1);
+    }
+  }
+
   void grow_if_necessary(unsigned bucket_ord) {
     bucket_capacity_ = std::max(bucket_ord + 1, bucket_capacity_);
     if (bucket_ord >= offsets_.size()) {
@@ -301,11 +311,11 @@ class LinkedBucketConn {
     }
   }
 
-  void increase_bucket_capacity(unsigned newBucketCapacity) {
-    STK_ThrowRequireMsg(newBucketCapacity >= bucket_capacity_,
+  void increase_bucket_capacity(unsigned new_bucket_capacity) {
+    STK_ThrowRequireMsg(new_bucket_capacity >= bucket_capacity_,
                         "BucketDynamicConn::increase_bucket_capacity, old capacity="
-                            << bucket_capacity_ << " should be less than new capacity=" << newBucketCapacity);
-    bucket_capacity_ = newBucketCapacity;
+                            << bucket_capacity_ << " should be less than new capacity=" << new_bucket_capacity);
+    bucket_capacity_ = new_bucket_capacity;
   }
 
  private:

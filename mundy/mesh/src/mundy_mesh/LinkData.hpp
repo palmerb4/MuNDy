@@ -421,6 +421,10 @@ class LinkMetaData {
   friend class NgpLinkData;
   friend LinkMetaData declare_link_meta_data(MetaData &meta_data, const std::string &our_name,
                                              stk::mesh::EntityRank link_rank);
+
+  template <typename FunctionToRunPerLinkedEntity>
+  friend void for_each_linked_entity_run(const LinkData &, const stk::mesh::Selector &, const stk::mesh::Selector &,
+                                         const FunctionToRunPerLinkedEntity &);
   //@}
 
   //! \name Internal members
@@ -632,6 +636,7 @@ class LinkData {
         bulk_data_.get_buckets(link_meta_data_.link_rank(), link_meta_data_.universal_link_part());
     for (stk::mesh::Bucket *link_bucket : link_buckets) {
       unsigned link_dim = get_linker_dimensionality(*link_bucket);
+
       PartitionKey partition_key = get_partition_key(link_bucket->supersets());
       LinkedPartitionConn &linked_partition_conn = partition_to_linked_conn[partition_key];
       for (const stk::mesh::Entity &linker : *link_bucket) {
@@ -657,6 +662,8 @@ class LinkData {
             unsigned old_linked_entity_ord = bulk_data_.bucket_ordinal(old_linked_entity);
             impl::LinkedBucketConn &old_linked_bucket_conn =
                 linked_partition_conn[bulk_data_.bucket_ptr(old_linked_entity)];
+            MUNDY_THROW_ASSERT(old_linked_bucket_conn.bucket_size() > 0, std::logic_error,
+                               "Bug: Old linked bucket conn is empty, but we are trying to remove a linker from it.");
 
             // Determine where in our connectivity the linker is located and remove it
             ConnectedEntities connected_links = old_linked_bucket_conn.get_connected_entities(old_linked_entity_ord);
@@ -674,7 +681,12 @@ class LinkData {
           //  we enforce this in debug mode.
           if (bulk_data_.is_valid(linked_entity)) {
             unsigned linked_entity_ord = bulk_data_.bucket_ordinal(linked_entity);
+
             impl::LinkedBucketConn &linked_bucket_conn = linked_partition_conn[bulk_data_.bucket_ptr(linked_entity)];
+            if (linked_bucket_conn.bucket_size() == 0) {
+              // The bucket was not previously in the map, so we need to resize it to fit our bucket.
+              linked_bucket_conn.resize(bulk_data_.bucket_ptr(linked_entity)->size());
+            }
 
             // Check if the linker is already connected to the linked entity
             ConnectedEntities connected_links = linked_bucket_conn.get_connected_entities(linked_entity_ord);
@@ -1142,10 +1154,9 @@ void for_each_linked_entity_run(const LinkData &link_data, const stk::mesh::Sele
     for (size_t i = 0; i < num_linked_buckets; ++i) {
       stk::mesh::Bucket *linked_bucket = linked_buckets_in_subset[i];
 
-      auto it = linked_partition_conn.find(linked_bucket); // can't use operator[] because it could insert a new entry
+      auto it = linked_partition_conn.find(linked_bucket);  // can't use operator[] because it could insert a new entry
       MUNDY_THROW_ASSERT(it != linked_partition_conn.end(), std::logic_error,
-                     "Linked bucket not found in linked partition conn map. This is a bug.");
-
+                         "Bug: Linked bucket not found in linked partition conn map.");
       const impl::LinkedBucketConn &linked_bucket_conn = it->second;
       size_t linked_bucket_size = linked_bucket->size();
       for (size_t j = 0; j < linked_bucket_size; ++j) {

@@ -277,26 +277,13 @@ TEST(UnitTestLinkData, BasicUsage) {
   // Ok, now, take these changes and propagate them to the crs connectivity
   link_data.propagate_updates();
 
-  std::cout << "for_each_linked_entity_run" << std::endl;
   for_each_linked_entity_run(link_data, [](const LinkData& link_data, const stk::mesh::Entity& linked_entity,
                                            const stk::mesh::Entity& linker) {
     // Print if the entities are valid. and if so print their key
     bool linked_entity_is_valid = link_data.bulk_data().is_valid(linked_entity);
     bool linker_is_valid = link_data.bulk_data().is_valid(linker);
-
-    if (linked_entity_is_valid) {
-      std::cout << "linked_entity: " << link_data.bulk_data().entity_key(linked_entity);
-    } else {
-      std::cout << "linked_entity: INVALID";
-    }
-
-    if (linker_is_valid) {
-      std::cout << " linker: " << link_data.bulk_data().entity_key(linker);
-    } else {
-      std::cout << " linker: INVALID";
-    }
-
-    std::cout << std::endl;
+    EXPECT_TRUE(linked_entity_is_valid);
+    EXPECT_TRUE(linker_is_valid);
   });
 }
 
