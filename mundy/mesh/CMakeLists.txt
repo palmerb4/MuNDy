@@ -41,6 +41,7 @@ SET(NOINSTALLHEADERS
 
 SET(SOURCES 
   src/mundy_mesh/DeclareEntities.cpp
+  src/mundy_mesh/LinkData.cpp
   src/mundy_mesh/MeshBuilder.cpp
   src/mundy_mesh/MetaData.cpp
   src/mundy_mesh/StringToSelector.cpp
