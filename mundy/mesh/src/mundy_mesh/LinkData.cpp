@@ -43,10 +43,10 @@
 #include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
 #include <mundy_mesh/ForEachEntity.hpp>          // for mundy::mesh::for_each_entity_run
+#include <mundy_mesh/LinkData.hpp>               // for mundy::mesh::LinkData
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
 #include <mundy_mesh/NgpFieldBLAS.hpp>           // for mundy::mesh::field_copy
 #include <mundy_mesh/impl/LinkedBucketConn.hpp>  // for mundy::mesh::impl::LinkedBucketConn
-#include <mundy_mesh/LinkData.hpp>               // for mundy::mesh::LinkData
 
 namespace mundy {
 
@@ -67,7 +67,6 @@ LinkPartition::LinkPartition(LinkData &link_data, const PartitionKey &key, unsig
   link_requests_capacity_view_() = 0;
 }
 //@}
-
 
 //! \name Internal functions
 //@{
@@ -111,14 +110,17 @@ void LinkPartition::process_link_requests_fully_consistent_single_process() {
   auto requested_links = requested_links_;
   LinkData &link_data = link_data_;
   Kokkos::parallel_for(host_range_policy(0, num_requested_links),
-                        [&link_data, &new_link_entities, &requested_links, &dimensionality](size_t i) {
-                          stk::mesh::Entity linker = new_link_entities[i];
-                          for (size_t j = 0; j < dimensionality; ++j) {
-                            stk::mesh::Entity linked_entity = requested_links(i, j);
-                            link_data.declare_relation(linker, linked_entity, j);
-                          }
-                        });
+                       [&link_data, &new_link_entities, &requested_links, &dimensionality](size_t i) {
+                         stk::mesh::Entity linker = new_link_entities[i];
+                         for (size_t j = 0; j < dimensionality; ++j) {
+                           stk::mesh::Entity linked_entity = requested_links(i, j);
+                           link_data.declare_relation(linker, linked_entity, j);
+                         }
+                       });
   // link_data_.modify_on_host();  // TODO(palmerb4): Only valid for NGP link data.
+  std::cout << "Need to somehow mark link_data as modified. At this point, the host data has been modified but the ngp "
+               "link data has no idea way to know this."
+            << std::endl;
 
   // Clear the requests
   // Note, there is no need to erase the entities from the requested links view since we can just reset the size and
@@ -131,10 +133,19 @@ void LinkPartition::process_link_requests_partially_consistent_multi_process() {
 }
 
 void LinkPartition::process_link_requests_partially_consistent_single_process() {
-  MUNDY_THROW_REQUIRE(false, std::invalid_argument, "Partial consistency is not yet supported.");
+  // Single process partial consistency is the same as full consistency.
+  process_link_requests_fully_consistent_single_process();
 }
 //@}
 
-} // namespace mesh
+LinkMetaData declare_link_meta_data(MetaData &meta_data, const std::string &our_name, stk::mesh::EntityRank link_rank) {
+  return LinkMetaData(meta_data, our_name, link_rank);
+}
 
-} // namespace mundy
+LinkData declare_link_data(BulkData &bulk_data, LinkMetaData link_meta_data) {
+  return LinkData(bulk_data, link_meta_data);
+}
+
+}  // namespace mesh
+
+}  // namespace mundy

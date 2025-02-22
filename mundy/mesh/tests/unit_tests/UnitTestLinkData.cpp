@@ -303,6 +303,154 @@ TEST(UnitTestLinkData, BasicUsage) {
                              });
 }
 
+TEST(UnitTestLinkData, Requests) {
+  if (stk::parallel_machine_size(MPI_COMM_WORLD) != 1) {
+    GTEST_SKIP();
+  }
+
+  using stk::mesh::Entity;
+  using stk::mesh::EntityId;
+  using stk::mesh::EntityRank;
+  using stk::mesh::FastMeshIndex;
+  using stk::mesh::Field;
+  using stk::mesh::Part;
+  using stk::mesh::PartVector;
+  using stk::topology::EDGE_RANK;
+  using stk::topology::ELEM_RANK;
+  using stk::topology::FACE_RANK;
+  using stk::topology::NODE_RANK;
+
+  // Setup
+  MeshBuilder builder(MPI_COMM_WORLD);
+  builder.set_spatial_dimension(3);
+  builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+  std::shared_ptr<MetaData> meta_data_ptr = builder.create_meta_data();
+  MetaData& meta_data = *meta_data_ptr;
+  meta_data.use_simple_fields();
+  std::shared_ptr<BulkData> bulk_data_ptr = builder.create_bulk_data(meta_data_ptr);
+  BulkData& bulk_data = *bulk_data_ptr;
+
+  // Setup the link meta data and link data
+  EntityRank linker_rank = NODE_RANK;
+  LinkMetaData link_meta_data = declare_link_meta_data(meta_data, "ALL_LINKS", linker_rank);
+  LinkData link_data = declare_link_data(bulk_data, link_meta_data);
+  Part& link_part_a = link_meta_data.declare_link_part("LINK_PART_A", 2 /* our dimensionality */);
+  Part& link_part_b = link_meta_data.declare_link_part("LINK_PART_B", 3 /* our dimensionality */);
+  meta_data.commit();
+
+  // Declare some pairs and triples of entities to connect
+  std::vector<unsigned> entity_counts(5, 0);
+  bulk_data.modification_begin();
+
+  std::vector<std::array<Entity, 2>> two_linked_entities;
+  for (unsigned i = 0; i < 6; ++i) {
+    two_linked_entities.push_back(std::array<Entity, 2>{
+        bulk_data.declare_entity(ELEM_RANK, ++entity_counts[ELEM_RANK], PartVector{}),
+        bulk_data.declare_entity(NODE_RANK, ++entity_counts[NODE_RANK], PartVector{}),
+    });
+  }
+
+  std::vector<std::array<Entity, 3>> three_linked_entities;
+  for (unsigned i = 0; i < 6; ++i) {
+    three_linked_entities.push_back(std::array<Entity, 3>{
+        bulk_data.declare_entity(ELEM_RANK, ++entity_counts[ELEM_RANK], PartVector{}),
+        bulk_data.declare_entity(EDGE_RANK, ++entity_counts[EDGE_RANK], PartVector{}),
+        bulk_data.declare_entity(NODE_RANK, ++entity_counts[NODE_RANK], PartVector{}),
+    });
+  }
+  bulk_data.modification_end();
+
+  // Request links between the entities (potentially in parallel)
+  //   Note, requesting a link must be done on a locally owned partition.
+  auto& lo_link_partition_a =
+      link_data.get_partition(stk::mesh::PartVector{&link_part_a, &meta_data.locally_owned_part()});
+  auto& lo_link_partition_b =
+      link_data.get_partition(stk::mesh::PartVector{&link_part_b, &meta_data.locally_owned_part()});
+
+  ASSERT_EQ(lo_link_partition_a.link_dimensionality(), 2);
+  ASSERT_EQ(lo_link_partition_b.link_dimensionality(), 3);
+
+  lo_link_partition_a.increase_request_link_capacity(two_linked_entities.size());
+  lo_link_partition_b.increase_request_link_capacity(three_linked_entities.size());
+
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+  for (unsigned i = 0; i < two_linked_entities.size(); ++i) {
+    const auto& [entity_a, entity_b] = two_linked_entities[i];
+    lo_link_partition_a.request_link(entity_a, entity_b);
+  }
+
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+  for (unsigned i = 0; i < three_linked_entities.size(); ++i) {
+    const auto& [entity_a, entity_b, entity_c] = three_linked_entities[i];
+    lo_link_partition_b.request_link(entity_a, entity_b, entity_c);
+  }
+
+  // Process the link requests
+  link_data.process_requests();
+
+  // Loop over each link in parallel and validate that it connects to one of the sets of requested entities
+  stk::mesh::EntityVector a_links;
+  stk::mesh::EntityVector b_links;
+  stk::mesh::get_selected_entities(link_part_a, bulk_data.buckets(linker_rank), a_links);
+  stk::mesh::get_selected_entities(link_part_b, bulk_data.buckets(linker_rank), b_links);
+  ASSERT_EQ(a_links.size(), two_linked_entities.size());
+  ASSERT_EQ(b_links.size(), three_linked_entities.size());
+
+  for (const stk::mesh::Entity& a_link : a_links) {
+    stk::mesh::Entity entity0 = link_data.get_linked_entity(a_link, 0);
+    stk::mesh::Entity entity1 = link_data.get_linked_entity(a_link, 1);
+
+    bool found = false;
+    for (const auto& [entity_a, entity_b] : two_linked_entities) {
+      if ((entity0 == entity_a && entity1 == entity_b) || (entity0 == entity_b && entity1 == entity_a)) {
+        found = true;
+        break;
+      }
+    }
+    ASSERT_TRUE(found) << "Link does not connect the correct entities.";
+  }
+
+  for (const stk::mesh::Entity& b_link : b_links) {
+    stk::mesh::Entity entity0 = link_data.get_linked_entity(b_link, 0);
+    stk::mesh::Entity entity1 = link_data.get_linked_entity(b_link, 1);
+    stk::mesh::Entity entity2 = link_data.get_linked_entity(b_link, 2);
+
+    bool found = false;
+    for (const auto& [entity_a, entity_b, entity_c] : three_linked_entities) {
+      if ((entity0 == entity_a && entity1 == entity_b && entity2 == entity_c) ||
+          (entity0 == entity_a && entity1 == entity_c && entity2 == entity_b) ||
+          (entity0 == entity_b && entity1 == entity_a && entity2 == entity_c) ||
+          (entity0 == entity_b && entity1 == entity_c && entity2 == entity_a) ||
+          (entity0 == entity_c && entity1 == entity_a && entity2 == entity_b) ||
+          (entity0 == entity_c && entity1 == entity_b && entity2 == entity_a)) {
+        found = true;
+        break;
+      }
+    }
+    ASSERT_TRUE(found) << "Link does not connect the correct entities.";
+  }
+
+  // Now, let's destroy some links!
+  for (unsigned i = 0; i < a_links.size(); ++i) {
+    if (i >= a_links.size() / 2) {
+      link_data.request_destruction(a_links[i]);
+    }
+  }
+  link_data.process_requests();
+
+  // Validate that the links were destroyed
+  stk::mesh::EntityVector a_links_after_destruction;
+  stk::mesh::get_selected_entities(link_part_a, bulk_data.buckets(linker_rank), a_links_after_destruction);
+  ASSERT_EQ(a_links_after_destruction.size(), a_links.size() / 2);
+  for (unsigned i = 0; i < a_links.size() / 2; ++i) {
+    EXPECT_EQ(a_links[i], a_links_after_destruction[i]);
+  }
+}
+
 }  // namespace
 
 }  // namespace mesh

@@ -35,6 +35,7 @@
 
 #include <stk_mesh/base/Entity.hpp>       // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>        // for stk::mesh::Field
+#include <stk_mesh/base/GetEntities.hpp>  // for stk::mesh::get_selected_entities
 #include <stk_mesh/base/GetNgpField.hpp>  // for stk::mesh::get_updated_ngp_field
 #include <stk_mesh/base/GetNgpMesh.hpp>   // for stk::mesh::get_updated_ngp_mesh
 #include <stk_mesh/base/NgpField.hpp>     // for stk::mesh::NgpField
@@ -42,7 +43,8 @@
 #include <stk_mesh/base/Part.hpp>         // stk::mesh::Part
 #include <stk_mesh/base/Selector.hpp>     // stk::mesh::Selector
 #include <stk_mesh/base/Types.hpp>        // for stk::mesh::EntityRank
-#include <stk_mesh/base/GetEntities.hpp>  // for stk::mesh::get_selected_entities
+#include <stk_mesh/baseImpl/PartVectorUtils.hpp>  // for stk::mesh::impl::fill_add_parts_and_supersets
+#include <stk_mesh/base/FindRestriction.hpp>  // for stk::mesh::find_restriction
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
@@ -75,9 +77,10 @@ using PartitionKey = stk::mesh::OrdinalVector;  // sorted list of part ordinals
 ///   - have no restrictions on which entities they can connect (may link same rank entities)
 ///   - allow data to be stored on the links themselves in a bucket-aware manner
 ///   - allow either looping over the links or the entities to which they are connected
-///   - enforce a weaker aura condition whereby every locally owned or shared link and every locally owned or shared
+///   - enforce a weaker aura condition whereby every locally-owned-or-shared link and every locally-owned-or-shared
 ///   linked entity that it connects have at least ghosted access to one another
-///   - allow for creation and destruction of links outside of a modification cycle
+///   - allow for the creation and destruction of link to linked entity relations outside of a modification cycle and in
+///   parallel
 ///
 /// Links are not meant to be a replacement for connectivity, but rather a more flexible and dynamic alternative. They
 /// are great for encoding neighbor relationships that require data to be stored on the link itself, such as reused
@@ -472,9 +475,7 @@ class LinkMetaData {
   //@}
 };
 
-LinkMetaData declare_link_meta_data(MetaData &meta_data, const std::string &our_name, stk::mesh::EntityRank link_rank) {
-  return LinkMetaData(meta_data, our_name, link_rank);
-}
+LinkMetaData declare_link_meta_data(MetaData &meta_data, const std::string &our_name, stk::mesh::EntityRank link_rank);
 
 /// \brief The main interface for interacting with partitioned link data on the mesh.
 ///
@@ -493,9 +494,9 @@ LinkMetaData declare_link_meta_data(MetaData &meta_data, const std::string &our_
 ///
 /// \note Link partitions must be used with some care to avoid inextensibility. Specifically, be wary of harcoding
 /// partition keys into your code. Instead, try to use other ways to get the partition keys that returns them in a way
-/// that is flexible to the addition of new parts. As a result, we recommend that partitions only be touched by power
-/// users. Typically, you sill use for_each_link_run, for_each_linked_entity_run, and basic getters to interact with the
-/// link data.
+/// that is flexible to the addition of new parts (such as bucket.supersets()). As a result, we recommend that
+/// partitions only be touched by power users. Typically, you will use for_each_link_run, for_each_linked_entity_run,
+/// and basic getters to interact with the link data.
 class LinkPartition {
  public:
   //! \name Aliases
@@ -577,7 +578,7 @@ class LinkPartition {
   /// throw if you try to make more requests than the capacity.
   ///
   /// If you reserve less than the current capacity, the capacity remains unchanged.
-  void set_request_link_capacity(size_t capacity) {
+  void increase_request_link_capacity(size_t capacity) {
     MUNDY_THROW_REQUIRE(contains(bulk_data_.mesh_meta_data().locally_owned_part()), std::invalid_argument,
                         "Requesting links is only valid for partitions that are locally owned "
                         "(i.e., those that contain the locally owned part).");
@@ -602,6 +603,7 @@ class LinkPartition {
 
     // For those not familiar with atomic_fetch_sub, it returns the value before the subtraction.
     size_t old_size = Kokkos::atomic_fetch_add(&link_requests_size_view_(), 1);
+   
     MUNDY_THROW_ASSERT(old_size + 1 <= link_requests_capacity_view_(), std::invalid_argument,
                        "The number of requests exceeds the capacity.");
     insert_request(std::make_index_sequence<sizeof...(linked_entities)>(), old_size,
@@ -908,19 +910,10 @@ class LinkData {
   //@{
 
   /// \brief Get the partition key for a given set of link parts (independent of their order)
-  PartitionKey get_partition_key(const stk::mesh::PartVector &link_parts) {
-    size_t num_parts = link_parts.size();
-    stk::mesh::OrdinalVector link_part_ords(num_parts);
-    for (size_t i = 0; i < num_parts; ++i) {
-      link_part_ords[i] = link_parts[i]->mesh_meta_data_ordinal();
-    }
-    return get_partition_key(link_part_ords);
-  }
-
-  /// \brief Get the partition key for a given set of link part ordinals (independent of their order)
-  PartitionKey get_partition_key(stk::mesh::OrdinalVector link_part_ords) {
-    std::sort(link_part_ords.begin(), link_part_ords.end());
-    return link_part_ords;
+  PartitionKey get_partition_key(const stk::mesh::PartVector &link_parts) {   
+    stk::mesh::OrdinalVector link_parts_and_supersets;
+    stk::mesh::impl::fill_add_parts_and_supersets(link_parts, link_parts_and_supersets);
+    return link_parts_and_supersets;
   }
 
   /// \brief Get the partition key for a given link bucket.
@@ -930,13 +923,13 @@ class LinkData {
 
   /// \brief Get a specific partition of the link data.
   /// \param link_bucket [in] The link bucket to get the partition for.
-  LinkPartition& get_partition(const stk::mesh::Bucket &link_bucket) {
+  LinkPartition &get_partition(const stk::mesh::Bucket &link_bucket) {
     return get_partition(get_partition_key(link_bucket));
   }
 
   /// \brief Get a specific partition of the link data.
   /// \param parts [in] The parts to get the partition for.
-  LinkPartition& get_partition(const stk::mesh::PartVector &parts) {
+  LinkPartition &get_partition(const stk::mesh::PartVector &parts) {
     return get_partition(get_partition_key(parts));
   }
 
@@ -1084,31 +1077,42 @@ class LinkData {
     // 2. Destroy all links that have been requested for destruction.
     // 4. Loop over all partitions and call process_requests on them.
 
-    // We only enter a mod cycle if the  global number of links marked for destruction is non-zero
-    // First local reduce, then global sum
-    // TODO(palmerb$): We've never encountered this before. This is a sum over a simple field that need to reduce into a potentially
-    //   larger type. This needs updated with a size_t reduction over an unsigned field.
-    unsigned global_marked_for_destruction = field_sum<unsigned>(link_meta_data_.link_marked_for_destruction_field(),
-                                                     link_meta_data_.universal_link_part(), stk::ngp::ExecSpace{});
+    // We only enter a mod cycle if the  global number of links marked for destruction or declaration are non-zero.
+    
+    // TODO(palmerb4): We've never encountered this before. This is a sum over a simple field that need to reduce into a
+    // potentially larger type. This needs updated with a size_t reduction over an unsigned field.
+    unsigned global_num_marked_for_destruction =
+        field_sum<unsigned>(link_meta_data_.link_marked_for_destruction_field(), link_meta_data_.universal_link_part(),
+                            stk::ngp::ExecSpace{});
 
-    if (global_marked_for_destruction > 0) {
-      bool we_started_modification = false;
+    unsigned global_num_request_for_creation = 0;
+    unsigned local_num_request_for_creation = 0;
+    for (const auto &partition : partitions_) {
+      local_num_request_for_creation += partition.second.request_link_size();
+    }
+    stk::all_reduce_sum(bulk_data_.parallel(), &local_num_request_for_creation, &global_num_request_for_creation, 1);
+
+    // Process requests
+    bool we_started_modification = false;
+    if (global_num_marked_for_destruction > 0 || global_num_request_for_creation > 0) {
       if (!bulk_data_.in_modifiable_state()) {
         bulk_data_.modification_begin();
         we_started_modification = true;
       }
+    }
 
-      // Destroy all links that have been marked for destruction
+    if (global_num_marked_for_destruction > 0) {
       destroy_marked_links();
+    }
 
-      // Process all partitions
+    if (global_num_request_for_creation > 0) {
       for (auto &partition : partitions_) {
         partition.second.process_requests(assume_fully_consistent);
       }
+    }
 
-      if (we_started_modification) {
-        bulk_data_.modification_end();
-      }
+    if (we_started_modification) {
+      bulk_data_.modification_end();
     }
   }
   //@}
@@ -1154,18 +1158,19 @@ class LinkData {
 
   /// \brief Get the dimensionality of a linker partition
   inline unsigned get_linker_dimensionality(const PartitionKey &partition_key) const {
+    MUNDY_THROW_REQUIRE(partition_key.size() > 0, std::invalid_argument, "Partition key is empty.");
+    
     // Fetch the parts
     stk::mesh::PartVector parts(partition_key.size());
     for (size_t i = 0; i < partition_key.size(); ++i) {
       parts[i] = &mesh_meta_data().get_part(partition_key[i]);
     }
 
-    // Fetch all buckets within the partition
-    stk::mesh::BucketVector link_buckets =
-        bulk_data().get_buckets(link_meta_data().link_rank(), stk::mesh::selectIntersection(parts));
-    MUNDY_THROW_ASSERT(link_buckets.size() > 0, std::invalid_argument,
-                       "No link buckets found for the given partition. Are you sure the partition is valid?");
-    return get_linker_dimensionality(*link_buckets[0]);
+    // FieldBase::restrictions
+    auto &linked_es_field = link_meta_data_.linked_entities_field();
+    const stk::mesh::FieldRestriction &restriction = 
+      stk::mesh::find_restriction(linked_es_field, link_meta_data_.link_rank(), parts);
+    return restriction.num_scalars_per_entity();
   }
   //@}
 
@@ -1236,9 +1241,7 @@ class LinkData {
   //@}
 };  // LinkData
 
-LinkData declare_link_data(BulkData &bulk_data, LinkMetaData link_meta_data) {
-  return LinkData(bulk_data, link_meta_data);
-}
+LinkData declare_link_data(BulkData &bulk_data, LinkMetaData link_meta_data);
 
 class NgpLinkData {
  public:

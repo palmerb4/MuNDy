@@ -207,18 +207,19 @@ TEST(NgpPoolTest, Reserve) {
 }
 
 TEST(NgpPoolTest, OverUnderflow) {
-  NgpPool<int> pool;
-  EXPECT_EQ(pool.size(), 0);
-  EXPECT_EQ(pool.capacity(), 0);
+  NgpPool<int> pool1;
+  NgpPool<int> pool2;
+  EXPECT_EQ(pool1.size(), 0);
+  EXPECT_EQ(pool1.capacity(), 0);
   
 #ifndef NDEBUG
   // Only throws in debug
-  EXPECT_THROW(pool.acquire(), std::runtime_error) << "Overfetching from the pool should throw in debug";
-  EXPECT_THROW(pool.add(42), std::runtime_error) << "Overfilling the pool should throw in debug";
+  EXPECT_THROW(pool1.acquire(), std::runtime_error) << "Overfetching from the pool should throw in debug"; 
+  EXPECT_THROW(pool2.add(42), std::runtime_error) << "Overfilling the pool should throw in debug";
 #else
   // Should not throw in release allowing us to enter undefined behavior
-  EXPECT_NO_THROW(pool.acquire()) << "Overfetching from the pool should not throw in release";
-  EXPECT_NO_THROW(pool.add(42)) << "Overfilling the pool should not throw in release";
+  EXPECT_NO_THROW(pool1.acquire()) << "Overfetching from the pool should not throw in release";
+  EXPECT_NO_THROW(pool2.add(42)) << "Overfilling the pool should not throw in release";
 #endif
 }
 
