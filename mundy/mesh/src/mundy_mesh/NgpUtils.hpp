@@ -29,6 +29,7 @@
 // Trilinos
 #include <stk_mesh/base/NgpField.hpp>
 #include <stk_mesh/base/NgpMesh.hpp>
+#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
 
 namespace mundy {
 
@@ -37,20 +38,37 @@ namespace mesh {
 template <typename Field>
 constexpr bool is_device_field = false;
 
-template <typename T, template<class> class NgpDebugger>
+#if TRILINOS_MAJOR_MINOR_VERSION > 160000
+template <typename T, typename NgpMemSpace, template <typename, typename> class NgpDebugger>
+constexpr bool is_device_field<stk::mesh::DeviceField<T, NgpMemSpace, NgpDebugger>> = true;
+
+template <typename T, typename NgpMemSpace, template <typename, typename> class NgpDebugger>
+constexpr bool is_device_field<const stk::mesh::DeviceField<T, NgpMemSpace, NgpDebugger>> = true;
+
+template <typename Field>
+constexpr bool is_host_field = false;
+
+template <typename T, typename NgpMemSpace, template <typename, typename> class NgpDebugger>
+constexpr bool is_host_field<stk::mesh::HostField<T, NgpMemSpace, NgpDebugger>> = true;
+
+template <typename T, typename NgpMemSpace, template <typename, typename> class NgpDebugger>
+constexpr bool is_host_field<const stk::mesh::HostField<T, NgpMemSpace, NgpDebugger>> = true;
+#else 
+template <typename T, template <typename, typename> class NgpDebugger>
 constexpr bool is_device_field<stk::mesh::DeviceField<T, NgpDebugger>> = true;
 
-template <typename T, template<class> class NgpDebugger>
+template <typename T, template <typename, typename> class NgpDebugger>
 constexpr bool is_device_field<const stk::mesh::DeviceField<T, NgpDebugger>> = true;
 
 template <typename Field>
 constexpr bool is_host_field = false;
 
-template <typename T, template<class> class NgpDebugger>
+template <typename T, template <typename, typename> class NgpDebugger>
 constexpr bool is_host_field<stk::mesh::HostField<T, NgpDebugger>> = true;
 
-template <typename T, template<class> class NgpDebugger>
+template <typename T, template <typename, typename> class NgpDebugger>
 constexpr bool is_host_field<const stk::mesh::HostField<T, NgpDebugger>> = true;
+#endif
 
 template <typename Field>
 constexpr bool is_ngp_field = is_device_field<Field> || is_host_field<Field>;
