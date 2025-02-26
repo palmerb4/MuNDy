@@ -46,7 +46,69 @@
 #include <mundy_mesh/MeshBuilder.hpp>      // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>         // for mundy::mesh::MetaData
 
+struct COORDS {};
+struct VELOCITY {};
+struct FORCE {};
+struct TORQUE {};
+struct RADIUS {};
+struct LENGTH {};
+struct OMEGA {};
+struct IS_BOUND {};
+struct LINKED_ENTITIES {};
+struct QUAT {};
+struct TANGENT {};
+struct REST_LENGTH {};
+struct SPRING_CONSTANT {};
+struct ANG_SPRING_CONSTANT {};
+struct REST_ANGLE {};
+
 namespace mundy {
+
+class eval_prc1_force {
+ public:
+ eval_prc1_force() {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const auto &prc1_view) const {
+    auto x0 = get<COORDS>(prc1_view, 0);
+    auto x1 = get<COORDS>(prc1_view, 1);
+    double k_lin = get<SPRING_CONSTANT>(prc1_view)[0];
+    double r0_lin = get<REST_LENGTH>(prc1_view)[0];
+    double k_ang = get<ANG_SPRING_CONSTANT>(prc1_view)[0];
+    double r0_ang = get<REST_ANGLE>(prc1_view)[0];
+
+    // x10hat = (x1 - x0) / |x1 - x0|
+    // f_lin = -k_lin * (x1 - x0) / |x1 - x0|
+    auto x10 = x1 - x0;
+    auto x10_norm = math::norm(x10);
+    auto x10hat = x10 / x10_norm;
+    auto f_lin = -k_lin * (x10_norm - r0_lin) * x10hat;
+
+    // We know that the downward connected nodes are only connected to us, therefore we do not need atomics
+    get<FORCE>(prc1_view, 0) += f_lin;
+    get<FORCE>(prc1_view, 1) -= f_lin;
+    std::cout << get<FORCE>(prc1_view, 0) << std::endl;
+  }
+
+  void apply_to(auto &prc1_agg, const stk::mesh::Selector &subset_selector) {
+    static_assert(prc1_agg.topology() == stk::topology::BEAM_2, "PRC1 must be beam 2 top.");
+    
+    auto ngp_prc1_agg = mesh::get_updated_ngp_aggregate(prc1_agg);
+    ngp_prc1_agg.template sync_to_device<COORDS, FORCE, SPRING_CONSTANT, REST_LENGTH, ANG_SPRING_CONSTANT, REST_ANGLE>();
+    ngp_prc1_agg.template for_each((*this) /*use my operator as a lambda*/, subset_selector);
+    ngp_prc1_agg.template modify_on_device<FORCE>();
+  }
+
+  void apply_to(auto &prc1_agg) {
+    static_assert(prc1_agg.topology() == stk::topology::BEAM_2, "PRC1 must be beam 2 top.");
+
+    auto ngp_prc1_agg = mesh::get_updated_ngp_aggregate(prc1_agg);
+    ngp_prc1_agg.template sync_to_device<COORDS, FORCE, SPRING_CONSTANT, REST_LENGTH, ANG_SPRING_CONSTANT, REST_ANGLE>();
+    ngp_prc1_agg.template for_each((*this) /*use my operator as a lambda*/);
+    ngp_prc1_agg.template modify_on_device<FORCE>();
+  }
+};
 
 void run_main() {
   // STK usings
@@ -63,6 +125,9 @@ void run_main() {
   using mesh::LinkMetaData;
   using mesh::MeshBuilder;
   using mesh::MetaData;
+  using mesh::Vector3FieldComponent;
+  using mesh::ScalarFieldComponent;
+  using mesh::QuaternionFieldComponent;
 
   // Setup the STK mesh (boiler plate)
   MeshBuilder mesh_builder(MPI_COMM_WORLD);
@@ -85,7 +150,7 @@ void run_main() {
   //   Rod parts: PARTICLE_TOPOLOGY
   //   Spring part: BEAM_2
   //   Link part: SURFACE_LINKS
-  Part& rod_parts = meta_data.declare_part_with_topology("RODS", stk::topology::PARTICLE);
+  Part& rod_part = meta_data.declare_part_with_topology("RODS", stk::topology::PARTICLE);
   Part& prc1_part = meta_data.declare_part_with_topology("PRC1", stk::topology::BEAM_2);
   Part& slink_part = link_meta_data.declare_link_part("SURFACE_LINKS", 2 /* our dimensionality */);
 
@@ -95,6 +160,7 @@ void run_main() {
   //   Node fields:
   //   - NODE_COORDS
   //   - NODE_QUATERNION
+  //   - NODE_TANGENT
   //   - NODE_VELOCITY
   //   - NODE_OMEGA
   //   - NODE_FORCE
@@ -122,13 +188,13 @@ void run_main() {
   // Surface Links: NODE rank but no fields for now
   Field<double>& node_coords_field = meta_data.declare_field<double>(NODE_RANK, "NODE_COORDS");
   Field<double>& node_quaternion_field = meta_data.declare_field<double>(NODE_RANK, "NODE_QUATERNION");
+  Field<double>& node_tangent_field = meta_data.declare_field<double>(NODE_RANK, "NODE_TANGENT");
   Field<double>& node_velocity_field = meta_data.declare_field<double>(NODE_RANK, "NODE_VELOCITY");
   Field<double>& node_omega_field = meta_data.declare_field<double>(NODE_RANK, "NODE_OMEGA");
   Field<double>& node_force_field = meta_data.declare_field<double>(NODE_RANK, "NODE_FORCE");
   Field<double>& node_torque_field = meta_data.declare_field<double>(NODE_RANK, "NODE_TORQUE");
   Field<double>& node_length_field = meta_data.declare_field<double>(NODE_RANK, "NODE_LENGTH");
   Field<double>& node_radius_field = meta_data.declare_field<double>(NODE_RANK, "NODE_RADIUS");
-  Field<double>& node_tangent_field = meta_data.declare_field<double>(NODE_RANK, "NODE_TANGENT");
   Field<unsigned>& node_is_bound_field = meta_data.declare_field<unsigned>(NODE_RANK, "NODE_IS_BOUND");
 
   Field<double>& elem_rest_length_field = meta_data.declare_field<double>(ELEM_RANK, "ELEM_REST_LENGTH");
@@ -141,13 +207,14 @@ void run_main() {
   stk::mesh::put_field_on_mesh(node_coords_field, meta_data.universal_part(), 3, nullptr);
 
   // Assemble the microtubule parts
-  stk::mesh::put_field_on_mesh(node_quaternion_field, rod_parts, 4, nullptr);
-  stk::mesh::put_field_on_mesh(node_velocity_field, rod_parts, 3, nullptr);
-  stk::mesh::put_field_on_mesh(node_omega_field, rod_parts, 3, nullptr);
-  stk::mesh::put_field_on_mesh(node_force_field, rod_parts, 3, nullptr);
-  stk::mesh::put_field_on_mesh(node_torque_field, rod_parts, 3, nullptr);
-  stk::mesh::put_field_on_mesh(node_length_field, rod_parts, 1, nullptr);
-  stk::mesh::put_field_on_mesh(node_radius_field, rod_parts, 1, nullptr);
+  stk::mesh::put_field_on_mesh(node_quaternion_field, rod_part, 4, nullptr);
+  stk::mesh::put_field_on_mesh(node_tangent_field, rod_part, 3, nullptr);
+  stk::mesh::put_field_on_mesh(node_velocity_field, rod_part, 3, nullptr);
+  stk::mesh::put_field_on_mesh(node_omega_field, rod_part, 3, nullptr);
+  stk::mesh::put_field_on_mesh(node_force_field, rod_part, 3, nullptr);
+  stk::mesh::put_field_on_mesh(node_torque_field, rod_part, 3, nullptr);
+  stk::mesh::put_field_on_mesh(node_length_field, rod_part, 1, nullptr);
+  stk::mesh::put_field_on_mesh(node_radius_field, rod_part, 1, nullptr);
 
   // Assemble the PRC1 parts
   stk::mesh::put_field_on_mesh(node_tangent_field, prc1_part, 3, nullptr);
@@ -161,7 +228,7 @@ void run_main() {
   stk::mesh::put_field_on_mesh(elem_ang_spring_constant_field, prc1_part, 1, nullptr);
 
   // Decide IO stuff (boilerplate)
-  stk::io::put_io_part_attribute(rod_parts);
+  stk::io::put_io_part_attribute(rod_part);
   stk::io::put_io_part_attribute(prc1_part);
   stk::io::put_io_part_attribute(slink_part);
 
@@ -199,11 +266,61 @@ void run_main() {
   // Commit the meta data
   meta_data.commit();
 
+  // Create our accessors and aggregates
+  auto coord_accessor = Vector3FieldComponent(node_coords_field);
+  auto quaternion_accessor = QuaternionFieldComponent(node_quaternion_field);
+  auto tangent_accessor = Vector3FieldComponent(node_tangent_field);
+  auto velocity_accessor = Vector3FieldComponent(node_velocity_field);
+  auto omega_accessor = Vector3FieldComponent(node_omega_field);
+  auto force_accessor = Vector3FieldComponent(node_force_field);
+  auto torque_accessor = Vector3FieldComponent(node_torque_field);
+  auto length_accessor = ScalarFieldComponent(node_length_field);
+  auto radius_accessor = ScalarFieldComponent(node_radius_field);
+  auto is_bound_accessor = ScalarFieldComponent(node_is_bound_field);
+  auto rest_length_accessor = ScalarFieldComponent(elem_rest_length_field);
+  auto spring_constant_accessor = ScalarFieldComponent(elem_spring_constant_field);
+  auto ang_spring_constant_accessor = ScalarFieldComponent(elem_ang_spring_constant_field);
+  auto rest_angle_accessor = ScalarFieldComponent(elem_rest_angle_field);
+
+  // Create the aggregates
+  auto rod_data = make_aggregate<stk::topology::PARTICLE>(bulk_data, rod_part)
+                      .add_component<COORDS, NODE_RANK>(coord_accessor)
+                      .add_component<QUAT, NODE_RANK>(quaternion_accessor)
+                      .add_component<TANGENT, NODE_RANK>(tangent_accessor)
+                      .add_component<VELOCITY, NODE_RANK>(velocity_accessor)
+                      .add_component<OMEGA, NODE_RANK>(omega_accessor)
+                      .add_component<FORCE, NODE_RANK>(force_accessor)
+                      .add_component<TORQUE, NODE_RANK>(torque_accessor)
+                      .add_component<LENGTH, ELEM_RANK>(length_accessor)
+                      .add_component<RADIUS, ELEM_RANK>(radius_accessor);
+
+  auto prc1_data = make_aggregate<stk::topology::BEAM_2>(bulk_data, prc1_part)
+                       .add_component<COORDS, NODE_RANK>(coord_accessor)
+                       .add_component<TANGENT, NODE_RANK>(tangent_accessor)
+                       .add_component<FORCE, NODE_RANK>(force_accessor)
+                       .add_component<TORQUE, NODE_RANK>(torque_accessor)
+                       .add_component<IS_BOUND, NODE_RANK>(is_bound_accessor)
+                       .add_component<REST_LENGTH, ELEM_RANK>(rest_length_accessor)
+                       .add_component<SPRING_CONSTANT, ELEM_RANK>(spring_constant_accessor)
+                       .add_component<ANG_SPRING_CONSTANT, ELEM_RANK>(ang_spring_constant_accessor)
+                       .add_component<REST_ANGLE, ELEM_RANK>(rest_angle_accessor);
+
+  auto prc1_head_data = make_ranked_aggregate<NODE_RANK>(bulk_data, prc1_part)
+                            .add_component<COORDS, NODE_RANK>(coord_accessor)
+                            .add_component<TANGENT, NODE_RANK>(tangent_accessor)
+                            .add_component<FORCE, NODE_RANK>(force_accessor)
+                            .add_component<TORQUE, NODE_RANK>(torque_accessor)
+                            .add_component<IS_BOUND, NODE_RANK>(is_bound_accessor);
+
   // Hard code system params
+  size_t num_timesteps = 1;
+  double dt = 0.01;
+
   double rod_radius = 0.5;
   double rod_length = 20;
   math::Quaternion<double> rod_orient = math::Quaternion<double>::identity();
-  double init_rod_sep = 2.0;
+  math::Vector3<double> rod_tangent = rod_orient * math::Vector3<double>(1.0, 0.0, 0.0);
+  double init_rod_sep = 2.1;
 
   double spring_constant = 1.0;
   double ang_spring_constant = 1.0;
@@ -218,25 +335,41 @@ void run_main() {
   center_node1
       .owning_proc(0)  //
       .id(1)           // 1 indexed
-      .add_field_data<double>(&node_coords_field, {0.0, 0.0, 0.0});
+      .add_field_data<double>(&node_coords_field, {0.0, 0.0, 0.0})
+      .add_field_data<double>(&node_quaternion_field, {rod_orient[0], rod_orient[1], rod_orient[2], rod_orient[3]})
+      .add_field_data<double>(&node_tangent_field, {rod_tangent[0], rod_tangent[1], rod_tangent[2]})
+      .add_field_data<double>(&node_velocity_field, {0.0, 0.0, 0.0})
+      .add_field_data<double>(&node_omega_field, {0.0, 0.0, 0.0})
+      .add_field_data<double>(&node_force_field, {0.0, 0.0, 0.0})
+      .add_field_data<double>(&node_torque_field, {0.0, 0.0, 0.0})
+      .add_field_data<double>(&node_length_field, {rod_length})
+      .add_field_data<double>(&node_radius_field, {rod_radius});
   auto center_node2 = dec_helper.create_node();
   center_node2
       .owning_proc(0)  //
       .id(2)           // 1 indexed
-      .add_field_data<double>(&node_coords_field, {init_rod_sep, 0.0, 0.0});
+      .add_field_data<double>(&node_coords_field, {init_rod_sep, 0.0, 0.0})
+      .add_field_data<double>(&node_quaternion_field, {rod_orient[0], rod_orient[1], rod_orient[2], rod_orient[3]})
+      .add_field_data<double>(&node_tangent_field, {rod_tangent[0], rod_tangent[1], rod_tangent[2]})
+      .add_field_data<double>(&node_velocity_field, {0.0, 0.0, 0.0})
+      .add_field_data<double>(&node_omega_field, {0.0, 0.0, 0.0})
+      .add_field_data<double>(&node_force_field, {0.0, 0.0, 0.0})
+      .add_field_data<double>(&node_torque_field, {0.0, 0.0, 0.0})
+      .add_field_data<double>(&node_length_field, {rod_length})
+      .add_field_data<double>(&node_radius_field, {rod_radius});
 
   auto mt1 = dec_helper.create_element();
   mt1.owning_proc(0)  //
       .id(1)          //
       .topology(stk::topology::PARTICLE)
-      .add_part(&rod_parts)  //
+      .add_part(&rod_part)  //
       .nodes({1});
 
   auto mt2 = dec_helper.create_element();
   mt2.owning_proc(0)  //
       .id(2)          //
       .topology(stk::topology::PARTICLE)
-      .add_part(&rod_parts)  //
+      .add_part(&rod_part)  //
       .nodes({2});
 
   // Declare the PRC1
@@ -244,17 +377,26 @@ void run_main() {
   prc1_node1
       .owning_proc(0)  //
       .id(3)           // 1 indexed
-      .add_field_data<double>(&node_coords_field, {0.0, 0.0, 0.0});
-  
+      .add_field_data<double>(&node_coords_field, {0.0, 0.0, 0.0})
+      .add_field_data<double>(&node_tangent_field, {rod_tangent[0], rod_tangent[1], rod_tangent[2]})
+      .add_field_data<double>(&node_force_field, {0.0, 0.0, 0.0})
+      .add_field_data<double>(&node_torque_field, {0.0, 0.0, 0.0})
+      .add_field_data<unsigned>(&node_is_bound_field, {1});
+
   auto prc1_node2 = dec_helper.create_node();
   prc1_node2
       .owning_proc(0)  //
       .id(4)           // 1 indexed
-      .add_field_data<double>(&node_coords_field, {init_rod_sep, 0.0, 0.0});
+      .add_field_data<double>(&node_coords_field, {init_rod_sep, 0.0, 0.0})
+      .add_field_data<double>(&node_tangent_field, {rod_tangent[0], rod_tangent[1], rod_tangent[2]})
+      .add_field_data<double>(&node_force_field, {0.0, 0.0, 0.0})
+      .add_field_data<double>(&node_torque_field, {0.0, 0.0, 0.0})
+      .add_field_data<unsigned>(&node_is_bound_field, {1});
 
   auto prc1_elem = dec_helper.create_element();
-  prc1_elem.owning_proc(0)  //
-      .id(3)                 //
+  prc1_elem
+      .owning_proc(0)  //
+      .id(3)           //
       .topology(stk::topology::BEAM_2)
       .add_part(&prc1_part)  //
       .nodes({3, 4})
@@ -268,13 +410,59 @@ void run_main() {
   bulk_data.modification_begin();
   dec_helper.declare_entities(bulk_data);
   bulk_data.modification_end();
-  
+
+  // Add the links
+  stk::mesh::PartVector locally_owned_link_parts = {&slink_part, &meta_data.locally_owned_part()};
+  stk::mesh::Entity e_mt1 = bulk_data.get_entity(ELEM_RANK, 1);
+  stk::mesh::Entity e_mt2 = bulk_data.get_entity(ELEM_RANK, 2);
+  stk::mesh::Entity e_prc1_head1 = bulk_data.get_entity(NODE_RANK, 3);
+  stk::mesh::Entity e_prc1_head2 = bulk_data.get_entity(NODE_RANK, 4);
+  MUNDY_THROW_REQUIRE(bulk_data.is_valid(e_mt1) && bulk_data.is_valid(e_mt2) && bulk_data.is_valid(e_prc1_head1) &&
+                          bulk_data.is_valid(e_prc1_head2),
+                      std::runtime_error, "Invalid entities for link creation");
+  auto& partition = link_data.get_partition(link_data.get_partition_key(locally_owned_link_parts));
+  partition.increase_request_link_capacity(2);
+  partition.request_link(e_mt1, e_prc1_head1);
+  partition.request_link(e_mt2, e_prc1_head2);
+  link_data.process_requests();
+
+  // Check the links
+  stk::mesh::EntityVector e_links;
+  stk::mesh::get_entities(bulk_data, NODE_RANK, slink_part, e_links);
+  MUNDY_THROW_ASSERT(e_links.size() == 2, std::runtime_error, "Expected 2 links");
+  MUNDY_THROW_ASSERT(bulk_data.is_valid(e_links[0]), std::runtime_error, "Link 1 is not valid");
+  MUNDY_THROW_ASSERT(bulk_data.is_valid(e_links[1]), std::runtime_error, "Link 2 is not valid");
+  MUNDY_THROW_ASSERT(bulk_data.bucket(e_links[0]).member(slink_part), std::runtime_error,
+                     "Link 1 is not in slink_part");
+  MUNDY_THROW_ASSERT(bulk_data.bucket(e_links[1]).member(slink_part), std::runtime_error,
+                     "Link 2 is not in slink_part");
+  MUNDY_THROW_ASSERT(bulk_data.bucket(e_links[0]).member(meta_data.locally_owned_part()), std::runtime_error,
+                     "Link 1 is not in locally owned part");
+
   // Write the mesh to file
   size_t step = 1;  // Step = 0 doesn't write out fields...
   stk::io::StkMeshIoBroker stk_io_broker;
   stk_io_broker.property_add(Ioss::Property("MAXIMUM_NAME_LENGTH", 180));
   stk_io_broker.set_bulk_data(bulk_data);
   stk::io::write_mesh_with_fields("will.exo", stk_io_broker, step);
+
+  for (size_t timestep_index = 0; timestep_index < num_timesteps; timestep_index++) {
+    // One timestep
+
+    // Compute spring forces
+    std::cout << "Computing spring forces" << std::endl;
+    eval_prc1_force().apply_to(prc1_data);
+
+    // Compute map surface forces to center forces
+
+    // Map center forces to center velocity
+
+    // Write to file
+
+    // Update center positions and orientations (quat and tangent)
+
+    // Reconcile surface node positions and tangents
+  }
 }
 
 }  // namespace mundy
