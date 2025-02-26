@@ -52,16 +52,27 @@ namespace mesh {
 //@{
 
 struct CENTER {};
+struct POSITION {};
+
 struct RADIUS {};
 struct COLLISION_RADIUS {};
 struct HYDRO_RADIUS {};
-struct LIN_VEL {};
-struct ANG_VEL {};
+
 struct ORIENT {};
 struct DIRECTION {};
+
+struct LIN_VEL {};
+struct ANG_VEL {};
 struct VELOCITY {};
+struct OMEGA {};
+
 struct FORCE {};
+struct TORQUE {};
 struct MASS {};
+struct DENSITY {};
+
+struct RNG_COUNTER {};
+struct LINKED_ENTITIES {};
 //@}
 
 //! \name Components
@@ -126,6 +137,80 @@ class NgpFieldComponentBase {
   const stk::mesh::FieldBase& host_field_base_;
 #endif
 };  // NgpFieldComponentBase
+
+template <typename ValueType>
+class FieldComponent : public FieldComponentBase {
+ public:
+  FieldComponent(stk::mesh::Field<ValueType>& field) : FieldComponentBase(field), field_(field) {
+  }
+
+  inline decltype(auto) operator()(stk::mesh::Entity entity) const {
+    ValueType *data_ptr = stk::mesh::field_data(*field, entity);
+    MUNDY_THROW_ASSERT(data_ptr, std::runtime_error, "Field data is null");
+    unsigned num_scalars = stk::mesh::field_scalars_per_entity(*field_, entity);
+    return stk::mesh::EntityFieldData<ValueType>(data_ptr, num_scalars);
+  }
+
+  inline stk::mesh::Field<ValueType>& field() {
+    return field_;
+  }
+
+  inline const stk::mesh::Field<ValueType>& field() const {
+    return field_;
+  }
+
+ private:
+  stk::mesh::Field<ValueType>& field_;
+};  // FieldComponent
+
+template <typename NgpFieldType>
+class NgpFieldComponent : public NgpFieldComponentBase {
+ public:
+  NgpFieldComponent(NgpFieldType ngp_field)
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+      : NgpFieldComponentBase(*ngp_field.get_field_base()),
+#else
+      : NgpFieldComponentBase(),
+#endif
+        ngp_field_(ngp_field) {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) operator()(stk::mesh::FastMeshIndex entity_index) const {
+    return ngp_field_(entity_index);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  NgpFieldType& ngp_field() {
+    return ngp_field_;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  const NgpFieldType& ngp_field() const {
+    return ngp_field_;
+  }
+
+#if TRILINOS_MAJOR_MINOR_VERSION < 160000
+  void sync_to_device() {
+    ngp_field_.sync_to_device();
+  }
+
+  void sync_to_host() {
+    ngp_field_.sync_to_host();
+  }
+
+  void modify_on_device() {
+    ngp_field_.modify_on_device();
+  }
+
+  void modify_on_host() {
+    ngp_field_.modify_on_host();
+  }
+#endif
+
+ private:
+  NgpFieldType ngp_field_;
+};  // NgpFieldComponent
 
 template <typename ScalarType>
 class ScalarFieldComponent : public FieldComponentBase {
@@ -1175,8 +1260,8 @@ class NgpAggregate {
 
   /// \brief Apply a functor on the EntityView of each entity in the current data aggregate that is also in the given
   /// subset selector
-  template <typename ExecSpace, typename Functor>
-  void for_each(ExecSpace exec_space, const stk::mesh::Selector& subset_selector, const Functor& f) const {
+  template <typename Functor>
+  void for_each(const stk::mesh::Selector& subset_selector, const Functor& f) const {
     // Only loop over the set intersection of the agg's selector and the subset selector
     auto agg = *this;
     stk::mesh::Selector sel = agg.selector() & subset_selector;
@@ -1350,6 +1435,12 @@ class NgpEntityView {
     return entity_index_;
   }
 
+  /// \brief Fetch the identifier of the entity that we view
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::EntityId entity_id() const {
+    return ngp_mesh_.identifier(ngp_mesh_.get_entity(OurRank, entity_index_));
+  }
+
   /// \brief Fetch the rank of the entity that we view
   KOKKOS_INLINE_FUNCTION
   static constexpr stk::topology::rank_t rank() {
@@ -1360,6 +1451,12 @@ class NgpEntityView {
   KOKKOS_INLINE_FUNCTION
   static constexpr stk::topology::topology_t topology() {
     return OurTopology;
+  }
+
+  /// \brief Fetch the ngp mesh
+  KOKKOS_INLINE_FUNCTION
+  const stk::mesh::NgpMesh& ngp_mesh() const {
+    return ngp_mesh_;
   }
 
   /// \brief Get the data marked by the given tag and fetched using the corresponding accessor

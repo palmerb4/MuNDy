@@ -47,11 +47,11 @@ namespace impl {
 ///
 /// The goal here is to take a user defined map from a pair of source/target selectors for a neighbor search and the
 /// PartVector for the linker that spans objects in these selectors and invert this into a map from each unique linker
-/// part vector to the vector of pairs of partitions for which need to perform the neighbor search. If we perform a
-/// neighbor search between all source/target buckets within the vector of pairs of partitions, then the resulting
-/// neighbor list will require linkers within the set of parts in the corresponding part vector. Hence, this map
-/// represents the minimal number of neighbor searches that we need to perform to cover all of the user defined
-/// selectors, while producing neighbor lists that can have their neighbor linkers created in bulk.
+/// part vector to the vector of pairs of linked entity partitions for which need to perform the neighbor search. If we
+/// perform a neighbor search between all source/target buckets within the vector of pairs of linked entity partitions,
+/// then the resulting neighbor list will require linkers within the set of parts in the corresponding part vector.
+/// Hence, this map represents the minimal number of neighbor searches that we need to perform to cover all of the user
+/// defined selectors, while producing neighbor lists that can have their neighbor linkers created in bulk.
 ///
 /// The procedure is as follows:
 ///   For all pairs of Partitions of a given rank (num partitions^2 loop), loop over each of the given selector pairs
@@ -63,16 +63,17 @@ namespace impl {
 /// The total cost here is num_partitions^2 * num_input_selectors, which is at worst like 100^2 * 10 = 100,000 but will
 /// typically be like 6^2 * 2 = 64.
 std::map<stk::mesh::PartVector, std::vector<std::pair<stk::mesh::impl::Partition, stk::mesh::impl::Partition>>>
-get_neighbor_linker_specializations_to_search_map(const mundy::mesh::BulkData &bulk_data, stk::topology::rank_t source_rank, stk::topology::rank_t target_rank,
-    const std::map<std::pair<stk::mesh::Selector, stk::mesh::Selector>, stk::mesh::PartVector>&
-        neighbor_linker_specializations) {
-  using stk::mesh::impl::Partition;
+get_neighbor_linker_specializations_to_search_map(
+    const mundy::mesh::BulkData &bulk_data, stk::topology::rank_t source_rank, stk::topology::rank_t target_rank,
+    const std::map<std::pair<stk::mesh::Selector, stk::mesh::Selector>, stk::mesh::PartVector>
+        &neighbor_linker_specializations) {
   using stk::mesh::PartVector;
+  using stk::mesh::impl::Partition;
   using PartitionPair = std::pair<Partition, Partition>;
   std::map<PartVector, std::vector<PartitionPair>> neighbor_linker_specializations_to_search_map;
 
-  // Need BucketRepository's get_partitions function, which, in turn requires that BulkData expose it's m_bucket_repository in some way.
-  // Our BulkData exposes it within a get_bucket_repository function.
+  // Need BucketRepository's get_partitions function, which, in turn requires that BulkData expose it's
+  // m_bucket_repository in some way. Our BulkData exposes it within a get_bucket_repository function.
   const auto &bucket_repository = bulk_data.get_bucket_repository();
   const auto &source_partitions = bucket_repository.get_partitions(source_rank);
   const auto &target_partitions = bucket_repository.get_partitions(target_rank);
@@ -80,11 +81,13 @@ get_neighbor_linker_specializations_to_search_map(const mundy::mesh::BulkData &b
   // Loop over all pairs of partitions of the source and target ranks.
   for (const Partition &source_partition : source_partitions) {
     for (const Partition &target_partition : target_partitions) {
-      // For each pair of partitions, loop over the selector pairs and see if the first bucket in each partition is within the selector.
+      // For each pair of partitions, loop over the selector pairs and see if the first bucket in each partition is
+      // within the selector.
       for (const auto &[selector_pair, part_vector] : neighbor_linker_specializations) {
         const stk::mesh::Selector &source_selector = selector_pair.first;
         const stk::mesh::Selector &target_selector = selector_pair.second;
-        if (source_selector(source_partition.get_all_mesh_buckets()) && target_selector(target_partition.get_all_mesh_buckets())) {
+        if (source_selector(source_partition.get_all_mesh_buckets()) &&
+            target_selector(target_partition.get_all_mesh_buckets())) {
           // If so, append the part vector to a master part vector for this pair of partitions.
           PartVector &master_part_vector = neighbor_linker_specializations_to_search_map[part_vector];
           master_part_vector.push_back(source_partition);
@@ -94,29 +97,17 @@ get_neighbor_linker_specializations_to_search_map(const mundy::mesh::BulkData &b
     }
   }
 
-  // For each pair of partitions, loop over the selector pairs and see if the first bucket in each partition is within the selector.
-
-
-
-
-
-
+  // For each pair of partitions, loop over the selector pairs and see if the first bucket in each partition is within
+  // the selector.
 }
-
 
 /* Notes:
 
-Our neighbor linkers need to go 
+Our neighbor linkers need to go
 
 
 */
-class NeighborAggregate {
-
-
-
-};
-
-
+class NeighborAggregate {};
 
 }  // namespace impl
 

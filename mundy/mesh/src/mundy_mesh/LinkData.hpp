@@ -33,18 +33,18 @@
 // Trilinos libs
 #include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
 
-#include <stk_mesh/base/Entity.hpp>       // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>        // for stk::mesh::Field
-#include <stk_mesh/base/GetEntities.hpp>  // for stk::mesh::get_selected_entities
-#include <stk_mesh/base/GetNgpField.hpp>  // for stk::mesh::get_updated_ngp_field
-#include <stk_mesh/base/GetNgpMesh.hpp>   // for stk::mesh::get_updated_ngp_mesh
-#include <stk_mesh/base/NgpField.hpp>     // for stk::mesh::NgpField
-#include <stk_mesh/base/NgpMesh.hpp>      // for stk::mesh::NgpMesh
-#include <stk_mesh/base/Part.hpp>         // stk::mesh::Part
-#include <stk_mesh/base/Selector.hpp>     // stk::mesh::Selector
-#include <stk_mesh/base/Types.hpp>        // for stk::mesh::EntityRank
+#include <stk_mesh/base/Entity.hpp>               // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>                // for stk::mesh::Field
+#include <stk_mesh/base/FindRestriction.hpp>      // for stk::mesh::find_restriction
+#include <stk_mesh/base/GetEntities.hpp>          // for stk::mesh::get_selected_entities
+#include <stk_mesh/base/GetNgpField.hpp>          // for stk::mesh::get_updated_ngp_field
+#include <stk_mesh/base/GetNgpMesh.hpp>           // for stk::mesh::get_updated_ngp_mesh
+#include <stk_mesh/base/NgpField.hpp>             // for stk::mesh::NgpField
+#include <stk_mesh/base/NgpMesh.hpp>              // for stk::mesh::NgpMesh
+#include <stk_mesh/base/Part.hpp>                 // stk::mesh::Part
+#include <stk_mesh/base/Selector.hpp>             // stk::mesh::Selector
+#include <stk_mesh/base/Types.hpp>                // for stk::mesh::EntityRank
 #include <stk_mesh/baseImpl/PartVectorUtils.hpp>  // for stk::mesh::impl::fill_add_parts_and_supersets
-#include <stk_mesh/base/FindRestriction.hpp>  // for stk::mesh::find_restriction
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
@@ -603,7 +603,7 @@ class LinkPartition {
 
     // For those not familiar with atomic_fetch_sub, it returns the value before the subtraction.
     size_t old_size = Kokkos::atomic_fetch_add(&link_requests_size_view_(), 1);
-   
+
     MUNDY_THROW_ASSERT(old_size + 1 <= link_requests_capacity_view_(), std::invalid_argument,
                        "The number of requests exceeds the capacity.");
     insert_request(std::make_index_sequence<sizeof...(linked_entities)>(), old_size,
@@ -910,7 +910,7 @@ class LinkData {
   //@{
 
   /// \brief Get the partition key for a given set of link parts (independent of their order)
-  PartitionKey get_partition_key(const stk::mesh::PartVector &link_parts) {   
+  PartitionKey get_partition_key(const stk::mesh::PartVector &link_parts) {
     stk::mesh::OrdinalVector link_parts_and_supersets;
     stk::mesh::impl::fill_add_parts_and_supersets(link_parts, link_parts_and_supersets);
     return link_parts_and_supersets;
@@ -1078,7 +1078,7 @@ class LinkData {
     // 4. Loop over all partitions and call process_requests on them.
 
     // We only enter a mod cycle if the  global number of links marked for destruction or declaration are non-zero.
-    
+
     // TODO(palmerb4): We've never encountered this before. This is a sum over a simple field that need to reduce into a
     // potentially larger type. This needs updated with a size_t reduction over an unsigned field.
     unsigned global_num_marked_for_destruction =
@@ -1159,7 +1159,7 @@ class LinkData {
   /// \brief Get the dimensionality of a linker partition
   inline unsigned get_linker_dimensionality(const PartitionKey &partition_key) const {
     MUNDY_THROW_REQUIRE(partition_key.size() > 0, std::invalid_argument, "Partition key is empty.");
-    
+
     // Fetch the parts
     stk::mesh::PartVector parts(partition_key.size());
     for (size_t i = 0; i < partition_key.size(); ++i) {
@@ -1168,8 +1168,8 @@ class LinkData {
 
     // FieldBase::restrictions
     auto &linked_es_field = link_meta_data_.linked_entities_field();
-    const stk::mesh::FieldRestriction &restriction = 
-      stk::mesh::find_restriction(linked_es_field, link_meta_data_.link_rank(), parts);
+    const stk::mesh::FieldRestriction &restriction =
+        stk::mesh::find_restriction(linked_es_field, link_meta_data_.link_rank(), parts);
     return restriction.num_scalars_per_entity();
   }
   //@}
