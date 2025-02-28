@@ -60,7 +60,7 @@ struct TANGENT {};
 struct REST_LENGTH {};
 struct SPRING_CONSTANT {};
 struct ANG_SPRING_CONSTANT {};
-struct REST_ANGLE {};
+struct REST_COSANGLE {};
 
 namespace mundy {
 
@@ -71,24 +71,46 @@ class eval_prc1_force {
 
   KOKKOS_INLINE_FUNCTION
   void operator()(const auto& prc1_view) const {
-    auto x0 = get<COORDS>(prc1_view, 0);
-    auto x1 = get<COORDS>(prc1_view, 1);
+    std::cout << "Force calc" << std::endl;
+    auto rA = get<COORDS>(prc1_view, 0);
+    auto rB = get<COORDS>(prc1_view, 1);
+    auto a1 = get<TANGENT>(prc1_view, 0);
+    auto b1 = get<TANGENT>(prc1_view, 1);
+
+    std::cout << "rA: " << rA << std::endl;
+    std::cout << "rB: " << rB << std::endl;
+    std::cout << "a1: " << a1 << std::endl;
+    std::cout << "b1: " << b1 << std::endl;
+
     double k_lin = get<SPRING_CONSTANT>(prc1_view)[0];
     double r0_lin = get<REST_LENGTH>(prc1_view)[0];
     double k_ang = get<ANG_SPRING_CONSTANT>(prc1_view)[0];
-    double r0_ang = get<REST_ANGLE>(prc1_view)[0];
+    double costheta0 = get<REST_COSANGLE>(prc1_view)[0];
 
-    // x10hat = (x1 - x0) / |x1 - x0|
-    // f_lin = -k_lin * (x1 - x0) / |x1 - x0|
-    auto x10 = x1 - x0;
-    auto x10_norm = math::norm(x10);
-    auto x10hat = x10 / x10_norm;
-    auto f_lin = -k_lin * (x10_norm - r0_lin) * x10hat;
+    auto rAB_vec = rA - rB; /* Note the backwards convention from Allen and Germano */
+    auto rAB_norm = math::norm(rAB_vec);
+    auto rAB_hat = rAB_vec / rAB_norm;
 
-    // We know that the downward connected nodes are only connected to us, therefore we do not need atomics
-    get<FORCE>(prc1_view, 0) += f_lin;
-    get<FORCE>(prc1_view, 1) -= f_lin;
-    std::cout << get<FORCE>(prc1_view, 0) << std::endl;
+    double deltacosA = math::dot(a1, rAB_hat) - costheta0;
+    double deltacosB = math::dot(b1, rAB_hat) - costheta0;
+    auto triplecrossA = math::cross(rAB_hat, math::cross(rAB_hat, a1));
+    auto triplecrossB = math::cross(rAB_hat, math::cross(rAB_hat, b1));
+
+    auto fA = -k_lin * (rAB_norm - r0_lin) * rAB_hat  //
+             + k_ang / rAB_norm * (deltacosA * triplecrossA + deltacosB * triplecrossB);
+    auto torqueA = k_ang * deltacosA * math::cross(rAB_hat, a1);
+    auto torqueB = k_ang * deltacosB * math::cross(rAB_hat, b1);
+
+    // We know that the downward connected nodes are only connected to us, therefore we do not need atomics,
+    // note that we are also not summing in the forces
+    get<FORCE>(prc1_view, 0) = fA;
+    get<FORCE>(prc1_view, 1) = -fA;
+    get<TORQUE>(prc1_view, 0) = torqueA;
+    get<TORQUE>(prc1_view, 1) = torqueB;
+    std::cout << "force A: " << get<FORCE>(prc1_view, 0) << std::endl;
+    std::cout << "force B: " << get<FORCE>(prc1_view, 1) << std::endl;
+    std::cout << "torque A: " << get<TORQUE>(prc1_view, 0) << std::endl;
+    std::cout << "torque B: " << get<TORQUE>(prc1_view, 1) << std::endl;
   }
 
   void apply_to(auto& prc1_agg, const stk::mesh::Selector& subset_selector) {
@@ -96,9 +118,9 @@ class eval_prc1_force {
 
     auto ngp_prc1_agg = mesh::get_updated_ngp_aggregate(prc1_agg);
     ngp_prc1_agg
-        .template sync_to_device<COORDS, FORCE, SPRING_CONSTANT, REST_LENGTH, ANG_SPRING_CONSTANT, REST_ANGLE>();
+        .template sync_to_device<COORDS, FORCE, TORQUE, SPRING_CONSTANT, REST_LENGTH, ANG_SPRING_CONSTANT, REST_COSANGLE>();
     ngp_prc1_agg.template for_each((*this) /*use my operator as a lambda*/, subset_selector);
-    ngp_prc1_agg.template modify_on_device<FORCE>();
+    ngp_prc1_agg.template modify_on_device<FORCE, TORQUE>();
   }
 
   void apply_to(auto& prc1_agg) {
@@ -106,9 +128,9 @@ class eval_prc1_force {
 
     auto ngp_prc1_agg = mesh::get_updated_ngp_aggregate(prc1_agg);
     ngp_prc1_agg
-        .template sync_to_device<COORDS, FORCE, SPRING_CONSTANT, REST_LENGTH, ANG_SPRING_CONSTANT, REST_ANGLE>();
+        .template sync_to_device<COORDS, FORCE, TORQUE, SPRING_CONSTANT, REST_LENGTH, ANG_SPRING_CONSTANT, REST_COSANGLE>();
     ngp_prc1_agg.template for_each((*this) /*use my operator as a lambda*/);
-    ngp_prc1_agg.template modify_on_device<FORCE>();
+    ngp_prc1_agg.template modify_on_device<FORCE, TORQUE>();
   }
 };
 
@@ -147,8 +169,10 @@ class map_surface_force_to_com_force {
     Kokkos::atomic_add(&rod_torque[1], torque[1]);
     Kokkos::atomic_add(&rod_torque[2], torque[2]);
 
-    std::cout << "rod_force: " << rod_force << std::endl;
-    std::cout << "rod_torque: " << rod_torque << std::endl;
+    std::cout << "identifier: " << slink_view.entity_id() << std::endl;
+    std::cout << "  surfacenode_position: " << surfacenode_pos << std::endl;
+    std::cout << "  rod_force: " << rod_force << std::endl;
+    std::cout << "  rod_torque: " << rod_torque << std::endl;
   }
 
   void apply_to(auto& slink_agg, const stk::mesh::Selector& subset_selector) {
@@ -265,7 +289,7 @@ void run_main() {
   //  - ELEM_REST_LENGTH
   //  - ELEM_SPRING_CONSTANT
   //  - ELEM_ANG_SPRING_CONSTANT
-  //  - ELEM_REST_ANGLE
+  //  - ELEM_REST_COSANGLE
   //
   // Surface Links: NODE rank but no fields for now
   Field<double>& node_coords_field = meta_data.declare_field<double>(NODE_RANK, "NODE_COORDS");
@@ -283,7 +307,7 @@ void run_main() {
   Field<double>& elem_spring_constant_field = meta_data.declare_field<double>(ELEM_RANK, "ELEM_SPRING_CONSTANT");
   Field<double>& elem_ang_spring_constant_field =
       meta_data.declare_field<double>(ELEM_RANK, "ELEM_ANG_SPRING_CONSTANT");
-  Field<double>& elem_rest_angle_field = meta_data.declare_field<double>(ELEM_RANK, "ELEM_REST_ANGLE");
+  Field<double>& elem_rest_cosangle_field = meta_data.declare_field<double>(ELEM_RANK, "ELEM_REST_COSANGLE");
 
   // All parts store the node coords
   stk::mesh::put_field_on_mesh(node_coords_field, meta_data.universal_part(), 3, nullptr);
@@ -306,7 +330,7 @@ void run_main() {
 
   stk::mesh::put_field_on_mesh(elem_rest_length_field, prc1_part, 1, nullptr);
   stk::mesh::put_field_on_mesh(elem_spring_constant_field, prc1_part, 1, nullptr);
-  stk::mesh::put_field_on_mesh(elem_rest_angle_field, prc1_part, 1, nullptr);
+  stk::mesh::put_field_on_mesh(elem_rest_cosangle_field, prc1_part, 1, nullptr);
   stk::mesh::put_field_on_mesh(elem_ang_spring_constant_field, prc1_part, 1, nullptr);
 
   // Decide IO stuff (boilerplate)
@@ -327,7 +351,7 @@ void run_main() {
   stk::io::set_field_role(elem_rest_length_field, Ioss::Field::TRANSIENT);
   stk::io::set_field_role(elem_spring_constant_field, Ioss::Field::TRANSIENT);
   stk::io::set_field_role(elem_ang_spring_constant_field, Ioss::Field::TRANSIENT);
-  stk::io::set_field_role(elem_rest_angle_field, Ioss::Field::TRANSIENT);
+  stk::io::set_field_role(elem_rest_cosangle_field, Ioss::Field::TRANSIENT);
 
   stk::io::set_field_output_type(node_coords_field, stk::io::FieldOutputType::VECTOR_3D);
   // stk::io::set_field_output_type(node_quaternion_field, stk::io::FieldOutputType::VECTOR_4D);  // No special quat
@@ -343,7 +367,7 @@ void run_main() {
   stk::io::set_field_output_type(elem_rest_length_field, stk::io::FieldOutputType::SCALAR);
   stk::io::set_field_output_type(elem_spring_constant_field, stk::io::FieldOutputType::SCALAR);
   stk::io::set_field_output_type(elem_ang_spring_constant_field, stk::io::FieldOutputType::SCALAR);
-  stk::io::set_field_output_type(elem_rest_angle_field, stk::io::FieldOutputType::SCALAR);
+  stk::io::set_field_output_type(elem_rest_cosangle_field, stk::io::FieldOutputType::SCALAR);
 
   // Commit the meta data
   meta_data.commit();
@@ -362,7 +386,7 @@ void run_main() {
   auto rest_length_accessor = ScalarFieldComponent(elem_rest_length_field);
   auto spring_constant_accessor = ScalarFieldComponent(elem_spring_constant_field);
   auto ang_spring_constant_accessor = ScalarFieldComponent(elem_ang_spring_constant_field);
-  auto rest_angle_accessor = ScalarFieldComponent(elem_rest_angle_field);
+  auto rest_cosangle_accessor = ScalarFieldComponent(elem_rest_cosangle_field);
   auto linked_entities_accessor = FieldComponent(link_meta_data.linked_entities_field());
 
   // Create the aggregates
@@ -386,7 +410,7 @@ void run_main() {
                       .add_component<REST_LENGTH, ELEM_RANK>(rest_length_accessor)
                       .add_component<SPRING_CONSTANT, ELEM_RANK>(spring_constant_accessor)
                       .add_component<ANG_SPRING_CONSTANT, ELEM_RANK>(ang_spring_constant_accessor)
-                      .add_component<REST_ANGLE, ELEM_RANK>(rest_angle_accessor);
+                      .add_component<REST_COSANGLE, ELEM_RANK>(rest_cosangle_accessor);
 
   auto prc1_head_agg = make_ranked_aggregate<NODE_RANK>(bulk_data, prc1_part)
                            .add_component<COORDS, NODE_RANK>(coord_accessor)
@@ -405,13 +429,14 @@ void run_main() {
   double rod_radius = 0.5;
   double rod_length = 20;
   math::Quaternion<double> rod_orient = math::Quaternion<double>::identity();
-  math::Vector3<double> rod_tangent = rod_orient * math::Vector3<double>(1.0, 0.0, 0.0);
+  math::Vector3<double> rod_tangent = rod_orient * math::Vector3<double>(0.0, 0.0, 1.0);
+  std::cout << "rod_tangent: " << rod_tangent << std::endl;
   double init_rod_sep = 2.1;
 
   double spring_constant = 1.0;
   double ang_spring_constant = 1.0;
   double rest_length = 2.0;
-  double rest_cos_angle = 0.0;
+  double rest_cosangle = 0.0;
 
   // Fill the declare entities helper
   DeclareEntitiesHelper dec_helper;
@@ -489,7 +514,7 @@ void run_main() {
       .add_field_data<double>(&elem_rest_length_field, {rest_length})
       .add_field_data<double>(&elem_spring_constant_field, {spring_constant})
       .add_field_data<double>(&elem_ang_spring_constant_field, {ang_spring_constant})
-      .add_field_data<double>(&elem_rest_angle_field, {rest_cos_angle});
+      .add_field_data<double>(&elem_rest_cosangle_field, {rest_cosangle});
 
   // Declare the entities
   dec_helper.check_consistency(bulk_data);
