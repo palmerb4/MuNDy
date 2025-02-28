@@ -209,8 +209,10 @@ class LinkMetaData {
 
   using entity_rank_value_t = std::underlying_type_t<stk::mesh::EntityRank>;
   using entity_id_value_t = stk::mesh::EntityId;
+  using entity_value_t = stk::mesh::Entity::entity_value_type;
   using linked_entity_ids_field_t = stk::mesh::Field<entity_id_value_t>;
   using linked_entity_ranks_field_t = stk::mesh::Field<entity_rank_value_t>;
+  using linked_entities_field_t = stk::mesh::Field<entity_value_t>;
   //@}
 
   //! \name Constructors and destructor
@@ -253,6 +255,14 @@ class LinkMetaData {
   /// Same comment as linked_entity_ids_field. Treat this field as read-only.
   const linked_entity_ranks_field_t &linked_entity_ranks_field() const {
     return linked_entity_ranks_field_;
+  }
+
+  /// \brief Fetch the linked entities field.
+  const linked_entities_field_t &linked_entities_field() const {
+    return linked_entities_field_;
+  }
+  linked_entities_field_t &linked_entities_field() {
+    return linked_entities_field_;
   }
 
   /// \brief Fetch the universal link part.
@@ -322,8 +332,6 @@ class LinkMetaData {
   //! \name Internal aliases
   //@{
 
-  using entity_value_t = stk::mesh::Entity::entity_value_type;
-  using linked_entities_field_t = stk::mesh::Field<entity_value_t>;
   using linked_entity_bucket_ids_field_t = stk::mesh::Field<unsigned>;
   using linked_entity_bucket_ords_field_t = stk::mesh::Field<unsigned>;
   using link_crs_needs_updated_field_t = stk::mesh::Field<int>;
@@ -369,14 +377,6 @@ class LinkMetaData {
   /// \brief Fetch the linked entity ranks field (non-const).
   linked_entity_ranks_field_t &linked_entity_ranks_field() {
     return linked_entity_ranks_field_;
-  }
-
-  /// \brief Fetch the linked entities field.
-  const linked_entities_field_t &linked_entities_field() const {
-    return linked_entities_field_;
-  }
-  linked_entities_field_t &linked_entities_field() {
-    return linked_entities_field_;
   }
 
   /// \brief Fetch the linked entities field (as last seen by the CRS).

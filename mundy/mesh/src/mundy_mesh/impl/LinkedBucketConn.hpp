@@ -322,7 +322,7 @@ class LinkedBucketConn {
   //!\name Private type aliases
   //@{
 
-#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+#if TRILINOS_MAJOR_MINOR_VERSION > 160000
   using UpwardConnIndexType = stk::mesh::UpwardConnIndexType;
   static constexpr stk::mesh::ConnectivityOrdinal INVALID_CONNECTIVITY_ORDINAL =
       stk::mesh::INVALID_CONNECTIVITY_ORDINAL;

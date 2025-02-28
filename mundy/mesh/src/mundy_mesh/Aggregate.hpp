@@ -145,7 +145,7 @@ class FieldComponent : public FieldComponentBase {
   }
 
   inline decltype(auto) operator()(stk::mesh::Entity entity) const {
-    ValueType *data_ptr = stk::mesh::field_data(*field, entity);
+    ValueType* data_ptr = stk::mesh::field_data(*field, entity);
     MUNDY_THROW_ASSERT(data_ptr, std::runtime_error, "Field data is null");
     unsigned num_scalars = stk::mesh::field_scalars_per_entity(*field_, entity);
     return stk::mesh::EntityFieldData<ValueType>(data_ptr, num_scalars);
@@ -166,6 +166,7 @@ class FieldComponent : public FieldComponentBase {
 template <typename NgpFieldType>
 class NgpFieldComponent : public NgpFieldComponentBase {
  public:
+  NgpFieldComponent() = default;
   NgpFieldComponent(NgpFieldType ngp_field)
 #if TRILINOS_MAJOR_MINOR_VERSION >= 160000
       : NgpFieldComponentBase(*ngp_field.get_field_base()),
@@ -238,6 +239,7 @@ class ScalarFieldComponent : public FieldComponentBase {
 template <typename NgpFieldType>
 class NgpScalarFieldComponent : public NgpFieldComponentBase {
  public:
+  NgpScalarFieldComponent() = default;
   NgpScalarFieldComponent(NgpFieldType ngp_field)
 #if TRILINOS_MAJOR_MINOR_VERSION >= 160000
       : NgpFieldComponentBase(*ngp_field.get_field_base()),
@@ -310,6 +312,7 @@ class Vector3FieldComponent : public FieldComponentBase {
 template <typename NgpFieldType>
 class NgpVector3FieldComponent : public NgpFieldComponentBase {
  public:
+  NgpVector3FieldComponent() = default;
   NgpVector3FieldComponent(NgpFieldType ngp_field)
 #if TRILINOS_MAJOR_MINOR_VERSION >= 160000
       : NgpFieldComponentBase(*ngp_field.get_field_base()),  // Directly store the field base
@@ -381,6 +384,7 @@ class Matrix3FieldComponent : public FieldComponentBase {
 template <typename NgpFieldType>
 class NgpMatrix3FieldComponent : public NgpFieldComponentBase {
  public:
+  NgpMatrix3FieldComponent() = default;
   NgpMatrix3FieldComponent(NgpFieldType ngp_field)
 #if TRILINOS_MAJOR_MINOR_VERSION >= 160000
       : NgpFieldComponentBase(*ngp_field.get_field_base()),  // Directly store the field base
@@ -452,6 +456,7 @@ class QuaternionFieldComponent : public FieldComponentBase {
 template <typename NgpFieldType>
 class NgpQuaternionFieldComponent : public NgpFieldComponentBase {
  public:
+  NgpQuaternionFieldComponent() = default;
   NgpQuaternionFieldComponent(NgpFieldType ngp_field)
 #if TRILINOS_MAJOR_MINOR_VERSION >= 160000
       : NgpFieldComponentBase(*ngp_field.get_field_base()),
@@ -519,6 +524,7 @@ class AABBFieldComponent : public FieldComponentBase {
 template <typename NgpFieldType>
 class NgpAABBFieldComponent : public NgpFieldComponentBase {
  public:
+  NgpAABBFieldComponent() = default;
   NgpAABBFieldComponent(NgpFieldType ngp_field)
 #if TRILINOS_MAJOR_MINOR_VERSION >= 160000
       : NgpFieldComponentBase(*ngp_field.get_field_base()),
@@ -613,6 +619,7 @@ class NgpTaggedComponent {
   using component_type = NgpComponentType;
   static constexpr stk::topology::rank_t rank = our_rank;
 
+  NgpTaggedComponent() = default;
   NgpTaggedComponent(component_type component) : component_(component) {
   }
 
@@ -679,6 +686,13 @@ decltype(auto) get_updated_ngp_component(const QuaternionFieldComponent<ScalarTy
   auto& ngp_field = stk::mesh::get_updated_ngp_field<ScalarType>(component.field());
   using ngp_field_type = std::remove_reference_t<decltype(ngp_field)>;
   return NgpQuaternionFieldComponent<ngp_field_type>(ngp_field);
+}
+//
+template <typename ValueType>
+decltype(auto) get_updated_ngp_component(const FieldComponent<ValueType>& component) {
+  auto& ngp_field = stk::mesh::get_updated_ngp_field<ValueType>(component.field());
+  using ngp_field_type = std::remove_reference_t<decltype(ngp_field)>;
+  return NgpFieldComponent<ngp_field_type>(ngp_field);
 }
 //
 template <typename Tag, stk::topology::rank_t our_rank, typename ComponentType>
@@ -1165,6 +1179,10 @@ class NgpAggregate {
 
   //! \name Constructors
   //@{
+
+  /// \brief Default constructor
+  NgpAggregate() : ngp_mesh_{}, host_selector_{}, ngp_components_{} {
+  }
 
   /// \brief Construct an Aggregate that has no components
   NgpAggregate(stk::mesh::NgpMesh ngp_mesh, stk::mesh::Selector selector)

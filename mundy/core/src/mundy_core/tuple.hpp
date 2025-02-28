@@ -115,6 +115,12 @@ template <class T, size_t Idx>
 struct tuple_member {
   T value;
 
+  // If T is default constructible, provide a default constructor
+  KOKKOS_FUNCTION
+  constexpr tuple_member()
+    requires std::default_initializable<T>
+  = default;
+
   // Provide a constructor that takes a single argument.
   KOKKOS_FUNCTION
   constexpr tuple_member(T const& val) : value(val) {
@@ -152,8 +158,16 @@ struct tuple_impl;
 
 template <size_t... Idx, class... Elements>
 struct tuple_impl<std::index_sequence<Idx...>, Elements...> : public tuple_member<Elements, Idx>... {
+  // If all elements are default constructible, provide a default constructor
   KOKKOS_FUNCTION
-  constexpr tuple_impl(Elements... vals) : tuple_member<Elements, Idx>{vals}... {
+  constexpr tuple_impl()
+    requires((std::default_initializable<Elements> && ...))
+  = default;
+
+  KOKKOS_FUNCTION
+  constexpr tuple_impl(Elements... vals)
+    requires(sizeof...(Elements) > 0)
+      : tuple_member<Elements, Idx>{vals}... {
   }
 
   template <size_t N>
@@ -174,8 +188,15 @@ struct tuple_impl<std::index_sequence<Idx...>, Elements...> : public tuple_membe
 // need it This is not meant as an external API
 template <class... Elements>
 struct tuple : public tuple_impl<decltype(std::make_index_sequence<sizeof...(Elements)>()), Elements...> {
+  // If all elements are default constructible, provide a default constructor
+  KOKKOS_FUNCTION
+  constexpr tuple()
+    requires((std::default_initializable<Elements> && ...))
+  = default;
+
   KOKKOS_FUNCTION
   constexpr tuple(Elements... vals)
+    requires(sizeof...(Elements) > 0)
       : tuple_impl<decltype(std::make_index_sequence<sizeof...(Elements)>()), Elements...>(vals...) {
   }
 };

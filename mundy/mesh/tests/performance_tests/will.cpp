@@ -66,11 +66,11 @@ namespace mundy {
 
 class eval_prc1_force {
  public:
- eval_prc1_force() {
+  eval_prc1_force() {
   }
 
   KOKKOS_INLINE_FUNCTION
-  void operator()(const auto &prc1_view) const {
+  void operator()(const auto& prc1_view) const {
     auto x0 = get<COORDS>(prc1_view, 0);
     auto x1 = get<COORDS>(prc1_view, 1);
     double k_lin = get<SPRING_CONSTANT>(prc1_view)[0];
@@ -91,23 +91,104 @@ class eval_prc1_force {
     std::cout << get<FORCE>(prc1_view, 0) << std::endl;
   }
 
-  void apply_to(auto &prc1_agg, const stk::mesh::Selector &subset_selector) {
+  void apply_to(auto& prc1_agg, const stk::mesh::Selector& subset_selector) {
     static_assert(prc1_agg.topology() == stk::topology::BEAM_2, "PRC1 must be beam 2 top.");
-    
+
     auto ngp_prc1_agg = mesh::get_updated_ngp_aggregate(prc1_agg);
-    ngp_prc1_agg.template sync_to_device<COORDS, FORCE, SPRING_CONSTANT, REST_LENGTH, ANG_SPRING_CONSTANT, REST_ANGLE>();
+    ngp_prc1_agg
+        .template sync_to_device<COORDS, FORCE, SPRING_CONSTANT, REST_LENGTH, ANG_SPRING_CONSTANT, REST_ANGLE>();
     ngp_prc1_agg.template for_each((*this) /*use my operator as a lambda*/, subset_selector);
     ngp_prc1_agg.template modify_on_device<FORCE>();
   }
 
-  void apply_to(auto &prc1_agg) {
+  void apply_to(auto& prc1_agg) {
     static_assert(prc1_agg.topology() == stk::topology::BEAM_2, "PRC1 must be beam 2 top.");
 
     auto ngp_prc1_agg = mesh::get_updated_ngp_aggregate(prc1_agg);
-    ngp_prc1_agg.template sync_to_device<COORDS, FORCE, SPRING_CONSTANT, REST_LENGTH, ANG_SPRING_CONSTANT, REST_ANGLE>();
+    ngp_prc1_agg
+        .template sync_to_device<COORDS, FORCE, SPRING_CONSTANT, REST_LENGTH, ANG_SPRING_CONSTANT, REST_ANGLE>();
     ngp_prc1_agg.template for_each((*this) /*use my operator as a lambda*/);
     ngp_prc1_agg.template modify_on_device<FORCE>();
   }
+};
+
+template <typename RodAgg, typename SurfaceNodeAgg>
+class map_surface_force_to_com_force {
+ public:
+  map_surface_force_to_com_force(mesh::LinkData& link_data, RodAgg& rod_agg, SurfaceNodeAgg& surfacenode_agg)
+      : link_data_(link_data), rod_agg_(rod_agg), surfacenode_agg_(surfacenode_agg) {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const auto& slink_view) const {
+    // Get the two entities from the slink_view, this is already inside of a parallel loop
+    auto rod_entity = stk::mesh::Entity(get<LINKED_ENTITIES>(slink_view)[0]);
+    auto surfacenode_entity = stk::mesh::Entity(get<LINKED_ENTITIES>(slink_view)[1]);
+
+    // Go from entity view to the aggregate
+    auto rod_view = ngp_rod_agg_.get_view(slink_view.ngp_mesh().fast_mesh_index(rod_entity));
+    auto surfacenode_view = ngp_surfacenode_agg_.get_view(slink_view.ngp_mesh().fast_mesh_index(surfacenode_entity));
+
+    auto rod_force = get<FORCE>(rod_view, 0 /* center node */);
+    auto rod_torque = get<TORQUE>(rod_view, 0);
+    auto rod_center = get<COORDS>(rod_view, 0);
+    auto surfacenode_force = get<FORCE>(surfacenode_view);
+    auto surfacenode_torque = get<TORQUE>(surfacenode_view);
+    auto surfacenode_pos = get<COORDS>(surfacenode_view);
+
+    // Add the COM force
+    Kokkos::atomic_add(&rod_force[0], surfacenode_force[0]);
+    Kokkos::atomic_add(&rod_force[1], surfacenode_force[1]);
+    Kokkos::atomic_add(&rod_force[2], surfacenode_force[2]);
+
+    // Add the torques along with the off-center force contribution
+    auto torque = surfacenode_torque + math::cross(surfacenode_pos - rod_center, surfacenode_force);
+    Kokkos::atomic_add(&rod_torque[0], torque[0]);
+    Kokkos::atomic_add(&rod_torque[1], torque[1]);
+    Kokkos::atomic_add(&rod_torque[2], torque[2]);
+
+    std::cout << "rod_force: " << rod_force << std::endl;
+    std::cout << "rod_torque: " << rod_torque << std::endl;
+  }
+
+  void apply_to(auto& slink_agg, const stk::mesh::Selector& subset_selector) {
+    auto ngp_slink_agg = mesh::get_updated_ngp_aggregate(slink_agg);
+    // Explicitly construct a local instance of the NGP rod_agg and surfacenode_agg
+    ngp_rod_agg_ = mesh::get_updated_ngp_aggregate(rod_agg_);
+    ngp_surfacenode_agg_ = mesh::get_updated_ngp_aggregate(surfacenode_agg_);
+
+    ngp_slink_agg.template sync_to_device<LINKED_ENTITIES>();
+    ngp_rod_agg_.template sync_to_device<FORCE, TORQUE, COORDS>();
+    ngp_surfacenode_agg_.template sync_to_device<FORCE, TORQUE, COORDS>();
+
+    ngp_slink_agg.template for_each((*this) /*use my operator as a lambda*/, subset_selector);
+
+    ngp_rod_agg_.template modify_on_device<FORCE, TORQUE>();
+  }
+
+  void apply_to(auto& slink_agg) {
+    auto ngp_slink_agg = mesh::get_updated_ngp_aggregate(slink_agg);
+    // Explicitly construct a local instance of the NGP rod_agg and surfacenode_agg
+    ngp_rod_agg_ = mesh::get_updated_ngp_aggregate(rod_agg_);
+    ngp_surfacenode_agg_ = mesh::get_updated_ngp_aggregate(surfacenode_agg_);
+
+    ngp_slink_agg.template sync_to_device<LINKED_ENTITIES>();
+    ngp_rod_agg_.template sync_to_device<FORCE, TORQUE, COORDS>();
+    ngp_surfacenode_agg_.template sync_to_device<FORCE, TORQUE, COORDS>();
+
+    ngp_slink_agg.template for_each((*this) /*use my operator as a lambda*/);
+
+    ngp_rod_agg_.template modify_on_device<FORCE, TORQUE>();
+  }
+
+ private:
+  mesh::LinkData& link_data_;
+  RodAgg& rod_agg_;
+  SurfaceNodeAgg& surfacenode_agg_;
+  using rod_agg_ngp_t = decltype(mesh::get_updated_ngp_aggregate(std::declval<RodAgg>()));
+  using surfacenode_agg_ngp_t = decltype(mesh::get_updated_ngp_aggregate(std::declval<SurfaceNodeAgg>()));
+  rod_agg_ngp_t ngp_rod_agg_;
+  surfacenode_agg_ngp_t ngp_surfacenode_agg_;
 };
 
 void run_main() {
@@ -121,13 +202,14 @@ void run_main() {
   // Mundy things
   using mesh::BulkData;
   using mesh::DeclareEntitiesHelper;
+  using mesh::FieldComponent;
   using mesh::LinkData;
   using mesh::LinkMetaData;
   using mesh::MeshBuilder;
   using mesh::MetaData;
-  using mesh::Vector3FieldComponent;
-  using mesh::ScalarFieldComponent;
   using mesh::QuaternionFieldComponent;
+  using mesh::ScalarFieldComponent;
+  using mesh::Vector3FieldComponent;
 
   // Setup the STK mesh (boiler plate)
   MeshBuilder mesh_builder(MPI_COMM_WORLD);
@@ -281,36 +363,40 @@ void run_main() {
   auto spring_constant_accessor = ScalarFieldComponent(elem_spring_constant_field);
   auto ang_spring_constant_accessor = ScalarFieldComponent(elem_ang_spring_constant_field);
   auto rest_angle_accessor = ScalarFieldComponent(elem_rest_angle_field);
+  auto linked_entities_accessor = FieldComponent(link_meta_data.linked_entities_field());
 
   // Create the aggregates
-  auto rod_data = make_aggregate<stk::topology::PARTICLE>(bulk_data, rod_part)
+  auto rod_agg = make_aggregate<stk::topology::PARTICLE>(bulk_data, rod_part)
+                     .add_component<COORDS, NODE_RANK>(coord_accessor)
+                     .add_component<QUAT, NODE_RANK>(quaternion_accessor)
+                     .add_component<TANGENT, NODE_RANK>(tangent_accessor)
+                     .add_component<VELOCITY, NODE_RANK>(velocity_accessor)
+                     .add_component<OMEGA, NODE_RANK>(omega_accessor)
+                     .add_component<FORCE, NODE_RANK>(force_accessor)
+                     .add_component<TORQUE, NODE_RANK>(torque_accessor)
+                     .add_component<LENGTH, ELEM_RANK>(length_accessor)
+                     .add_component<RADIUS, ELEM_RANK>(radius_accessor);
+
+  auto prc1_agg = make_aggregate<stk::topology::BEAM_2>(bulk_data, prc1_part)
                       .add_component<COORDS, NODE_RANK>(coord_accessor)
-                      .add_component<QUAT, NODE_RANK>(quaternion_accessor)
                       .add_component<TANGENT, NODE_RANK>(tangent_accessor)
-                      .add_component<VELOCITY, NODE_RANK>(velocity_accessor)
-                      .add_component<OMEGA, NODE_RANK>(omega_accessor)
                       .add_component<FORCE, NODE_RANK>(force_accessor)
                       .add_component<TORQUE, NODE_RANK>(torque_accessor)
-                      .add_component<LENGTH, ELEM_RANK>(length_accessor)
-                      .add_component<RADIUS, ELEM_RANK>(radius_accessor);
+                      .add_component<IS_BOUND, NODE_RANK>(is_bound_accessor)
+                      .add_component<REST_LENGTH, ELEM_RANK>(rest_length_accessor)
+                      .add_component<SPRING_CONSTANT, ELEM_RANK>(spring_constant_accessor)
+                      .add_component<ANG_SPRING_CONSTANT, ELEM_RANK>(ang_spring_constant_accessor)
+                      .add_component<REST_ANGLE, ELEM_RANK>(rest_angle_accessor);
 
-  auto prc1_data = make_aggregate<stk::topology::BEAM_2>(bulk_data, prc1_part)
-                       .add_component<COORDS, NODE_RANK>(coord_accessor)
-                       .add_component<TANGENT, NODE_RANK>(tangent_accessor)
-                       .add_component<FORCE, NODE_RANK>(force_accessor)
-                       .add_component<TORQUE, NODE_RANK>(torque_accessor)
-                       .add_component<IS_BOUND, NODE_RANK>(is_bound_accessor)
-                       .add_component<REST_LENGTH, ELEM_RANK>(rest_length_accessor)
-                       .add_component<SPRING_CONSTANT, ELEM_RANK>(spring_constant_accessor)
-                       .add_component<ANG_SPRING_CONSTANT, ELEM_RANK>(ang_spring_constant_accessor)
-                       .add_component<REST_ANGLE, ELEM_RANK>(rest_angle_accessor);
+  auto prc1_head_agg = make_ranked_aggregate<NODE_RANK>(bulk_data, prc1_part)
+                           .add_component<COORDS, NODE_RANK>(coord_accessor)
+                           .add_component<TANGENT, NODE_RANK>(tangent_accessor)
+                           .add_component<FORCE, NODE_RANK>(force_accessor)
+                           .add_component<TORQUE, NODE_RANK>(torque_accessor)
+                           .add_component<IS_BOUND, NODE_RANK>(is_bound_accessor);
 
-  auto prc1_head_data = make_ranked_aggregate<NODE_RANK>(bulk_data, prc1_part)
-                            .add_component<COORDS, NODE_RANK>(coord_accessor)
-                            .add_component<TANGENT, NODE_RANK>(tangent_accessor)
-                            .add_component<FORCE, NODE_RANK>(force_accessor)
-                            .add_component<TORQUE, NODE_RANK>(torque_accessor)
-                            .add_component<IS_BOUND, NODE_RANK>(is_bound_accessor);
+  auto slink_agg = make_ranked_aggregate<NODE_RANK>(bulk_data, slink_part)
+                       .add_component<LINKED_ENTITIES, NODE_RANK>(linked_entities_accessor);
 
   // Hard code system params
   size_t num_timesteps = 1;
@@ -377,7 +463,7 @@ void run_main() {
   prc1_node1
       .owning_proc(0)  //
       .id(3)           // 1 indexed
-      .add_field_data<double>(&node_coords_field, {0.0, 0.0, 0.0})
+      .add_field_data<double>(&node_coords_field, {0.0, 0.0, 0.1})
       .add_field_data<double>(&node_tangent_field, {rod_tangent[0], rod_tangent[1], rod_tangent[2]})
       .add_field_data<double>(&node_force_field, {0.0, 0.0, 0.0})
       .add_field_data<double>(&node_torque_field, {0.0, 0.0, 0.0})
@@ -387,7 +473,7 @@ void run_main() {
   prc1_node2
       .owning_proc(0)  //
       .id(4)           // 1 indexed
-      .add_field_data<double>(&node_coords_field, {init_rod_sep, 0.0, 0.0})
+      .add_field_data<double>(&node_coords_field, {init_rod_sep, 0.0, 0.1})
       .add_field_data<double>(&node_tangent_field, {rod_tangent[0], rod_tangent[1], rod_tangent[2]})
       .add_field_data<double>(&node_force_field, {0.0, 0.0, 0.0})
       .add_field_data<double>(&node_torque_field, {0.0, 0.0, 0.0})
@@ -449,11 +535,18 @@ void run_main() {
   for (size_t timestep_index = 0; timestep_index < num_timesteps; timestep_index++) {
     // One timestep
 
+    // Zero the velocities, forces, and torques
+    mesh::field_fill<double>(0.0, node_velocity_field, stk::ngp::ExecSpace{});
+    mesh::field_fill<double>(0.0, node_force_field, stk::ngp::ExecSpace{});
+    mesh::field_fill<double>(0.0, node_torque_field, stk::ngp::ExecSpace{});
+
     // Compute spring forces
     std::cout << "Computing spring forces" << std::endl;
-    eval_prc1_force().apply_to(prc1_data);
+    eval_prc1_force().apply_to(prc1_agg);
 
     // Compute map surface forces to center forces
+    std::cout << "Mapping spring surface forces to center forces" << std::endl;
+    map_surface_force_to_com_force(link_data, rod_agg, prc1_head_agg).apply_to(slink_agg);
 
     // Map center forces to center velocity
 
