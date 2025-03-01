@@ -20,6 +20,11 @@
 #ifndef MUNDY_CORE_OURANYNUMBERPARAMETERENTRYVALIDATOR_HPP_
 #define MUNDY_CORE_OURANYNUMBERPARAMETERENTRYVALIDATOR_HPP_
 
+// Mundy
+#include <MundyCore_config.hpp>                                     // for HAVE_MUNDYCORE_*
+
+#ifdef HAVE_MUNDYCORE_TEUCHOS
+
 // C++ core
 #include <stdexcept>  // for std::runtime_error
 #include <string>     // for std::string
@@ -599,5 +604,7 @@ class TEUCHOSPARAMETERLIST_LIB_DLL_EXPORT OurAnyNumberParameterEntryValidator
 }  // namespace core
 
 }  // namespace mundy
+
+#endif
 
 #endif  // MUNDY_CORE_OURANYNUMBERPARAMETERENTRYVALIDATOR_HPP_

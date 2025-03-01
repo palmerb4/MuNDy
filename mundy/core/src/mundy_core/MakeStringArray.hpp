@@ -23,6 +23,10 @@
 /// \file MakeStringArray.hpp
 /// \brief Declaration of the make_string_array helper function.
 
+// Mundy
+#include <MundyCore_config.hpp>                                     // for HAVE_MUNDYCORE_*
+
+#ifdef HAVE_MUNDYCORE_TEUCHOS
 // C++ core
 #include <concepts>  // for std::convertible_to
 #include <string>    // for std::string
@@ -51,5 +55,7 @@ Teuchos::Array<std::string> make_string_array(Args&&... args) {
 }  // namespace core
 
 }  // namespace mundy
+
+#endif
 
 #endif  // MUNDY_CORE_MAKESTRINGARRAY_HPP_
