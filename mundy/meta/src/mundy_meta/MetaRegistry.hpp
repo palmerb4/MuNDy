@@ -131,10 +131,10 @@ struct MetaRegistry {
 /// \param Key The key to register the class with. This key should be unique within the \c MetaMethodFactory.
 /// \param ClassToRegister A class derived from \c MetaMethodSubsetExecutionInterface that we wish to register.
 /// \param FactoryToRegisterWith The \c MetaMethodFactory to register the class with.
-#define MUNDY_REGISTER_METACLASS(Key, ClassToRegister, ... /* FactoryToRegisterWith */)                               \
-  template <>                                                                                                         \
-  struct mundy::meta::MetaRegistry<ClassToRegister, __VA_ARGS__> {                                                                 \
+#define MUNDY_REGISTER_METACLASS(Key, ClassToRegister, ... /* FactoryToRegisterWith */)                      \
+  template <>                                                                                                \
+  struct mundy::meta::MetaRegistry<ClassToRegister, __VA_ARGS__> {                                           \
     static inline volatile const bool is_registered = __VA_ARGS__::register_new_class<ClassToRegister>(Key); \
-  };                                                                                                                  
+  };
 
 #endif  // MUNDY_META_METAREGISTRY_HPP_

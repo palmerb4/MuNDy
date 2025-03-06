@@ -55,7 +55,7 @@ SphereSpherocylinderHertzianContact::SphereSpherocylinderHertzianContact(mundy::
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "SphereSpherocylinderHertzianContact: bulk_data_ptr cannot be a nullptr.");
+                      "SphereSpherocylinderHertzianContact: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -91,8 +91,8 @@ SphereSpherocylinderHertzianContact::SphereSpherocylinderHertzianContact(mundy::
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
     MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
-                       std::string("SphereSpherocylinderHertzianContact: Field ")
-                           + field_name + " cannot be a nullptr. Check that the field exists.");
+                        std::string("SphereSpherocylinderHertzianContact: Field ") + field_name +
+                            " cannot be a nullptr. Check that the field exists.");
   };  // field_exists
 
   field_exists(element_radius_field_ptr_, element_radius_field_name);
@@ -116,8 +116,8 @@ SphereSpherocylinderHertzianContact::SphereSpherocylinderHertzianContact(mundy::
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
       MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
-                         std::string("SphereSpherocylinderHertzianContact: Part ")
-                             + part_name + " cannot be a nullptr. Check that the part exists.");
+                          std::string("SphereSpherocylinderHertzianContact: Part ") + part_name +
+                              " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;

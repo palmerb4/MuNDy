@@ -297,9 +297,9 @@ class RPYSpheresPerf : public mundy::meta::MetaKernel<> {
       fmm_pbc = stkfmm::PAXIS::PXYZ;
     } else {
       MUNDY_THROW_REQUIRE(false, std::invalid_argument,
-                          std::string("Unsupported pbc configuration. The current configuration is ")
-                              + "periodic_in_x = " + periodic_in_x_ + ", periodic_in_y = " + periodic_in_y_
-                              + ", periodic_in_z = " + periodic_in_z_);
+                          std::string("Unsupported pbc configuration. The current configuration is ") +
+                              "periodic_in_x = " + periodic_in_x_ + ", periodic_in_y = " + periodic_in_y_ +
+                              ", periodic_in_z = " + periodic_in_z_);
     }
     std::cout << "RPYSpheresPerf::execute pbc setup" << std::endl;
 
@@ -346,10 +346,10 @@ class RPYSpheresPerf : public mundy::meta::MetaKernel<> {
       const bool coordinate_out_of_domain_in_non_periodic_direction =
           coordinate_out_of_domain_in_x || coordinate_out_of_domain_in_y || coordinate_out_of_domain_in_z;
       MUNDY_THROW_ASSERT(!coordinate_out_of_domain_in_non_periodic_direction, std::logic_error,
-                               "RPYSpheresPerf: Node coordinate is out of domain. The current coordinate is "
-                                   << node_coord[0] << " " << node_coord[1] << " " << node_coord[2]
-                                   << " and the origin is " << domain_origin_[0] << " " << domain_origin_[1] << " "
-                                   << domain_origin_[2] << " with length " << domain_length_);
+                         "RPYSpheresPerf: Node coordinate is out of domain. The current coordinate is "
+                             << node_coord[0] << " " << node_coord[1] << " " << node_coord[2] << " and the origin is "
+                             << domain_origin_[0] << " " << domain_origin_[1] << " " << domain_origin_[2]
+                             << " with length " << domain_length_);
 
       src_single_layer_coord[3 * i] = node_coord[0];
       src_single_layer_coord[3 * i + 1] = node_coord[1];

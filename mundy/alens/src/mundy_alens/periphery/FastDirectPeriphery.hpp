@@ -73,13 +73,13 @@ void gen_sphere_quadrature(const int &order, const double &radius, std::vector<d
                            const bool include_poles = false, const bool invert = false) {
   MUNDY_THROW_REQUIRE(order >= 0, std::invalid_argument, "gen_sphere_quadrature: order must be non-negative.");
   MUNDY_THROW_REQUIRE(radius > 0, std::invalid_argument,
-                     std::string("gen_sphere_quadrature: radius must be positive. The current value is ") + radius);
+                      std::string("gen_sphere_quadrature: radius must be positive. The current value is ") + radius);
   MUNDY_THROW_REQUIRE(points_ptr != nullptr, std::invalid_argument,
-                     "gen_sphere_quadrature: points_ptr must be non-null.");
+                      "gen_sphere_quadrature: points_ptr must be non-null.");
   MUNDY_THROW_REQUIRE(weights_ptr != nullptr, std::invalid_argument,
-                     "gen_sphere_quadrature: weights_ptr must be non-null.");
+                      "gen_sphere_quadrature: weights_ptr must be non-null.");
   MUNDY_THROW_REQUIRE(normals_ptr != nullptr, std::invalid_argument,
-                     "gen_sphere_quadrature: normals_ptr must be non-null.");
+                      "gen_sphere_quadrature: normals_ptr must be non-null.");
 
   // Get references to the vectors
   std::vector<double> &points = *points_ptr;
@@ -292,7 +292,6 @@ void read_vector_from_file(const std::string &filename, const size_t expected_nu
   // Close the file
   infile.close();
 }
-
 
 template <class ExecutionSpace, class MemorySpace, class Layout, typename Func>
 void penalize_velocity_kernel_over_target_points([[maybe_unused]] const ExecutionSpace &space, int num_target_points,
@@ -1214,7 +1213,7 @@ class FastDirectPeriphery {
   template <class MemorySpace, class Layout>
   FastDirectPeriphery &set_surface_positions(const Kokkos::View<double *, Layout, MemorySpace> &surface_positions) {
     MUNDY_THROW_REQUIRE(surface_positions.extent(0) == 3 * num_surface_nodes_, std::invalid_argument,
-                       "set_surface_positions: surface_positions must have size 3 * num_surface_nodes.");
+                        "set_surface_positions: surface_positions must have size 3 * num_surface_nodes.");
     Kokkos::deep_copy(surface_positions_, surface_positions);
     is_surface_positions_set_ = true;
 
@@ -1254,7 +1253,7 @@ class FastDirectPeriphery {
   template <class MemorySpace, class Layout>
   FastDirectPeriphery &set_surface_normals(const Kokkos::View<double *, Layout, MemorySpace> &surface_normals) {
     MUNDY_THROW_REQUIRE(surface_normals.extent(0) == 3 * num_surface_nodes_, std::invalid_argument,
-                       "set_surface_normals: surface_normals must have size 3 * num_surface_nodes.");
+                        "set_surface_normals: surface_normals must have size 3 * num_surface_nodes.");
     Kokkos::deep_copy(surface_normals_, surface_normals);
     is_surface_normals_set_ = true;
 
@@ -1379,9 +1378,9 @@ class FastDirectPeriphery {
       const bool &write_to_file = true,
       const std::string &inverse_self_interaction_matrix_filename = "inverse_self_interaction_matrix.dat") {
     MUNDY_THROW_REQUIRE(is_surface_positions_set_ && is_surface_normals_set_ && is_quadrature_weights_set_,
-                       std::runtime_error,
-                       "build_inverse_self_interaction_matrix: surface_positions, surface_normals, and "
-                       "quadrature_weights must be set before calling this function.");
+                        std::runtime_error,
+                        "build_inverse_self_interaction_matrix: surface_positions, surface_normals, and "
+                        "quadrature_weights must be set before calling this function.");
 
     // Fill the self-interaction matrix using temporary storage
     Kokkos::View<double **, Kokkos::LayoutLeft, DeviceMemorySpace> M("M", 3 * num_surface_nodes_,

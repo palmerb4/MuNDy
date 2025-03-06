@@ -86,7 +86,6 @@ class Sphere : public mundy::meta::MetaKernel<> {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(Sphere::get_valid_fixed_params());
 
-
     // Fill the requirements using the given parameter list.
     std::string element_aabb_field_name = valid_fixed_params.get<std::string>("element_aabb_field_name");
 

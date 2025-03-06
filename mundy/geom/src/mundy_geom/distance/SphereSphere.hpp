@@ -24,9 +24,9 @@
 #include <Kokkos_Core.hpp>
 
 // Mundy
-#include <mundy_geom/primitives/Sphere.hpp>               // for mundy::geom::Sphere
 #include <mundy_geom/distance/PointPoint.hpp>  // for distance(Point, Point)
 #include <mundy_geom/distance/Types.hpp>       // for mundy::geom::SharedNormalSigned
+#include <mundy_geom/primitives/Sphere.hpp>    // for mundy::geom::Sphere
 
 namespace mundy {
 
@@ -58,7 +58,7 @@ KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distan
 /// \param[out] sep The separation vector (from the surface of sphere1 to the surface of sphere2)
 template <typename Scalar>
 KOKKOS_FUNCTION Scalar distance(const Sphere<Scalar>& sphere1, const Sphere<Scalar>& sphere2,
-                                mundy::math::Vector3<Scalar> &sep) {
+                                mundy::math::Vector3<Scalar>& sep) {
   const Scalar center_center_distance = distance(sphere1.center(), sphere2.center(), sep);
 
   // Rescale the separation vector to the surface of the sphere

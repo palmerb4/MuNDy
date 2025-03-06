@@ -66,9 +66,9 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
       meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_bounding_radius_field_name);
 
   MUNDY_THROW_REQUIRE(element_radius_field_ptr_ != nullptr, std::invalid_argument,
-                     "Sphere: radius_field_ptr cannot be a nullptr. Check that the field exists.");
+                      "Sphere: radius_field_ptr cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_REQUIRE(element_bounding_radius_field_ptr_ != nullptr, std::invalid_argument,
-                     "Sphere: bounding_radius_field_ptr cannot be a nullptr. Check that the field exists.");
+                      "Sphere: bounding_radius_field_ptr cannot be a nullptr. Check that the field exists.");
 
   // Get the part pointers.
   Teuchos::Array<std::string> valid_entity_part_names =
@@ -78,8 +78,9 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
-                         std::string("Sphere: Part ") + part_name + " cannot be a nullptr. Check that the part exists.");
+      MUNDY_THROW_REQUIRE(
+          part != nullptr, std::invalid_argument,
+          std::string("Sphere: Part ") + part_name + " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;

@@ -140,6 +140,7 @@ concept HasInitializerListConstructor = requires(std::initializer_list<T> list) 
 namespace Ownership {
 struct Owns {};
 struct Views {};
+struct Mixed {};
 struct Invalid {};
 }  // namespace Ownership
 

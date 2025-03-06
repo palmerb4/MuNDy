@@ -51,9 +51,9 @@
 #include <stk_mesh/base/NgpField.hpp>
 #include <stk_mesh/base/NgpForEachEntity.hpp>
 #include <stk_mesh/base/NgpMesh.hpp>
+#include <stk_mesh/base/NgpReductions.hpp>
 #include <stk_mesh/base/Selector.hpp>
 #include <stk_mesh/base/Types.hpp>
-#include <stk_mesh/base/NgpReductions.hpp>
 
 // STK Search
 #include <stk_search/BoxIdent.hpp>
@@ -222,8 +222,7 @@ LocalResultViewType get_local_neighbor_indices(const stk::mesh::BulkData &bulk_d
 }
 
 SearchSpheresViewType create_search_spheres(const stk::mesh::BulkData &bulk_data, const stk::mesh::NgpMesh &ngp_mesh,
-                                            const double search_buffer,
-                                            const stk::mesh::Selector &spheres,
+                                            const double search_buffer, const stk::mesh::Selector &spheres,
                                             stk::mesh::NgpField<double> &node_coords_field,
                                             stk::mesh::NgpField<double> &elem_radius_field) {
   node_coords_field.sync_to_device();
@@ -260,8 +259,8 @@ SearchSpheresViewType create_search_spheres(const stk::mesh::BulkData &bulk_data
 void ghost_neighbors(stk::mesh::BulkData &bulk_data, const ResultViewType &search_results) {
   if (bulk_data.parallel_size() == 1) {
     return;
-  }  
-  
+  }
+
   auto host_search_results = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultHostExecutionSpace{}, search_results);
   bulk_data.modification_begin();
   stk::mesh::Ghosting &neighbor_ghosting = bulk_data.create_ghosting("neighbors");
@@ -316,7 +315,6 @@ void apply_hertzian_contact_between_spheres(stk::mesh::NgpMesh &ngp_mesh,
         if (source_entity_index == target_entity_index) {
           return;
         }
-
 
         stk::mesh::Entity source_node = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, source_entity_index)[0];
         stk::mesh::Entity target_node = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, target_entity_index)[0];
@@ -518,7 +516,8 @@ int main(int argc, char **argv) {
     auto &spheres_part = meta_data.declare_part_with_topology("SPHERES", stk::topology::PARTICLE);
     stk::io::put_io_part_attribute(spheres_part);
     auto &node_coordinates = meta_data.declare_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
-    auto &node_displacement_since_last_rebuild_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "OUR_DISP");
+    auto &node_displacement_since_last_rebuild_field =
+        meta_data.declare_field<double>(stk::topology::NODE_RANK, "OUR_DISP");
     auto &node_force = meta_data.declare_field<double>(stk::topology::NODE_RANK, "FORCE");
     auto &node_velocity = meta_data.declare_field<double>(stk::topology::NODE_RANK, "VELOCITY");
     auto &element_radius = meta_data.declare_field<double>(stk::topology::ELEMENT_RANK, "RADIUS");
@@ -542,7 +541,7 @@ int main(int argc, char **argv) {
     auto &ngp_node_force = stk::mesh::get_updated_ngp_field<double>(node_force);
     auto &ngp_node_velocity = stk::mesh::get_updated_ngp_field<double>(node_velocity);
     auto &ngp_element_radius = stk::mesh::get_updated_ngp_field<double>(element_radius);
-    
+
     // Generate the particles
     generate_particles(bulk_data, num_spheres, spheres_part);
 
@@ -552,7 +551,6 @@ int main(int argc, char **argv) {
 
     // Balance the mesh
     stk::balance::balanceStkMesh(RcbSettings{}, bulk_data);
-
 
     // Timeloop
     bool rebuild_neighbors = true;
@@ -564,7 +562,8 @@ int main(int argc, char **argv) {
     Kokkos::Timer tps_timer;
     for (size_t time_step_index = 0; time_step_index < num_time_steps; ++time_step_index) {
       if (time_step_index % io_frequency == 0) {
-        std::cout << "Time step: " << time_step_index << " | Total time: " << time_step_index * time_step_size << std::endl;
+        std::cout << "Time step: " << time_step_index << " | Total time: " << time_step_index * time_step_size
+                  << std::endl;
         std::cout << "  Time elapsed: " << overall_timer.seconds() << " s" << std::endl;
         std::cout << "  Running avg tps: " << static_cast<double>(io_frequency) / tps_timer.seconds() << std::endl;
         tps_timer.reset();
@@ -576,7 +575,8 @@ int main(int argc, char **argv) {
         // ngp_element_radius.sync_to_host();
 
         // // Write to file using Paraview compatable naming
-        // stk::io::write_mesh_with_fields("hertz_spheres.e-s." + std::to_string(time_step_index), bulk_data, time_step_index + 1,
+        // stk::io::write_mesh_with_fields("hertz_spheres.e-s." + std::to_string(time_step_index), bulk_data,
+        // time_step_index + 1,
         //                                 time_step_index * time_step_size, stk::io::WRITE_RESULTS);
       }
 
@@ -604,8 +604,8 @@ int main(int argc, char **argv) {
         std::cout << "Rebuilding neighbors." << std::endl;
 
         Kokkos::Timer create_search_timer;
-        search_spheres =
-            create_search_spheres(bulk_data, ngp_mesh, search_buffer, spheres_part, ngp_node_coordinates, ngp_element_radius);
+        search_spheres = create_search_spheres(bulk_data, ngp_mesh, search_buffer, spheres_part, ngp_node_coordinates,
+                                               ngp_element_radius);
         // std::cout << "Create search spheres time: " << create_search_timer.seconds() << std::endl;
 
         Kokkos::Timer search_timer;
@@ -629,7 +629,7 @@ int main(int argc, char **argv) {
         Kokkos::Timer local_index_conversion_timer;
         local_search_results = get_local_neighbor_indices(bulk_data, stk::topology::ELEMENT_RANK, search_results);
         // std::cout << "Local index conversion time: " << local_index_conversion_timer.seconds() << std::endl;
-      
+
         // Reset the accumulated displacements and the rebuild flag
         ngp_node_displacement_since_last_rebuild_field.sync_to_device();
         ngp_node_displacement_since_last_rebuild_field.set_all(ngp_mesh, 0.0);

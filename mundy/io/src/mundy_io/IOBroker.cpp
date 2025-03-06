@@ -76,8 +76,9 @@ void IOBroker::set_transient_fields(const Teuchos::ParameterList &valid_fixed_pa
           // Get the field and tag as TRANSIENT
           stk::mesh::FieldBase *io_field_ptr =
               meta_data_ptr_->get_field(mundy::mesh::string_to_rank(rank_name_str), io_field_name);
-          MUNDY_THROW_REQUIRE(io_field_ptr != nullptr, std::invalid_argument,
-                             std::string("IOBroker: could not find field ") + io_field_name + " with rank " + rank_name_str);
+          MUNDY_THROW_REQUIRE(
+              io_field_ptr != nullptr, std::invalid_argument,
+              std::string("IOBroker: could not find field ") + io_field_name + " with rank " + rank_name_str);
           stk::io::set_field_role(*io_field_ptr, Ioss::Field::TRANSIENT);
 
           enabled_io_fields_.push_back(io_field_ptr);
@@ -90,7 +91,7 @@ void IOBroker::set_transient_fields(const Teuchos::ParameterList &valid_fixed_pa
   transient_coordinate_field_ptr_ =
       meta_data_ptr_->get_field(stk::topology::NODE_RANK, transient_coordinate_field_name_);
   MUNDY_THROW_REQUIRE(transient_coordinate_field_ptr_ != nullptr, std::invalid_argument,
-                     "IOBroker: transient coordinate field alias set incorrectly.");
+                      "IOBroker: transient coordinate field alias set incorrectly.");
   stk::io::set_field_role(*transient_coordinate_field_ptr_, Ioss::Field::TRANSIENT);
   enabled_io_fields_.push_back(transient_coordinate_field_ptr_);
 }

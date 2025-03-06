@@ -99,9 +99,10 @@ class MetaTechniqueDispatcher {
 
     // The enabled technique name must be in our registry.
     std::string enabled_technique_name = valid_fixed_params.get<std::string>("enabled_technique_name");
-    MUNDY_THROW_REQUIRE(OurTechniqueFactory::is_valid_key(enabled_technique_name),  std::runtime_error, std::string("MetaTechniqueDispatcher: The enabled technique name '")
-                           + enabled_technique_name + "' is not a valid technique name. Valid names are: "
-                           + OurTechniqueFactory::get_keys_as_string());
+    MUNDY_THROW_REQUIRE(
+        OurTechniqueFactory::is_valid_key(enabled_technique_name), std::runtime_error,
+        std::string("MetaTechniqueDispatcher: The enabled technique name '") + enabled_technique_name +
+            "' is not a valid technique name. Valid names are: " + OurTechniqueFactory::get_keys_as_string());
 
     // At this point, the only parameters are the enabled technique name, the forwarded parameters for the enabled
     // technique, and the non-forwarded technique params within the technique sublists. We'll loop over all parameters
@@ -203,9 +204,10 @@ class MetaTechniqueDispatcher {
            i != forwarded_parameter_list.end(); i++) {
         const std::string &forwarded_parameter_name = forwarded_parameter_list.name(i);
 
-        MUNDY_THROW_REQUIRE(technique_params.isParameter(forwarded_parameter_name),  std::runtime_error, std::string("MetaTechniqueDispatcher: The technique ")
-                               + valid_technique_name + " does not have the required (forwarded) parameter '"
-                               + forwarded_parameter_name + "' in its " + parameter_list_name + "params.");
+        MUNDY_THROW_REQUIRE(technique_params.isParameter(forwarded_parameter_name), std::runtime_error,
+                            std::string("MetaTechniqueDispatcher: The technique ") + valid_technique_name +
+                                " does not have the required (forwarded) parameter '" + forwarded_parameter_name +
+                                "' in its " + parameter_list_name + "params.");
         technique_params.remove(forwarded_parameter_name);
       }
 
@@ -214,9 +216,10 @@ class MetaTechniqueDispatcher {
            i != required_parameter_list.end(); i++) {
         const std::string &required_parameter_name = required_parameter_list.name(i);
 
-        MUNDY_THROW_REQUIRE(technique_params.isParameter(required_parameter_name),  std::runtime_error, std::string("MetaTechniqueDispatcher: The technique ")
-                               + valid_technique_name + " does not have the required (required) parameter '"
-                               + required_parameter_name + "' in its " + parameter_list_name + "params.");
+        MUNDY_THROW_REQUIRE(technique_params.isParameter(required_parameter_name), std::runtime_error,
+                            std::string("MetaTechniqueDispatcher: The technique ") + valid_technique_name +
+                                " does not have the required (required) parameter '" + required_parameter_name +
+                                "' in its " + parameter_list_name + "params.");
       }
     }
 
@@ -260,10 +263,10 @@ class MetaMethodExecutionDispatcher
     // The enabled technique name must be in our registry.
     enabled_technique_name_ = valid_fixed_params.get<std::string>("enabled_technique_name");
     MUNDY_THROW_REQUIRE(OurMetaTechniqueDispatcher::OurTechniqueFactory::is_valid_key(enabled_technique_name_),
-                       std::logic_error,
-                       std::string("MetaTechniqueDispatcher: The enabled technique name '")
-                           + enabled_technique_name_ + "' is not a valid technique name. Valid names are: "
-                           + OurMetaTechniqueDispatcher::OurTechniqueFactory::get_keys_as_string());
+                        std::logic_error,
+                        std::string("MetaTechniqueDispatcher: The enabled technique name '") + enabled_technique_name_ +
+                            "' is not a valid technique name. Valid names are: " +
+                            OurMetaTechniqueDispatcher::OurTechniqueFactory::get_keys_as_string());
 
     // Forward the inputs to the technique.
     Teuchos::ParameterList technique_params = valid_fixed_params.sublist(enabled_technique_name_);
@@ -365,10 +368,10 @@ class MetaMethodSubsetExecutionDispatcher
     // The enabled technique name must be in our registry.
     enabled_technique_name_ = valid_fixed_params.get<std::string>("enabled_technique_name");
     MUNDY_THROW_REQUIRE(OurMetaTechniqueDispatcher::OurTechniqueFactory::is_valid_key(enabled_technique_name_),
-                       std::logic_error,
-                       std::string("MetaTechniqueDispatcher: The enabled technique name '")
-                           + enabled_technique_name_ + "' is not a valid technique name. Valid names are: "
-                           + OurMetaTechniqueDispatcher::OurTechniqueFactory::get_keys_as_string());
+                        std::logic_error,
+                        std::string("MetaTechniqueDispatcher: The enabled technique name '") + enabled_technique_name_ +
+                            "' is not a valid technique name. Valid names are: " +
+                            OurMetaTechniqueDispatcher::OurTechniqueFactory::get_keys_as_string());
 
     // Forward the inputs to the technique.
     Teuchos::ParameterList technique_params = valid_fixed_params.sublist(enabled_technique_name_);
@@ -475,10 +478,10 @@ class MetaMethodPairwiseSubsetExecutionDispatcher
     // The enabled technique name must be in our registry.
     enabled_technique_name_ = valid_fixed_params.get<std::string>("enabled_technique_name");
     MUNDY_THROW_REQUIRE(OurMetaTechniqueDispatcher::OurTechniqueFactory::is_valid_key(enabled_technique_name_),
-                       std::logic_error,
-                       std::string("MetaTechniqueDispatcher: The enabled technique name '")
-                           + enabled_technique_name_ + "' is not a valid technique name. Valid names are: "
-                           + OurMetaTechniqueDispatcher::OurTechniqueFactory::get_keys_as_string());
+                        std::logic_error,
+                        std::string("MetaTechniqueDispatcher: The enabled technique name '") + enabled_technique_name_ +
+                            "' is not a valid technique name. Valid names are: " +
+                            OurMetaTechniqueDispatcher::OurTechniqueFactory::get_keys_as_string());
 
     // Forward the inputs to the technique.
     Teuchos::ParameterList technique_params = valid_fixed_params.sublist(enabled_technique_name_);

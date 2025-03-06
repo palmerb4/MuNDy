@@ -39,10 +39,10 @@
 #include <mundy_geom/primitives/Ellipsoid.hpp>
 #include <mundy_geom/primitives/Line.hpp>
 #include <mundy_geom/primitives/LineSegment.hpp>
-#include <mundy_geom/primitives/VSegment.hpp>
 #include <mundy_geom/primitives/Point.hpp>
 #include <mundy_geom/primitives/Sphere.hpp>
 #include <mundy_geom/primitives/Spherocylinder.hpp>
 #include <mundy_geom/primitives/SpherocylinderSegment.hpp>
+#include <mundy_geom/primitives/VSegment.hpp>
 
 #endif  // MUNDY_GEOM_PRIMITIVES_HPP_

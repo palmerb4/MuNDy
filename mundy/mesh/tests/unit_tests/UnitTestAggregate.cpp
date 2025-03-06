@@ -81,7 +81,98 @@ namespace {
 //   }
 // };
 
-TEST(UnitTestAggregate, BasicUsageIsAsExpected) {
+struct SCALAR_DATA {};
+struct VECTOR3_DATA {};
+struct MATRIX3_DATA {};
+struct QUATERNION_DATA {};
+struct AABB_DATA {};
+
+TEST(UnitTestAggregate, Accessors) {
+  if (stk::parallel_machine_size(MPI_COMM_WORLD) != 1) {
+    GTEST_SKIP();
+  }
+
+  // Setup
+  stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
+  builder.set_spatial_dimension(3);
+  builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+  std::shared_ptr<stk::mesh::MetaData> meta_data_ptr = builder.create_meta_data();
+  stk::mesh::MetaData& meta_data = *meta_data_ptr;
+  meta_data.use_simple_fields();
+  std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create(meta_data_ptr);
+  stk::mesh::BulkData& bulk_data = *bulk_data_ptr;
+
+  using DoubleField = stk::mesh::Field<double>;
+  DoubleField& scalar_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "SCALAR");
+  DoubleField& vector3_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "VECTOR3");
+  DoubleField& matrix3_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "MATRIX3");
+  DoubleField& quaternion_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "QUATERNION");
+  DoubleField& aabb_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "AABB");
+
+  double expected_scalar_data[1] = {1.0};
+  double expected_vector3_data[3] = {1.0, 2.0, 3.0};
+  double expected_matrix3_data[9] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0};
+  double expected_quaternion_data[4] = {1.0, 2.0, 3.0, 4.0};
+  double expected_aabb_data[6] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
+  stk::mesh::put_field_on_mesh(scalar_field, meta_data.universal_part(), 1, expected_scalar_data);
+  stk::mesh::put_field_on_mesh(vector3_field, meta_data.universal_part(), 3, expected_vector3_data);
+  stk::mesh::put_field_on_mesh(matrix3_field, meta_data.universal_part(), 9, expected_matrix3_data);
+  stk::mesh::put_field_on_mesh(quaternion_field, meta_data.universal_part(), 4, expected_quaternion_data);
+  stk::mesh::put_field_on_mesh(aabb_field, meta_data.universal_part(), 6, expected_aabb_data);
+  meta_data.commit();
+
+  bulk_data.modification_begin();
+  size_t num_nodes = 10;
+  for (size_t i = 0; i < num_nodes; ++i) {
+    stk::mesh::Entity node = bulk_data.declare_node(i + 1);  // 1-based indexing
+    stk::mesh::field_data(scalar_field, node)[0] = expected_scalar_data[0];
+    for (size_t j = 0; j < 3; ++j) {
+      stk::mesh::field_data(vector3_field, node)[j] = expected_vector3_data[j];
+    }
+    for (size_t j = 0; j < 9; ++j) {
+      stk::mesh::field_data(matrix3_field, node)[j] = expected_matrix3_data[j];
+    }
+    for (size_t j = 0; j < 4; ++j) {
+      stk::mesh::field_data(quaternion_field, node)[j] = expected_quaternion_data[j];
+    }
+    for (size_t j = 0; j < 6; ++j) {
+      stk::mesh::field_data(aabb_field, node)[j] = expected_aabb_data[j];
+    }
+  }
+  bulk_data.modification_end();
+
+  // Create the accessors
+  auto scalar_accessor = ScalarFieldComponent(scalar_field);
+  auto vector3_accessor = Vector3FieldComponent(vector3_field);
+  auto matrix3_accessor = Matrix3FieldComponent(matrix3_field);
+  auto quaternion_accessor = QuaternionFieldComponent(quaternion_field);
+  auto aabb_accessor = AABBFieldComponent(aabb_field);
+
+  // Fetch the data for the entity via the accessor's operator()
+  for (size_t i = 0; i < num_nodes; ++i) {
+    stk::mesh::Entity node = bulk_data.get_entity(stk::topology::NODE_RANK, i + 1);
+    auto scalar = scalar_accessor(node);
+    auto vector3 = vector3_accessor(node);
+    auto matrix3 = matrix3_accessor(node);
+    auto quaternion = quaternion_accessor(node);
+    auto aabb = aabb_accessor(node);
+    EXPECT_DOUBLE_EQ(scalar[0], expected_scalar_data[0]);
+    for (size_t j = 0; j < 3; ++j) {
+      EXPECT_DOUBLE_EQ(vector3[j], expected_vector3_data[j]);
+    }
+    for (size_t j = 0; j < 9; ++j) {
+      EXPECT_DOUBLE_EQ(matrix3[j], expected_matrix3_data[j]);
+    }
+    for (size_t j = 0; j < 4; ++j) {
+      EXPECT_DOUBLE_EQ(quaternion[j], expected_quaternion_data[j]);
+    }
+    for (size_t j = 0; j < 6; ++j) {
+      EXPECT_DOUBLE_EQ(aabb[j], expected_aabb_data[j]);
+    }
+  }
+}
+
+TEST(UnitTestAggregate, BasicUsage) {
   if (stk::parallel_machine_size(MPI_COMM_WORLD) != 1) {
     GTEST_SKIP();
   }
@@ -124,11 +215,11 @@ TEST(UnitTestAggregate, BasicUsageIsAsExpected) {
 
   // Fetch the data for the entity via the accessor's operator()
   auto center = center_accessor(node1);
-  double& radius = radius_accessor(elem1);
+  auto radius = radius_accessor(elem1);
   EXPECT_DOUBLE_EQ(center[0], expected_center[0]);
   EXPECT_DOUBLE_EQ(center[1], expected_center[1]);
   EXPECT_DOUBLE_EQ(center[2], expected_center[2]);
-  EXPECT_DOUBLE_EQ(radius, expected_radius);
+  EXPECT_DOUBLE_EQ(radius[0], expected_radius);
 
   // Create an aggregate for the spheres
   const auto collision_sphere_data = make_aggregate<stk::topology::PARTICLE>(bulk_data, sphere_part)
@@ -151,21 +242,35 @@ TEST(UnitTestAggregate, BasicUsageIsAsExpected) {
   EXPECT_EQ(sphere_view.topology(), stk::topology::PARTICLE);
   unsigned center_node_con_ordinal = 0;
   auto also_center = sphere_view.get<CENTER>(center_node_con_ordinal);
-  double& also_radius = sphere_view.get<COLLISION_RADIUS>();
+  auto also_radius = sphere_view.get<COLLISION_RADIUS>();
   EXPECT_DOUBLE_EQ(also_center[0], expected_center[0]);
   EXPECT_DOUBLE_EQ(also_center[1], expected_center[1]);
   EXPECT_DOUBLE_EQ(also_center[2], expected_center[2]);
-  EXPECT_DOUBLE_EQ(also_radius, expected_radius);
+  EXPECT_DOUBLE_EQ(also_radius[0], expected_radius);
 
   collision_sphere_data.for_each([&expected_center, &expected_radius, &elem1](auto& other_sphere_view) {
+    // To avoid having users worry about the return type of get<TAG>() and if it returns a reference or a view,
+    // we switched to always returning a view even if the return type is a scalar. This means that you should always
+    // use auto to capture the return value of get<TAG>(). ScalarViews are just VectorViews of size 1, so they should
+    // feel the same to the user and have all the same operators/operations.
     auto c = other_sphere_view.template get<CENTER>(0);
-    double& r = other_sphere_view.template get<COLLISION_RADIUS>();
+    auto r = other_sphere_view.template get<COLLISION_RADIUS>();
+
+    // Because calling .template get<TAG>() is syntactically awkward, we offer a get<TAG>(view) method
+    auto c2 = get<CENTER>(other_sphere_view, 0);
+    auto r2 = get<COLLISION_RADIUS>(other_sphere_view);
 
     // There is only one sphere, so we can perform the same checks as above
     EXPECT_DOUBLE_EQ(c[0], expected_center[0]);
     EXPECT_DOUBLE_EQ(c[1], expected_center[1]);
     EXPECT_DOUBLE_EQ(c[2], expected_center[2]);
-    EXPECT_DOUBLE_EQ(r, expected_radius);
+    EXPECT_DOUBLE_EQ(r[0], expected_radius);
+
+    EXPECT_DOUBLE_EQ(c2[0], expected_center[0]);
+    EXPECT_DOUBLE_EQ(c2[1], expected_center[1]);
+    EXPECT_DOUBLE_EQ(c2[2], expected_center[2]);
+    EXPECT_DOUBLE_EQ(r2[0], expected_radius);
+
     EXPECT_EQ(other_sphere_view.entity(), elem1);
     EXPECT_EQ(other_sphere_view.rank(), stk::topology::ELEM_RANK);
     EXPECT_EQ(other_sphere_view.topology(), stk::topology::PARTICLE);
@@ -210,12 +315,12 @@ TEST(UnitTestAggregate, CanonicalExample) {
     stk::mesh::Entity elem = bulk_data.declare_element(i + 1, stk::mesh::PartVector{&sphere_part});
     bulk_data.declare_relation(elem, node, 0);
 
-    // // Populate the fields
-    // vector3_field_data(node_center_field, node).set(1.1 * i, 2.2 * i, 3.3);
-    // vector3_field_data(node_force_field, node).set(5.0, 6.0, 7.0);
-    // vector3_field_data(node_velocity_field, node).set(1.0, 2.0, 3.0);
-    // scalar_field_data(elem_radius_field, elem) = 0.5;
-    // scalar_field_data(elem_mass_field, elem) = 1.0;
+    // Populate the fields
+    vector3_field_data(node_center_field, node).set(1.1 * i, 2.2 * i, 3.3);
+    vector3_field_data(node_force_field, node).set(5.0, 6.0, 7.0);
+    vector3_field_data(node_velocity_field, node).set(1.0, 2.0, 3.0);
+    scalar_field_data(elem_radius_field, elem).set(0.5);
+    scalar_field_data(elem_mass_field, elem).set(1.0);
   }
   bulk_data.modification_end();
 
@@ -241,8 +346,8 @@ TEST(UnitTestAggregate, CanonicalExample) {
     // Note: The zero is the center node connectivity ordinal.
     //  If you had, say, a BEAM_2 you could use .get<VELOCITY>(0) and .get<VELOCITY>(1)
     //  For the velocity of the left and right nodes, respectively.
-    auto c = sphere_view.template get<CENTER>(0);
-    auto v = sphere_view.template get<VELOCITY>(0);
+    auto c = get<CENTER>(sphere_view, 0);
+    auto v = get<VELOCITY>(sphere_view, 0);
     c += dt * v;
   });
 
@@ -256,8 +361,8 @@ TEST(UnitTestAggregate, CanonicalExample) {
 
   ngp_sphere_data.sync_to_device<CENTER, VELOCITY>();
   ngp_sphere_data.for_each(KOKKOS_LAMBDA(auto& sphere_view) {
-    auto c = sphere_view.template get<CENTER>(0);
-    auto v = sphere_view.template get<VELOCITY>(0);
+    auto c = get<CENTER>(sphere_view, 0);
+    auto v = get<VELOCITY>(sphere_view, 0);
     c += dt * v;
   });
   ngp_sphere_data.modify_on_device<CENTER>();

@@ -85,7 +85,7 @@ class FeneSpring {
   /// \param[in] end The end of the FeneSpring.
   template <mundy::geom::ValidLineSegmentType OtherLineSegmentType>
   KOKKOS_FUNCTION FeneSpring(const OtherLineSegmentType& line_segment, const scalar_t& max_length,
-                                const scalar_t& spring_constant)
+                             const scalar_t& spring_constant)
     requires(!std::is_same_v<OtherLineSegmentType, line_segment_t>)
       : line_segment_(line_segment), max_length_(max_length), spring_constant_(spring_constant) {
   }
@@ -130,7 +130,8 @@ class FeneSpring {
 
   /// \brief Copy assignment operator
   KOKKOS_FUNCTION
-  FeneSpring<scalar_t, line_segment_t, ownership_t>& operator=(const FeneSpring<scalar_t, line_segment_t, ownership_t>& other) {
+  FeneSpring<scalar_t, line_segment_t, ownership_t>& operator=(
+      const FeneSpring<scalar_t, line_segment_t, ownership_t>& other) {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     line_segment_ = other.line_segment_;
     max_length_ = other.max_length_;
@@ -152,7 +153,8 @@ class FeneSpring {
 
   /// \brief Move assignment operator
   KOKKOS_FUNCTION
-  FeneSpring<scalar_t, line_segment_t, ownership_t>& operator=(FeneSpring<scalar_t, line_segment_t, ownership_t>&& other) {
+  FeneSpring<scalar_t, line_segment_t, ownership_t>& operator=(
+      FeneSpring<scalar_t, line_segment_t, ownership_t>&& other) {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     line_segment_ = std::move(other.line_segment_);
     max_length_ = std::move(other.max_length_);

@@ -30,7 +30,7 @@
 #include <mundy_math/Quaternion.hpp>            // for mundy::math::Quaternion
 #include <mundy_math/Tolerance.hpp>             // for mundy::math::get_zero_tolerance
 #include <mundy_math/Vector3.hpp>               // for mundy::math::Vector3
-#include <mundy_math/minimize.hpp>                  // for mundy::math::find_min_using_approximate_derivatives
+#include <mundy_math/minimize.hpp>              // for mundy::math::find_min_using_approximate_derivatives
 
 namespace mundy {
 

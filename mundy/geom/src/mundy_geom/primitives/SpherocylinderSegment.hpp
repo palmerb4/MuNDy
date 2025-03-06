@@ -285,31 +285,22 @@ inline constexpr bool is_spherocylinder_segment_v = is_spherocylinder_segment<T>
 
 /// @brief Concept to check if a type is a valid SpherocylinderSegment type
 template <typename SpherocylinderSegmentType>
-concept ValidSpherocylinderSegmentType = requires(
-    std::remove_cv_t<SpherocylinderSegmentType> spherocylinder_segment,
-    const std::remove_cv_t<SpherocylinderSegmentType> const_spherocylinder_segment) {
-  is_spherocylinder_segment_v<std::remove_cv_t<SpherocylinderSegmentType>>;
-  typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t;
-  {
-    spherocylinder_segment.start()
-  } -> std::convertible_to<Point<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t>>;
-  {
-    spherocylinder_segment.end()
-  } -> std::convertible_to<Point<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t>>;
-  {
-    spherocylinder_segment.radius()
-  } -> std::convertible_to<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t&>;
-
-  {
-    const_spherocylinder_segment.start()
-  } -> std::convertible_to<const Point<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t>>;
-  {
-    const_spherocylinder_segment.end()
-  } -> std::convertible_to<const Point<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t>>;
-  {
-    const_spherocylinder_segment.radius()
-  } -> std::convertible_to<const typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t&>;
-};  // ValidSpherocylinderSegmentType
+concept ValidSpherocylinderSegmentType =
+    is_spherocylinder_segment_v<std::remove_cv_t<SpherocylinderSegmentType>> &&
+    is_point_v<decltype(std::declval<std::remove_cv_t<SpherocylinderSegmentType>>().start())> &&
+    is_point_v<decltype(std::declval<std::remove_cv_t<SpherocylinderSegmentType>>().end())> &&
+    is_point_v<decltype(std::declval<const std::remove_cv_t<SpherocylinderSegmentType>>().start())> &&
+    is_point_v<decltype(std::declval<const std::remove_cv_t<SpherocylinderSegmentType>>().end())> &&
+    requires(std::remove_cv_t<SpherocylinderSegmentType> spherocylinder_segment,
+             const std::remove_cv_t<SpherocylinderSegmentType> const_spherocylinder_segment) {
+      typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t;
+      {
+        spherocylinder_segment.radius()
+      } -> std::same_as<typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t&>;
+      {
+        const_spherocylinder_segment.radius()
+      } -> std::same_as<const typename std::remove_cv_t<SpherocylinderSegmentType>::scalar_t&>;
+    };  // ValidSpherocylinderSegmentType
 
 static_assert(ValidSpherocylinderSegmentType<SpherocylinderSegment<float>> &&
                   ValidSpherocylinderSegmentType<const SpherocylinderSegment<float>> &&

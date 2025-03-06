@@ -992,9 +992,9 @@ bool line_segment_intersects_triangle(const mundy::math::Vector3<double> &p1, co
   const auto s2 = p2 - v1;
   double d1 = mundy::math::dot(n, s1);
   double d2 = mundy::math::dot(n, s2);
-  
+
   if (std::abs(d1) < epsilon || std::abs(d2) < epsilon) return false;  // Edge case: endpoint on plane
-  if (d1 * d2 > 0.0) return false;  // Same side of the plane
+  if (d1 * d2 > 0.0) return false;                                     // Same side of the plane
 
   // Direction vector for the ray (p1 to p2)
   const auto dir = p2 - p1;
@@ -1023,8 +1023,10 @@ bool line_segment_intersects_triangle(const mundy::math::Vector3<double> &p1, co
   return (t >= 0.0 && t <= 1.0);
 }
 
-double line_segment_signed_distance_to_triangle(const mundy::math::Vector3<double> &p1, const mundy::math::Vector3<double> &p2,
-                                                const mundy::math::Vector3<double> &v1, const mundy::math::Vector3<double> &v2,
+double line_segment_signed_distance_to_triangle(const mundy::math::Vector3<double> &p1,
+                                                const mundy::math::Vector3<double> &p2,
+                                                const mundy::math::Vector3<double> &v1,
+                                                const mundy::math::Vector3<double> &v2,
                                                 const mundy::math::Vector3<double> &v3) {
   // Tolerance for floating-point comparisons
   constexpr double epsilon = 1e-12;
@@ -1049,7 +1051,7 @@ double line_segment_signed_distance_to_triangle(const mundy::math::Vector3<doubl
     double a = mundy::math::dot(edge1, h);
 
     if (std::abs(a) < epsilon) {
-      return 0.0; // Segment lies in plane (rare edge case)
+      return 0.0;  // Segment lies in plane (rare edge case)
     }
 
     double inv_a = 1.0 / a;
@@ -1069,7 +1071,6 @@ double line_segment_signed_distance_to_triangle(const mundy::math::Vector3<doubl
   // No intersection: return the signed distance to the closest endpoint
   return d1 < d2 ? d1 : d2;
 }
-
 
 void bee_hive() {
   // A cellular lattice of extruded hexagonal cells
@@ -1223,7 +1224,7 @@ void bee_hive() {
   for (size_t i = 0; i < num_rods; ++i) {
     for (size_t a = 0; a < max_num_attempts_per_rod; ++a) {
       MUNDY_THROW_REQUIRE(a < max_num_attempts_per_rod - 1, std::runtime_error, "Failed to place all rods");
-      
+
       // Generate a random rod length
       double rod_length = min_rod_length + (max_rod_length - min_rod_length) * rand() / RAND_MAX;
 
@@ -1250,8 +1251,8 @@ void bee_hive() {
       //   const mundy::math::Vector3<double> coord2 = {x[face_ind[j][1]], y[face_ind[j][1]], z[face_ind[j][1]]};
       //   const mundy::math::Vector3<double> coord3 = {x[face_ind[j][2]], y[face_ind[j][2]], z[face_ind[j][2]]};
 
-      //   const double signed_sep = line_segment_signed_distance_to_triangle(left_node_coord, right_node_coord, coord1, coord2, coord3) - rod_radius;
-      //   if (signed_sep < 0.0) {
+      //   const double signed_sep = line_segment_signed_distance_to_triangle(left_node_coord, right_node_coord, coord1,
+      //   coord2, coord3) - rod_radius; if (signed_sep < 0.0) {
       //     intersects = true;
       //     break;
       //   }
@@ -1282,7 +1283,7 @@ void bee_hive() {
             .add_field_data<double>(&rod_radius_field, {rod_radius});
         element_count++;
 
-        break; // Successfully placed the rod
+        break;  // Successfully placed the rod
       }
     }
   }

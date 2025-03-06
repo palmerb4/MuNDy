@@ -102,15 +102,14 @@ class ComputeOBB
 };  // ComputeOBB
 
 // Workaround due to CUDA not liking our meta factory registration
-static inline volatile const bool register_compute_obb_kernels_ =
-[]() {
+static inline volatile const bool register_compute_obb_kernels_ = []() {
   // Register our default kernels
+  mundy::shapes::ComputeOBB::OurKernelFactory::register_new_class<mundy::shapes::compute_obb::kernels::Sphere>(
+      "SPHERE");
+  mundy::shapes::ComputeOBB::OurKernelFactory::register_new_class<mundy::shapes::compute_obb::kernels::Spherocylinder>(
+      "SPHEROCYLINDER");
   mundy::shapes::ComputeOBB::OurKernelFactory::register_new_class<
-          mundy::shapes::compute_obb::kernels::Sphere>("SPHERE");
-  mundy::shapes::ComputeOBB::OurKernelFactory::register_new_class<
-          mundy::shapes::compute_obb::kernels::Spherocylinder>("SPHEROCYLINDER");
-  mundy::shapes::ComputeOBB::OurKernelFactory::register_new_class<
-          mundy::shapes::compute_obb::kernels::SpherocylinderSegment>("SPHEROCYLINDER_SEGMENT");
+      mundy::shapes::compute_obb::kernels::SpherocylinderSegment>("SPHEROCYLINDER_SEGMENT");
   return true;
 }();
 

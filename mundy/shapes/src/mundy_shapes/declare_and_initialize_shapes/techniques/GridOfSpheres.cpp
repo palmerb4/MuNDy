@@ -119,7 +119,7 @@ GridOfSpheres::GridOfSpheres(mundy::mesh::BulkData *const bulk_data_ptr, const T
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "GridOfSpheres: bulk_data_ptr cannot be a nullptr.");
+                      "GridOfSpheres: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -133,9 +133,9 @@ GridOfSpheres::GridOfSpheres(mundy::mesh::BulkData *const bulk_data_ptr, const T
   element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
 
   MUNDY_THROW_REQUIRE(node_coord_field_ptr_ != nullptr, std::invalid_argument,
-                     "GridOfSpheres: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
+                      "GridOfSpheres: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_REQUIRE(element_radius_field_ptr_ != nullptr, std::invalid_argument,
-                     "GridOfSpheres: radius_field_ptr cannot be a nullptr. Check that the field exists.");
+                      "GridOfSpheres: radius_field_ptr cannot be a nullptr. Check that the field exists.");
 
   // Get the part pointers.
   const Teuchos::Array<std::string> sphere_part_names =
@@ -145,8 +145,9 @@ GridOfSpheres::GridOfSpheres(mundy::mesh::BulkData *const bulk_data_ptr, const T
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
-                         std::string("GridOfSpheres: Expected a part with name '") + part_name + "' but part does not exist.");
+      MUNDY_THROW_REQUIRE(
+          part != nullptr, std::invalid_argument,
+          std::string("GridOfSpheres: Expected a part with name '") + part_name + "' but part does not exist.");
       parts.push_back(part);
     }
     return parts;

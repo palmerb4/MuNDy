@@ -326,9 +326,9 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerDestructionCorrectlyForSpher
 
     // As a sanity check, loop over all linkers and validate that they are valid.
     mundy::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()),
-                                   stk::topology::CONSTRAINT_RANK, *neighbor_linkers_part_ptr,
-                                   []([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                                      const stk::mesh::Entity &linker) { EXPECT_TRUE(bulk_data.is_valid(linker)); });
+                                     stk::topology::CONSTRAINT_RANK, *neighbor_linkers_part_ptr,
+                                     []([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                        const stk::mesh::Entity &linker) { EXPECT_TRUE(bulk_data.is_valid(linker)); });
   }
 }
 
@@ -573,7 +573,8 @@ TEST(DestroyNeighborLinkers, RepeatedNeighborLinkerGenerationAndDestructionForSp
   Kokkos::Timer timer;
   for (int c = 0; c < num_cycles; c++) {
     if ((bulk_data_ptr->parallel_rank() == 0) && (c % log_interval == 0) && (c != 0)) {
-      std::cout << "Cycle " << c << " of " << num_cycles << " Running at " << log_interval / timer.seconds() << " cycles per second." << std::endl;
+      std::cout << "Cycle " << c << " of " << num_cycles << " Running at " << log_interval / timer.seconds()
+                << " cycles per second." << std::endl;
       timer.reset();
     }
     // Set the sphere's position and radius

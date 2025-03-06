@@ -286,9 +286,9 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
         const std::string &forwarded_parameter_name = forwarded_parameter_list.name(i);
 
         MUNDY_THROW_REQUIRE(kernel_params.isParameter(forwarded_parameter_name), std::logic_error,
-                           std::string("MetaKernelDispatcher: The kernel ")
-                               + valid_kernel_name + " does not have the required (forwarded) parameter '"
-                               + forwarded_parameter_name + "' in its valid " + parameter_list_name + " params.");
+                            std::string("MetaKernelDispatcher: The kernel ") + valid_kernel_name +
+                                " does not have the required (forwarded) parameter '" + forwarded_parameter_name +
+                                "' in its valid " + parameter_list_name + " params.");
         kernel_params.remove(forwarded_parameter_name);
       }
 
@@ -298,9 +298,9 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
         const std::string &required_parameter_name = required_parameter_list.name(i);
 
         MUNDY_THROW_REQUIRE(kernel_params.isParameter(required_parameter_name), std::logic_error,
-                           std::string("MetaKernelDispatcher: The kernel ")
-                               + valid_kernel_name + " does not have the required (required) parameter '"
-                               + required_parameter_name + "' in its valid " + parameter_list_name + " params.");
+                            std::string("MetaKernelDispatcher: The kernel ") + valid_kernel_name +
+                                " does not have the required (required) parameter '" + required_parameter_name +
+                                "' in its valid " + parameter_list_name + " params.");
       }
     }
 
@@ -322,7 +322,7 @@ MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapp
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "MetaKernelDispatcher: bulk_data_ptr cannot be a nullptr.");
+                      "MetaKernelDispatcher: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;

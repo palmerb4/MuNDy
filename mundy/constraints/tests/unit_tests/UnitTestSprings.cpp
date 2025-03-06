@@ -169,9 +169,9 @@ TEST(FENESprings, FENESpringsKernel) {
 
     // The expected potential force is computed using FENE bonds without a repulsive term.
     const double expected_potential_force_magnitude = k * dr / (1.0 - dr * dr / (rmax * rmax));
-    std::cout << "FENE: Combined potential dr: " << dr << ", force: " << potential_force << ", force_magnitude: "
-              << potential_force_magnitude << ", expected_force_magnitude: " << expected_potential_force_magnitude
-              << std::endl;
+    std::cout << "FENE: Combined potential dr: " << dr << ", force: " << potential_force
+              << ", force_magnitude: " << potential_force_magnitude
+              << ", expected_force_magnitude: " << expected_potential_force_magnitude << std::endl;
     EXPECT_DOUBLE_EQ(potential_force_magnitude, expected_potential_force_magnitude) << message;
   };
 
@@ -303,9 +303,9 @@ TEST(FENEWCASprings, FENEWCASpringsKernel) {
         // For FENE+WCA springs the magnitude is the opposite for the FENE springs and WCA contributions
         const double expected_potential_force_magnitude =
             -expected_potential_force_magnitude_spring + expected_potential_force_magnitude_wca;
-        std::cout << "FENE: Combined potential dr: " << dr << ", force: " << potential_force << ", force_magnitude: "
-              << potential_force_magnitude << ", expected_force_magnitude: " << expected_potential_force_magnitude
-              << std::endl;
+        std::cout << "FENE: Combined potential dr: " << dr << ", force: " << potential_force
+                  << ", force_magnitude: " << potential_force_magnitude
+                  << ", expected_force_magnitude: " << expected_potential_force_magnitude << std::endl;
         EXPECT_DOUBLE_EQ(potential_force_magnitude, expected_potential_force_magnitude) << message;
       };
 

@@ -70,7 +70,7 @@ class LocalDragNonorientableSpheres : public mundy::meta::MetaKernel<> {
       : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
     // The bulk data pointer must not be null.
     MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                       "LocalDragNonorientableSpheres: bulk_data_ptr cannot be a nullptr.");
+                        "LocalDragNonorientableSpheres: bulk_data_ptr cannot be a nullptr.");
 
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -81,8 +81,8 @@ class LocalDragNonorientableSpheres : public mundy::meta::MetaKernel<> {
     for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
       MUNDY_THROW_REQUIRE(valid_entity_parts_.back() != nullptr, std::invalid_argument,
-                         std::string("LocalDragNonorientableSpheres: Part '")
-                             + part_name + "' from the valid_entity_part_names does not exist in the meta data.");
+                          std::string("LocalDragNonorientableSpheres: Part '") + part_name +
+                              "' from the valid_entity_part_names does not exist in the meta data.");
     }
 
     // Fetch the fields.
@@ -172,7 +172,7 @@ class LocalDragNonorientableSpheres : public mundy::meta::MetaKernel<> {
     viscosity_ = valid_mutable_params.get<double>("viscosity");
 
     MUNDY_THROW_REQUIRE(viscosity_ > 0.0, std::invalid_argument,
-                       "LocalDragNonorientableSpheres: viscosity must be greater than zero.");
+                        "LocalDragNonorientableSpheres: viscosity must be greater than zero.");
   }
   //@}
 
@@ -200,20 +200,20 @@ class LocalDragNonorientableSpheres : public mundy::meta::MetaKernel<> {
 
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
-    mundy::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
-                                   [&node_force_field, &node_velocity_field, &element_radius_field, &viscosity](
-                                       const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
-                                     const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere_element)[0];
+    mundy::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
+        [&node_force_field, &node_velocity_field, &element_radius_field, &viscosity](
+            const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+          const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere_element)[0];
 
-                                     const double *element_radius =
-                                         stk::mesh::field_data(element_radius_field, sphere_element);
-                                     const double *node_force = stk::mesh::field_data(node_force_field, node);
-                                     double *node_velocity = stk::mesh::field_data(node_velocity_field, node);
-                                     const double inv_drag_coeff = 1.0 / (6.0 * M_PI * viscosity * element_radius[0]);
-                                     node_velocity[0] += inv_drag_coeff * node_force[0];
-                                     node_velocity[1] += inv_drag_coeff * node_force[1];
-                                     node_velocity[2] += inv_drag_coeff * node_force[2];
-                                   });
+          const double *element_radius = stk::mesh::field_data(element_radius_field, sphere_element);
+          const double *node_force = stk::mesh::field_data(node_force_field, node);
+          double *node_velocity = stk::mesh::field_data(node_velocity_field, node);
+          const double inv_drag_coeff = 1.0 / (6.0 * M_PI * viscosity * element_radius[0]);
+          node_velocity[0] += inv_drag_coeff * node_force[0];
+          node_velocity[1] += inv_drag_coeff * node_force[1];
+          node_velocity[2] += inv_drag_coeff * node_force[2];
+        });
   }
   //@}
 

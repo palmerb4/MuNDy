@@ -449,8 +449,8 @@ int main(int argc, char **argv) {
                                                  num_surface_nodes, surface_positions, surface_positions,
                                                  surface_normals, surface_weights, M);
       KokkosBlas::gemv(DeviceExecutionSpace(), "N", 1.0, M, surface_forces, 1.0, surface_velocities);
-      MUNDY_THROW_REQUIRE(std::abs(mundy::alens::periphery::max_speed(surface_velocities)) < 1.0e-10, std::runtime_error,
-                         "No-slip boundary conditions not satisfied");
+      MUNDY_THROW_REQUIRE(std::abs(mundy::alens::periphery::max_speed(surface_velocities)) < 1.0e-10,
+                          std::runtime_error, "No-slip boundary conditions not satisfied");
 
       mundy::alens::periphery::apply_weighted_stokes_kernel(DeviceExecutionSpace(), viscosity, surface_positions,
                                                             sphere_positions, surface_forces, surface_weights,

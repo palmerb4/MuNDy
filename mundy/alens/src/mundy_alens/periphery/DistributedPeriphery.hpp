@@ -129,15 +129,15 @@ class NoSlipPeripheryTpetraOp : public TOP {
         surface_normals_rcp_(surface_normals_rcp),
         surface_weights_rcp_(surface_weights_rcp) {
     MUNDY_THROW_REQUIRE(!periphery_scalar_map_rcp_.is_null() == false, std::invalid_argument,
-                       "The periphery map must not be a null.");
+                        "The periphery map must not be a null.");
     MUNDY_THROW_REQUIRE(!periphery_vector_map_rcp_.is_null() == false, std::invalid_argument,
-                       "The periphery map must not be a null.");
+                        "The periphery map must not be a null.");
     MUNDY_THROW_REQUIRE(!surface_coords_rcp_.is_null() == false, std::invalid_argument,
-                       "The surface coordinates must not be a null.");
+                        "The surface coordinates must not be a null.");
     MUNDY_THROW_REQUIRE(!surface_normals_rcp_.is_null() == false, std::invalid_argument,
-                       "The surface normals must not be a null.");
+                        "The surface normals must not be a null.");
     MUNDY_THROW_REQUIRE(!surface_weights_rcp_.is_null() == false, std::invalid_argument,
-                       "The surface weights must not be a null.");
+                        "The surface weights must not be a null.");
     MUNDY_THROW_ASSERT(surface_coords_rcp_->getMap()->isSameAs(*periphery_vector_map_rcp_), std::invalid_argument,
                        "The surface coordinates must have the same map as the periphery vector map.");
     MUNDY_THROW_ASSERT(surface_normals_rcp_->getMap()->isSameAs(*periphery_vector_map_rcp_), std::invalid_argument,
@@ -171,10 +171,10 @@ class NoSlipPeripheryTpetraOp : public TOP {
 
     // Compute the initial fmm tree
     // The PVel maps single and double layer sources to the pressure and velocity at the target according to
-    //  u_{i} = G_{ij}f_j 
-    //        + \frac{1}{8 \pi \mu}\left(-\frac{r_{i}}{r^{3}} trD\right) 
-    //        + \frac{1}{8 \pi \mu}\left[-\frac{3 r_{i} r_{j} r_{k}}{r^{5}}\right] D_{j k} 
-    // We are interested in evaluating T(f), which is slightly 
+    //  u_{i} = G_{ij}f_j
+    //        + \frac{1}{8 \pi \mu}\left(-\frac{r_{i}}{r^{3}} trD\right)
+    //        + \frac{1}{8 \pi \mu}\left[-\frac{3 r_{i} r_{j} r_{k}}{r^{5}}\right] D_{j k}
+    // We are interested in evaluating T(f), which is slightly
     src_coords_.clear();
     src_single_layer_values_.clear();
     src_double_layer_values_.clear();
@@ -184,7 +184,6 @@ class NoSlipPeripheryTpetraOp : public TOP {
     src_single_layer_values_.resize(4 * num_surface_points);  // 4 values per point ()
     src_double_layer_values_.resize(9 * num_surface_points);  // 3x3 matrix per point n_i f_j
     trg_coords_.resize(3 * num_surface_points);
-
   }
 
   void apply(const TMV &X, TMV &Y, Teuchos::ETransp mode = Teuchos::NO_TRANS,

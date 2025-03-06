@@ -46,13 +46,14 @@ namespace impl {
 
 /// \brief Deep copy implementation for Array
 template <size_t... Is, typename T, size_t N>
-KOKKOS_INLINE_FUNCTION void deep_copy_impl(std::index_sequence<Is...>, Array<T, N>& array, const Array<T, N>& other) {
+KOKKOS_INLINE_FUNCTION constexpr void deep_copy_impl(std::index_sequence<Is...>, Array<T, N>& array,
+                                                     const Array<T, N>& other) {
   ((array[Is] = other[Is]), ...);
 }
 
 /// \brief Fill implementation for Array
 template <size_t... Is, typename T, size_t N>
-KOKKOS_INLINE_FUNCTION void fill_impl(std::index_sequence<Is...>, Array<T, N>& array, const T& value) {
+KOKKOS_INLINE_FUNCTION constexpr void fill_impl(std::index_sequence<Is...>, Array<T, N>& array, const T& value) {
   ((array[Is] = value), ...);
 }
 
@@ -131,7 +132,7 @@ class Array {
   /// \brief Deep copy assignment operator
   /// \details Copies the data from the other vector to our data. This is only enabled if T is not const.
   KOKKOS_INLINE_FUNCTION
-  Array<T, N>& operator=(const Array<T, N>& other)
+  constexpr Array<T, N>& operator=(const Array<T, N>& other)
     requires(!std::is_const_v<T>)
   {
     impl::deep_copy_impl(std::make_index_sequence<N>{}, *this, other);
@@ -141,7 +142,7 @@ class Array {
   /// \brief Move assignment operator
   /// \details Moves the data from the other vector to our data. This is only enabled if T is not const.
   KOKKOS_INLINE_FUNCTION
-  Array<T, N>& operator=(Array<T, N>&& other)
+  constexpr Array<T, N>& operator=(Array<T, N>&& other)
     requires(!std::is_const_v<T>)
   {
     impl::deep_copy_impl(std::make_index_sequence<N>{}, *this, other);
@@ -155,14 +156,14 @@ class Array {
   /// \brief Element access operator
   /// \param[in] idx The index of the element.
   KOKKOS_INLINE_FUNCTION
-  T& operator[](size_t idx) {
+  constexpr T& operator[](size_t idx) {
     return data_[idx];
   }
 
   /// \brief Const element access operator
   /// \param[in] idx The index of the element.
   KOKKOS_INLINE_FUNCTION
-  const T& operator[](size_t idx) const {
+  constexpr const T& operator[](size_t idx) const {
     return data_[idx];
   }
 
@@ -174,13 +175,13 @@ class Array {
 
   /// \brief Get a pointer to our data
   KOKKOS_INLINE_FUNCTION
-  Kokkos::Array<T, N>& data() {
+  constexpr Kokkos::Array<T, N>& data() {
     return data_;
   }
 
   /// \brief Get a pointer to our data
   KOKKOS_INLINE_FUNCTION
-  const Kokkos::Array<T, N>& data() const {
+  constexpr const Kokkos::Array<T, N>& data() const {
     return data_;
   }
   //@}
@@ -196,7 +197,8 @@ class Array {
 
   /// \brief Deep copy constructor using index_sequence
   template <size_t... I>
-  KOKKOS_INLINE_FUNCTION constexpr Array(const Array<T, N>& other, std::index_sequence<I...>) : data_{other.data_[I]...} {
+  KOKKOS_INLINE_FUNCTION constexpr Array(const Array<T, N>& other, std::index_sequence<I...>)
+      : data_{other.data_[I]...} {
   }
 
   /// \brief Deep move constructor using index_sequence

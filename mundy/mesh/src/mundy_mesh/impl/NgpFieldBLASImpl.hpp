@@ -30,8 +30,8 @@
 #include <string>
 
 // External
-#include <openrand/philox.h>  // for openrand::Philox
 #include <fmt/format.h>       // for fmt::format
+#include <openrand/philox.h>  // for openrand::Philox
 
 // Kokkos
 #include <Kokkos_Core.hpp>
@@ -99,7 +99,7 @@ struct FieldFillComponent {
   void operator()(const stk::mesh::FastMeshIndex& f) const {
     const int num_components = field_.get_num_components_per_entity(f);
     MUNDY_THROW_ASSERT(component_ < num_components, std::out_of_range,
-      fmt::format("Component index {} is out of bounds for field {}", component_, field_.get_name()));
+                       fmt::format("Component index {} is out of bounds for field {}", component_, field_.get_name()));
     field_(f, component_) = alpha_;
   }
 
@@ -184,7 +184,7 @@ struct FieldRandomizeComponent {
   void operator()(const stk::mesh::FastMeshIndex& f) const {
     const int num_components = field_.get_num_components_per_entity(f);
     MUNDY_THROW_ASSERT(component_ < num_components, std::out_of_range,
-                        fmt::format("Component index {} is out of bounds for field {}", component_, field_.get_name()));
+                       fmt::format("Component index {} is out of bounds for field {}", component_, field_.get_name()));
 
     auto& counter = counter_field_(f, 0);
     openrand::Philox rng(seed_, counter);
@@ -215,7 +215,7 @@ struct FieldRandomizeComponentMinMax {
   void operator()(const stk::mesh::FastMeshIndex& f) const {
     const int num_components = field_.get_num_components_per_entity(f);
     MUNDY_THROW_ASSERT(component_ < num_components, std::out_of_range,
-                        fmt::format("Component index {} is out of bounds for field {}", component_, field_.get_name()));
+                       fmt::format("Component index {} is out of bounds for field {}", component_, field_.get_name()));
 
     auto& counter = counter_field_(f, 0);
     openrand::Philox rng(seed_, counter);
@@ -296,8 +296,8 @@ struct FieldAXPBYGZFunctor {
   static_assert(is_ngp_field<Field>, "FieldAXPBYGZFunctor requires an stk::mesh::NgpField");
 
   KOKKOS_FUNCTION
-  FieldAXPBYGZFunctor(const value_type alpha, Field& field_x, const value_type beta, Field& field_y, 
-  const value_type gamma, Field& field_z)
+  FieldAXPBYGZFunctor(const value_type alpha, Field& field_x, const value_type beta, Field& field_y,
+                      const value_type gamma, Field& field_z)
       : field_x_(field_x), field_y_(field_y), field_z_(field_z), alpha_(alpha), beta_(beta), gamma_(gamma) {
   }
 
@@ -829,13 +829,13 @@ void ngp_field_axpbyz(const Scalar alpha,                             //
 /// \brief Compute the element-wise sum of three fields z = alpha x + beta y + gamma z
 template <typename Scalar, typename ExecSpace>
 void ngp_field_axpbygz(const Scalar alpha,                             //
-                      stk::mesh::FieldBase& field_x,                  //
-                      const Scalar beta,                              //
-                      stk::mesh::FieldBase& field_y,                  //
-                      const Scalar gamma,                             //
-                      stk::mesh::FieldBase& field_z,                  //
-                      const stk::mesh::Selector* const selector_ptr,  //
-                      const ExecSpace& exec_space) {
+                       stk::mesh::FieldBase& field_x,                  //
+                       const Scalar beta,                              //
+                       stk::mesh::FieldBase& field_y,                  //
+                       const Scalar gamma,                             //
+                       stk::mesh::FieldBase& field_z,                  //
+                       const stk::mesh::Selector* const selector_ptr,  //
+                       const ExecSpace& exec_space) {
   sync_field_to_space(field_x, exec_space);
   sync_field_to_space(field_y, exec_space);
   sync_field_to_space(field_z, exec_space);
@@ -852,7 +852,6 @@ void ngp_field_axpbygz(const Scalar alpha,                             //
 
   mark_field_modified_on_space(field_z, exec_space);
 }
-
 
 /// \brief Compute the dot product of two fields
 template <typename Scalar, typename ExecSpace>

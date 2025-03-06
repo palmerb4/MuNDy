@@ -105,15 +105,14 @@ class ComputeBoundingRadius
 };  // ComputeBoundingRadius
 
 // Workaround due to CUDA not liking our meta factory registration
-static inline volatile const bool register_compute_bounding_radius_kernels_ =
-[]() {
+static inline volatile const bool register_compute_bounding_radius_kernels_ = []() {
   // Register our default kernels
- mundy::shapes::ComputeBoundingRadius::OurKernelFactory::register_new_class<
-          mundy::shapes::compute_bounding_radius::kernels::Sphere>("SPHERE");
   mundy::shapes::ComputeBoundingRadius::OurKernelFactory::register_new_class<
-          mundy::shapes::compute_bounding_radius::kernels::Spherocylinder>("SPHEROCYLINDER");
+      mundy::shapes::compute_bounding_radius::kernels::Sphere>("SPHERE");
   mundy::shapes::ComputeBoundingRadius::OurKernelFactory::register_new_class<
-          mundy::shapes::compute_bounding_radius::kernels::SpherocylinderSegment>("SPHEROCYLINDER_SEGMENT");
+      mundy::shapes::compute_bounding_radius::kernels::Spherocylinder>("SPHEROCYLINDER");
+  mundy::shapes::ComputeBoundingRadius::OurKernelFactory::register_new_class<
+      mundy::shapes::compute_bounding_radius::kernels::SpherocylinderSegment>("SPHEROCYLINDER_SEGMENT");
   return true;
 }();
 

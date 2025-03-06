@@ -26,6 +26,8 @@
 #include <vector>      // for std::vector
 
 // STK
+#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
+
 #include <stk_io/FillMesh.hpp>  // for stk::io::fill_mesh_with_auto_decomp
 #include <stk_mesh/base/Bucket.hpp>
 #include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
@@ -44,7 +46,6 @@
 #include <stk_mesh/base/NgpMesh.hpp>
 #include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>
-#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
 
 // Mundy
 #include <mundy_mesh/NgpFieldBLAS.hpp>  // for mundy::mesh::field_fill, mundy::mesh::field_copy, etc
@@ -516,7 +517,8 @@ TEST_F(UnitTestFieldBLAS, field_product) {
       return field3_values;
     };
 
-    field_product<double>(*field1_ptr_, *field2_ptr_, *field3_ptr_, block1_selector_ - block2_selector_, stk::ngp::ExecSpace());
+    field_product<double>(*field1_ptr_, *field2_ptr_, *field3_ptr_, block1_selector_ - block2_selector_,
+                          stk::ngp::ExecSpace());
 
     check_field_data_on_host_func("product_field does not multiply.", get_bulk(), *field3_ptr_,
                                   block1_selector_ - block2_selector_, {}, expected_value_func);
@@ -622,7 +624,8 @@ TEST_F(UnitTestFieldBLAS, field_axpbyz) {
       return field3_values;
     };
 
-    field_axpbyz(alpha, *field1_ptr_, beta, *field2_ptr_, *field3_ptr_, block1_selector_ - block2_selector_, stk::ngp::ExecSpace());
+    field_axpbyz(alpha, *field1_ptr_, beta, *field2_ptr_, *field3_ptr_, block1_selector_ - block2_selector_,
+                 stk::ngp::ExecSpace());
 
     check_field_data_on_host_func("axpbyz_field does not axpbyz.", get_bulk(), *field3_ptr_,
                                   block1_selector_ - block2_selector_, {}, expected_value_func);
@@ -793,7 +796,8 @@ TEST_F(UnitTestFieldBLAS, field_dot) {
     auto field_data_manager = std::make_unique<stk::mesh::DefaultFieldDataManager>(we_know_there_are_five_ranks);
     setup_three_field_five_hex_mesh(entity_rank, stk::mesh::BulkData::AUTO_AURA, std::move(field_data_manager));
 
-    double ngp_dot = field_dot<double>(*field1_ptr_, *field2_ptr_, block1_selector_ - block2_selector_, stk::ngp::ExecSpace());
+    double ngp_dot =
+        field_dot<double>(*field1_ptr_, *field2_ptr_, block1_selector_ - block2_selector_, stk::ngp::ExecSpace());
 
     double expected_dot =
         host_direct_field_dot(get_bulk(), *field1_ptr_, *field2_ptr_, block1_selector_ - block2_selector_);

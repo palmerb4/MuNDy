@@ -25,6 +25,13 @@ module load hwloc
 
 ## Spack
 
+### Load dependencies. For us, this is 
+```bash
+module purge
+module load modules/2.3-20240529 
+module load slurm openmpi/4.0.7 boost/1.84.0 eigen/3.4.0 hdf5/mpi-1.12.3 hwloc/2.9.1 netcdf-c/4.9.2 gcc cmake
+```
+
 ### Create an independent spack environment for Trilinos
 ```bash
 spack env create -d .
@@ -53,11 +60,11 @@ Edit the YAML configuration directly to add things we know about if need be. Or 
     boost:
       externals:
       - spec: boost@1.84.0
-        prefix: /mnt/sw/nix/store/a6ai1053d86p4wwzij3skwcflciqfdm7-boost-1.84.0
+        prefix: /mnt/sw/nix/store/a6ai1053d86p4wwzij3skwcflciqfdm7-boost-1.84.0/
     netcdf-c:
       externals:
       - spec: netcdf-c@4.9.2
-        prefix: /mnt/sw/nix/store/hxp8ssyrwwl9qm4g6qx9dig8vh3pqd5j-netcdf-c-4.9.2
+        prefix: /mnt/sw/nix/store/hxp8ssyrwwl9qm4g6qx9dig8vh3pqd5j-netcdf-c-4.9.2/
 ```
 
 ### Check the specification of Trilinos

@@ -332,9 +332,9 @@ void check_max_overlap_with_periphery(stk::mesh::NgpMesh &ngp_mesh,             
   node_coords_field.sync_to_device();
   elem_radius_field.sync_to_device();
 
-  double shifted_periphery_hydro_radius1 = 0.5 * periphery_shape.axis_length_1() + max_allowed_overlap;
-  double shifted_periphery_hydro_radius2 = 0.5 * periphery_shape.axis_length_2() + max_allowed_overlap;
-  double shifted_periphery_hydro_radius3 = 0.5 * periphery_shape.axis_length_3() + max_allowed_overlap;
+  double shifted_periphery_hydro_radius1 = periphery_shape.radius_1() + max_allowed_overlap;
+  double shifted_periphery_hydro_radius2 = periphery_shape.radius_2() + max_allowed_overlap;
+  double shifted_periphery_hydro_radius3 = periphery_shape.radius_3() + max_allowed_overlap;
 
   mundy::mesh::for_each_entity_run(
       ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {

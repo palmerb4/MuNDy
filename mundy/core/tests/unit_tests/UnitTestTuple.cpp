@@ -76,6 +76,10 @@ TEST(TupleTest, EmptyTuple) {
   EXPECT_EQ(sizeof(t), 1);  // Empty tuple should have size 1 due to empty base optimization
 }
 
+TEST(TupleTest, TupleDefaultConstructable) {
+  ::mundy::core::tuple<> t;
+  EXPECT_EQ(sizeof(t), 1);  // Empty tuple should have size 1 due to empty base optimization
+}
 TEST(TupleTest, ConstexprTuple) {
   constexpr auto t = ::mundy::core::make_tuple(1, 2.5, 42);
 
@@ -86,7 +90,8 @@ TEST(TupleTest, ConstexprTuple) {
 
   // Correct types:
   static_assert(std::is_same_v<decltype(::mundy::core::get<0>(t)), const int&>, "First element should be const int&");
-  static_assert(std::is_same_v<decltype(::mundy::core::get<1>(t)), const double&>, "Second element should be const double&");
+  static_assert(std::is_same_v<decltype(::mundy::core::get<1>(t)), const double&>,
+                "Second element should be const double&");
   static_assert(std::is_same_v<decltype(::mundy::core::get<2>(t)), const int&>, "Third element should be const int&");
 }
 

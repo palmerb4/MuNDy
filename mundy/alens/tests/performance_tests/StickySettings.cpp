@@ -150,8 +150,8 @@ Order of operations:
 */
 
 // External libs
-#include <openrand/philox.h>
 #include <fmt/format.h>  // for fmt::format
+#include <openrand/philox.h>
 
 // Trilinos libs
 #include <Kokkos_Core.hpp>                   // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
@@ -169,7 +169,6 @@ Order of operations:
 #include <stk_util/parallel/Parallel.hpp>    // for stk::parallel_machine_init, stk::parallel_machine_finalize
 
 // Mundy libs
-#include <mundy_mesh/fmt_stk_types.hpp>                                     // adds fmt::format for stk types
 #include <mundy_alens/actions_crosslinkers.hpp>             // for mundy::alens::crosslinkers...
 #include <mundy_constraints/AngularSprings.hpp>             // for mundy::constraints::AngularSprings
 #include <mundy_constraints/ComputeConstraintForcing.hpp>   // for mundy::constraints::ComputeConstraintForcing
@@ -187,8 +186,9 @@ Order of operations:
 #include <mundy_linkers/NeighborLinkers.hpp>                // for mundy::linkers::NeighborLinkers
 #include <mundy_math/Vector3.hpp>                           // for mundy::math::Vector3
 #include <mundy_mesh/BulkData.hpp>                          // for mundy::mesh::BulkData
-#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
-#include <mundy_mesh/MetaData.hpp>    // for mundy::mesh::MetaData
+#include <mundy_mesh/FieldViews.hpp>     // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_mesh/MetaData.hpp>       // for mundy::mesh::MetaData
+#include <mundy_mesh/fmt_stk_types.hpp>  // adds fmt::format for stk types
 #include <mundy_mesh/utils/DestroyFlaggedEntities.hpp>        // for mundy::mesh::utils::destroy_flagged_entities
 #include <mundy_mesh/utils/FillFieldWithValue.hpp>            // for mundy::mesh::utils::fill_field_with_value
 #include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
@@ -402,9 +402,9 @@ class StickySettings {
           // For left-bound crosslinkers, the right node should be the same as the left.
           MUNDY_THROW_ASSERT(bulk_data.is_valid(left_sphere_node), std::logic_error,
                              std::string("Left node is not valid.\n") + message);
-          MUNDY_THROW_ASSERT(
-              bulk_data.bucket(left_sphere_node).member(left_bound_crosslinkers_part), std::logic_error,
-              std::string("Left node is not a left bound crosslinker.\n") + message + print_bucket(bulk_data.bucket(crosslinker)));
+          MUNDY_THROW_ASSERT(bulk_data.bucket(left_sphere_node).member(left_bound_crosslinkers_part), std::logic_error,
+                             std::string("Left node is not a left bound crosslinker.\n") + message +
+                                 print_bucket(bulk_data.bucket(crosslinker)));
           MUNDY_THROW_ASSERT(left_sphere_node == right_sphere_node, std::logic_error,
                              std::string("Left and right nodes are not the same.\n") + message);
         });
@@ -587,14 +587,14 @@ class StickySettings {
   stk::mesh::Field<FieldType> *fetch_field(const std::string &field_name, stk::topology::rank_t rank) {
     auto field_ptr = meta_data_ptr_->get_field<FieldType>(rank, field_name);
     MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
-                       std::string("Field ") + field_name + " not found in the mesh meta data.");
+                        std::string("Field ") + field_name + " not found in the mesh meta data.");
     return field_ptr;
   }
 
   stk::mesh::Part *fetch_part(const std::string &part_name) {
     auto part_ptr = meta_data_ptr_->get_part(part_name);
     MUNDY_THROW_REQUIRE(part_ptr != nullptr, std::invalid_argument,
-                       std::string("Part ") + part_name + " not found in the mesh meta data.");
+                        std::string("Part ") + part_name + " not found in the mesh meta data.");
     return part_ptr;
   }
 
@@ -837,8 +837,8 @@ class StickySettings {
       // Bind left and right nodes to the same node to start simulation (everybody is left bound)
       stk::mesh::EntityId left_node_id = get_node_id(i);
       stk::mesh::Entity left_node = bulk_data_ptr_->get_entity(node_rank_, left_node_id);
-      MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(left_node), std::invalid_argument, 
-        fmt::format("Node {} is not valid.", i));
+      MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(left_node), std::invalid_argument,
+                         fmt::format("Node {} is not valid.", i));
 
       // Fetch the centerline twist spring and connect it to the nodes/edges
       // Connect back onto the same node for now, as it is a left bound crosslinker
@@ -848,7 +848,7 @@ class StickySettings {
       bulk_data_ptr_->declare_relation(crosslinker, left_node, 0, invalid_perm, scratch1, scratch2, scratch3);
       bulk_data_ptr_->declare_relation(crosslinker, left_node, 1, invalid_perm, scratch1, scratch2, scratch3);
       MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(crosslinker).topology() != stk::topology::INVALID_TOPOLOGY,
-                         std::logic_error, 
+                         std::logic_error,
                          fmt::format("The crosslinker with id {} has an invalid topology.", crosslinker_id));
 
       // Set the crosslinker fields

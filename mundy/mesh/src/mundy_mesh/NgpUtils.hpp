@@ -64,6 +64,7 @@ template <typename T, template <typename> class NgpDebugger>
 constexpr bool is_host_field<stk::mesh::HostField<T, NgpDebugger>> = true;
 
 template <typename T, template <typename> class NgpDebugger>
+
 constexpr bool is_host_field<const stk::mesh::HostField<T, NgpDebugger>> = true;
 #endif
 
@@ -97,7 +98,8 @@ void sync_field_to_owning_space(Field& field) {
 template <typename ExecSpace>
   requires Kokkos::is_execution_space<ExecSpace>::value
 void sync_field_to_space(const stk::mesh::FieldBase& field, [[maybe_unused]] const ExecSpace& exec_space) {
-  constexpr bool is_device_exec_space = !Kokkos::SpaceAccessibility<ExecSpace, stk::ngp::HostExecSpace::memory_space>::accessible;
+  constexpr bool is_device_exec_space =
+      !Kokkos::SpaceAccessibility<ExecSpace, stk::ngp::HostExecSpace::memory_space>::accessible;
   if constexpr (is_device_exec_space) {
     field.sync_to_device();
   } else {
@@ -119,7 +121,8 @@ void mark_field_modified_on_owning_space(Field& field) {
 template <typename ExecSpace>
   requires Kokkos::is_execution_space<ExecSpace>::value
 void mark_field_modified_on_space(const stk::mesh::FieldBase& field, [[maybe_unused]] const ExecSpace& exec_space) {
-  constexpr bool is_device_exec_space = !Kokkos::SpaceAccessibility<ExecSpace, stk::ngp::HostExecSpace::memory_space>::accessible;
+  constexpr bool is_device_exec_space =
+      !Kokkos::SpaceAccessibility<ExecSpace, stk::ngp::HostExecSpace::memory_space>::accessible;
   field.clear_sync_state();
   if constexpr (is_device_exec_space) {
     field.modify_on_device();

@@ -102,15 +102,14 @@ class ComputeAABB
 };  // ComputeAABB
 
 // Workaround due to CUDA not liking our meta factory registration
-static inline volatile const bool register_compute_aabb_kernels_ =
-[]() {
+static inline volatile const bool register_compute_aabb_kernels_ = []() {
   // Register our default kernels
+  mundy::shapes::ComputeAABB::OurKernelFactory::register_new_class<mundy::shapes::compute_aabb::kernels::Sphere>(
+      "SPHERE");
   mundy::shapes::ComputeAABB::OurKernelFactory::register_new_class<
-          mundy::shapes::compute_aabb::kernels::Sphere>("SPHERE");
+      mundy::shapes::compute_aabb::kernels::Spherocylinder>("SPHEROCYLINDER");
   mundy::shapes::ComputeAABB::OurKernelFactory::register_new_class<
-          mundy::shapes::compute_aabb::kernels::Spherocylinder>("SPHEROCYLINDER");
-  mundy::shapes::ComputeAABB::OurKernelFactory::register_new_class<
-          mundy::shapes::compute_aabb::kernels::SpherocylinderSegment>("SPHEROCYLINDER_SEGMENT");
+      mundy::shapes::compute_aabb::kernels::SpherocylinderSegment>("SPHEROCYLINDER_SEGMENT");
   return true;
 }();
 

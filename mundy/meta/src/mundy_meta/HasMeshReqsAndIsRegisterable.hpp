@@ -74,8 +74,8 @@ struct HasMeshReqsAndIsRegisterable {
   /// \return \c std::true_type if \c U has a \c get_valid_fixed_params function, \c std::false_type
   /// otherwise.
   template <typename U>
-  static auto check_get_valid_fixed_params([[maybe_unused]] int unused) -> decltype(U::get_valid_fixed_params(),
-                                                                                    std::true_type{});
+  static auto check_get_valid_fixed_params([[maybe_unused]] int unused)
+      -> decltype(U::get_valid_fixed_params(), std::true_type{});
 
   /// \brief Helper for checking if \c U has a \c get_valid_fixed_params function.
   /// \tparam U The type to check.
@@ -90,8 +90,8 @@ struct HasMeshReqsAndIsRegisterable {
   /// \return \c std::true_type if \c U has a \c get_valid_mutable_params function, \c
   /// std::false_type otherwise.
   template <typename U>
-  static auto check_get_valid_mutable_params([[maybe_unused]] int unused) -> decltype(U::get_valid_mutable_params(),
-                                                                                      std::true_type{});
+  static auto check_get_valid_mutable_params([[maybe_unused]] int unused)
+      -> decltype(U::get_valid_mutable_params(), std::true_type{});
 
   /// \brief Helper for checking if \c U has a \c get_valid_mutable_params function.
   /// \tparam U The type to check.

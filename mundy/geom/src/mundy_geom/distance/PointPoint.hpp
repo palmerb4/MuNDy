@@ -24,8 +24,8 @@
 #include <Kokkos_Core.hpp>
 
 // Mundy
-#include <mundy_geom/primitives/Point.hpp>           // for mundy::geom::Point
-#include <mundy_geom/distance/Types.hpp>  // for mundy::geom::SharedNormalSigned, Euclidean
+#include <mundy_geom/distance/Types.hpp>    // for mundy::geom::SharedNormalSigned, Euclidean
+#include <mundy_geom/primitives/Point.hpp>  // for mundy::geom::Point
 
 namespace mundy {
 
@@ -69,7 +69,8 @@ KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const Euclidean distance_type, 
 /// \param[in] point2 The second point
 /// \param[out] sep The separation vector (from point1 to point2)
 template <typename Scalar>
-KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point1, const Point<Scalar>& point2, mundy::math::Vector3<Scalar>& sep) {
+KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point1, const Point<Scalar>& point2,
+                                mundy::math::Vector3<Scalar>& sep) {
   return distance(SharedNormalSigned{}, point1, point2, sep);
 }
 

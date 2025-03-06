@@ -19,12 +19,12 @@
 
 //! \file UnitTestTest
 /// Validate that tests are actually running as expected.
-/// You may assume that simply because you ran 
-#include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
+/// You may assume that simply because you ran
 #include <gmock/gmock.h>  // for EXPECT_THAT, HasSubstr, etc
+#include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
 
+#include <Kokkos_Core.hpp>  // for Kokkos::initialize, Kokkos::finalize
 #include <iostream>
-#include <Kokkos_Core.hpp>                 // for Kokkos::initialize, Kokkos::finalize
 #include <stk_util/parallel/Parallel.hpp>  // for stk::parallel_machine_init, stk::parallel_machine_finalize
 
 TEST(UnitTest, test) {

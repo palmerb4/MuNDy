@@ -192,7 +192,8 @@ SelectorNode *parse_term(SelectorEval &eval, LexemIterator from, LexemIterator t
   return term;
 }
 
-SelectorNode *parse_unary(SelectorEval &eval, [[maybe_unused]] LexemIterator from, LexemIterator unary_it, LexemIterator to) {
+SelectorNode *parse_unary(SelectorEval &eval, [[maybe_unused]] LexemIterator from, LexemIterator unary_it,
+                          LexemIterator to) {
   /* If it is a positive, just parse the internal of it */
   if ((*unary_it).getToken() == TOKEN_NOT) {
     SelectorNode *unary = eval.new_node(OPCODE_UNARY_NOT);

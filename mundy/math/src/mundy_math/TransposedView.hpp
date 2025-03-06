@@ -80,7 +80,7 @@ class TransposedAccessor<T, N, M, Accessor, Ownership::Views> {
 
   /// \brief Element access operator
   /// \param[in] idx The index of the element.
-  KOKKOS_INLINE_FUNCTION auto& operator[](size_t idx) const {
+  KOKKOS_INLINE_FUNCTION constexpr auto& operator[](size_t idx) const {
     // This idx is the contiguous index into the theoretical row-major transpose. We need to convert it to the
     // row-major index of the original matrix.
     const size_t i = idx / N;
@@ -122,7 +122,7 @@ class TransposedAccessor<T, N, M, Accessor, Ownership::Owns> {
 
   /// \brief Element access operator
   /// \param[in] idx The index of the element.
-  KOKKOS_INLINE_FUNCTION auto& operator[](size_t idx) const {
+  KOKKOS_INLINE_FUNCTION constexpr auto& operator[](size_t idx) const {
     // This idx is the contiguous index into the theoretical row-major transpose. We need to convert it to the
     // row-major index of the original matrix.
     const size_t i = idx / N;
@@ -155,22 +155,22 @@ using OwningTransposedAccessor = TransposedAccessor<T, N, M, Accessor, Ownership
 ///   auto transposed_data = get_transposed_view<T, N, M>(data);
 /// \endcode
 template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_transposed_view(Accessor& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_transposed_view(Accessor& data) {
   return TransposedView<T, N, M, Accessor>(data);
 }
 
 template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_transposed_view(Accessor&& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_transposed_view(Accessor&& data) {
   return TransposedView<T, N, M, Accessor>(std::forward<Accessor>(data));
 }
 
 template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_owning_transposed_accessor(Accessor& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_owning_transposed_accessor(Accessor& data) {
   return OwningTransposedAccessor<T, N, M, Accessor>(data);
 }
 
 template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_owning_transposed_accessor(Accessor&& data) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_owning_transposed_accessor(Accessor&& data) {
   return OwningTransposedAccessor<T, N, M, Accessor>(std::forward<Accessor>(data));
 }
 

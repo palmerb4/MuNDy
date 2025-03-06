@@ -25,6 +25,7 @@ SET(NOINSTALLHEADERS
   src/mundy_math/Matrix.hpp
   src/mundy_math/minimize.hpp
   src/mundy_math/Quaternion.hpp
+  src/mundy_math/ScalarWrapper.hpp
   src/mundy_math/ShiftedView.hpp
   src/mundy_math/StridedView.hpp
   src/mundy_math/Tolerance.hpp

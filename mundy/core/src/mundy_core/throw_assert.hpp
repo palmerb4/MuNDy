@@ -50,78 +50,103 @@
 
 namespace mundy {
 
-template <size_t AssertionStringSize>
-std::string get_throw_require_host_string(const core::StringLiteral<AssertionStringSize>& assertion_string,
-                                          const std::string& message_to_print) {
+template <size_t AssertionStringSize, size_t FileStringSize, size_t LineStringSize>
+std::string get_throw_require_host_string(
+    const core::StringLiteral<AssertionStringSize>& assertion_string,                              //
+    const std::string& message_to_print,                                                           //
+    const core::StringLiteral<FileStringSize>& file_string = core::make_string_literal(__FILE__),  //
+    const core::StringLiteral<LineStringSize>& line_string = core::make_string_literal(MUNDY_LINE_STRING)) {
   std::ostringstream message_to_print_ostring_stream;
   message_to_print_ostring_stream << "Assertion (" << assertion_string << ") failed."
-                                  << "\nFile: " __FILE__ "\nLine: " MUNDY_LINE_STRING "\nMessage: " << message_to_print;
+                                  << "\nFile: " << file_string << "\nLine: " << line_string
+                                  << "\nMessage: " << message_to_print;
   return message_to_print_ostring_stream.str();
 }
 
-template <size_t AssertionStringSize, size_t MessageStringSize>
-std::string get_throw_require_host_string(const core::StringLiteral<AssertionStringSize>& assertion_string,
-                                          const char (&message_to_print)[MessageStringSize]) {
-  return get_throw_require_host_string(assertion_string, std::string(message_to_print));
+template <size_t AssertionStringSize, size_t MessageStringSize, size_t FileStringSize, size_t LineStringSize>
+std::string get_throw_require_host_string(
+    const core::StringLiteral<AssertionStringSize>& assertion_string,                              //
+    const char (&message_to_print)[MessageStringSize],                                             //
+    const core::StringLiteral<FileStringSize>& file_string = core::make_string_literal(__FILE__),  //
+    const core::StringLiteral<LineStringSize>& line_string = core::make_string_literal(MUNDY_LINE_STRING)) {
+  return get_throw_require_host_string(assertion_string, std::string(message_to_print), file_string, line_string);
 }
 
-template <size_t AssertionStringSize, size_t MessageStringSize>
-std::string get_throw_require_host_string(const core::StringLiteral<AssertionStringSize>& assertion_string,
-                                          const core::StringLiteral<MessageStringSize>& message_to_print) {
-  return get_throw_require_host_string(assertion_string, message_to_print.value);
+template <size_t AssertionStringSize, size_t MessageStringSize, size_t FileStringSize, size_t LineStringSize>
+std::string get_throw_require_host_string(
+    const core::StringLiteral<AssertionStringSize>& assertion_string,                              //
+    const core::StringLiteral<MessageStringSize>& message_to_print,                                //
+    const core::StringLiteral<FileStringSize>& file_string = core::make_string_literal(__FILE__),  //
+    const core::StringLiteral<LineStringSize>& line_string = core::make_string_literal(MUNDY_LINE_STRING)) {
+  return get_throw_require_host_string(assertion_string, message_to_print.value, file_string, line_string);
 }
 
-template <size_t AssertionStringSize, size_t MessageStringSize>
+template <size_t AssertionStringSize, size_t MessageStringSize, size_t FileStringSize, size_t LineStringSize>
 KOKKOS_INLINE_FUNCTION constexpr auto get_throw_require_device_string(
-    const core::StringLiteral<AssertionStringSize>& assertion_string,
-    const char (&message_to_print)[MessageStringSize]) {
-  return core::make_string_literal("Assertion (") + assertion_string +
-         core::make_string_literal(") failed.\nFile: " __FILE__ "\nLine: " MUNDY_LINE_STRING "\nMessage: ") +
-         message_to_print;
+    const core::StringLiteral<AssertionStringSize>& assertion_string,                              //
+    const char (&message_to_print)[MessageStringSize],                                             //
+    const core::StringLiteral<FileStringSize>& file_string = core::make_string_literal(__FILE__),  //
+    const core::StringLiteral<LineStringSize>& line_string = core::make_string_literal(MUNDY_LINE_STRING)) {
+  return core::make_string_literal("Assertion (") + assertion_string + ") failed.\nFile: " + file_string +
+         "\nLine: " + line_string + "\nMessage: " + message_to_print;
 }
 
-template <size_t AssertionStringSize, size_t MessageStringSize>
+template <size_t AssertionStringSize, size_t MessageStringSize, size_t FileStringSize, size_t LineStringSize>
 KOKKOS_INLINE_FUNCTION constexpr auto get_throw_require_device_string(
-    const core::StringLiteral<AssertionStringSize>& assertion_string,
-    const core::StringLiteral<MessageStringSize>& message_to_print) {
-  return core::make_string_literal("Assertion (") + assertion_string +
-         core::make_string_literal(") failed.\nFile: " __FILE__ "\nLine: " MUNDY_LINE_STRING "\nMessage: ") +
-         message_to_print;
+    const core::StringLiteral<AssertionStringSize>& assertion_string,  //
+    const core::StringLiteral<MessageStringSize>& message_to_print,    //
+    const core::StringLiteral<FileStringSize>& file_string = core::make_string_literal(__FILE__),
+    const core::StringLiteral<LineStringSize>& line_string = core::make_string_literal(MUNDY_LINE_STRING)) {
+  return core::make_string_literal("Assertion (") + assertion_string + ") failed.\nFile: " + file_string +
+         "\nLine: " + line_string + "\nMessage: " + message_to_print;
 }
 
-template <size_t AssertionStringSize, size_t MessageStringSize>
-std::string get_throw_require_device_string(const core::StringLiteral<AssertionStringSize>& assertion_string,
-                                            const std::string& message_to_print) {
-  constexpr auto prefix =
-      core::make_string_literal("Assertion (") + assertion_string +
-      core::make_string_literal(") failed.\nFile: " __FILE__ "\nLine: " MUNDY_LINE_STRING "\nMessage: ");
+template <size_t AssertionStringSize, size_t MessageStringSize, size_t FileStringSize, size_t LineStringSize>
+std::string get_throw_require_device_string(
+    const core::StringLiteral<AssertionStringSize>& assertion_string,                              //
+    const std::string& message_to_print,                                                           //
+    const core::StringLiteral<FileStringSize>& file_string = core::make_string_literal(__FILE__),  //
+    const core::StringLiteral<LineStringSize>& line_string = core::make_string_literal(MUNDY_LINE_STRING)) {
+  constexpr auto prefix = core::make_string_literal("Assertion (") + assertion_string +
+                          ") failed.\nFile: " + file_string + "\nLine: " + line_string + "\nMessage: ";
   return prefix.to_string() + message_to_print;
 }
 
-template <typename ExceptionType, typename MessageStringType, size_t AssertionStringSize>
+template <typename ExceptionType, typename MessageStringType, size_t AssertionStringSize, size_t FileStringSize,
+          size_t LineStringSize>
   requires std::is_base_of_v<std::exception, ExceptionType>
-void throw_require(const bool assertion_value, const core::StringLiteral<AssertionStringSize>& assertion_string,
-                   const MessageStringType& message_to_print) {
+void throw_require(
+    const bool assertion_value,                                                                    //
+    const core::StringLiteral<AssertionStringSize>& assertion_string,                              //
+    const MessageStringType& message_to_print,                                                     //
+    const core::StringLiteral<FileStringSize>& file_string = core::make_string_literal(__FILE__),  //
+    const core::StringLiteral<LineStringSize>& line_string = core::make_string_literal(MUNDY_LINE_STRING)) {
   if (!assertion_value) {
-    throw ExceptionType(get_throw_require_host_string(assertion_string, message_to_print));
+    throw ExceptionType(get_throw_require_host_string(assertion_string, message_to_print, file_string, line_string));
   }
 }
 
-template <typename MessageStringType, size_t AssertionStringSize>
-KOKKOS_INLINE_FUNCTION void abort_require(const bool assertion_value,
-                                          const core::StringLiteral<AssertionStringSize>& assertion_string,
-                                          const MessageStringType& message_to_print) {
+template <typename MessageStringType, size_t AssertionStringSize, size_t FileStringSize, size_t LineStringSize>
+KOKKOS_INLINE_FUNCTION void abort_require(
+    const bool assertion_value,                                                                    //
+    const core::StringLiteral<AssertionStringSize>& assertion_string,                              //
+    const MessageStringType& message_to_print,                                                     //
+    const core::StringLiteral<FileStringSize>& file_string = core::make_string_literal(__FILE__),  //
+    const core::StringLiteral<LineStringSize>& line_string = core::make_string_literal(MUNDY_LINE_STRING)) {
   if (!assertion_value) {
     if constexpr (std::is_same_v<std::remove_const<decltype(message_to_print)>, std::string>) {
-      Kokkos::abort(get_throw_require_device_string(assertion_string, message_to_print).c_str());
+      Kokkos::abort(
+          get_throw_require_device_string(assertion_string, message_to_print, file_string, line_string).c_str());
     } else if constexpr (mundy::core::is_string_literal_v<decltype(message_to_print)> ||
                          mundy::core::is_mundy_string_literal_v<decltype(message_to_print)>) {
-      Kokkos::abort(get_throw_require_device_string(assertion_string, message_to_print).value);
+      Kokkos::abort(
+          get_throw_require_device_string(assertion_string, message_to_print, file_string, line_string).value);
     } else {
       // Well, until C++23, we can't write something like static_assert(false, "some message");, as that is still
       // forbidden by the standard. We'll still abort, but we can't print the message.
-      Kokkos::abort(
-          get_throw_require_device_string(assertion_string, "\nUnable to print user-specified message.").value);
+      Kokkos::abort(get_throw_require_device_string(assertion_string, "\nUnable to print user-specified message.",
+                                                    file_string, line_string)
+                        .value);
     }
   }
 }
@@ -132,14 +157,18 @@ KOKKOS_INLINE_FUNCTION void abort_require(const bool assertion_value,
   do {                                                                                                                \
     const bool __mundy_assertion_value = static_cast<bool>(assertion_to_test);                                        \
     constexpr auto __mundy_assertion_string = ::mundy::core::make_string_literal(MUNDY_STRINGIFY(assertion_to_test)); \
-    ::mundy::throw_require<exception_to_throw>(__mundy_assertion_value, __mundy_assertion_string, message_to_print);  \
+    ::mundy::throw_require<exception_to_throw>(__mundy_assertion_value, __mundy_assertion_string, message_to_print,   \
+                                               ::mundy::core::make_string_literal(__FILE__),                          \
+                                               ::mundy::core::make_string_literal(MUNDY_LINE_STRING));                \
   } while (false);
 
 #define MUNDY_THROW_REQUIRE_DEVICE(assertion_to_test, exception_to_throw, message_to_print)                           \
   do {                                                                                                                \
     const bool __mundy_assertion_value = static_cast<bool>(assertion_to_test);                                        \
     constexpr auto __mundy_assertion_string = ::mundy::core::make_string_literal(MUNDY_STRINGIFY(assertion_to_test)); \
-    ::mundy::abort_require(__mundy_assertion_value, __mundy_assertion_string, message_to_print);                      \
+    ::mundy::abort_require(__mundy_assertion_value, __mundy_assertion_string, message_to_print,                       \
+                           ::mundy::core::make_string_literal(__FILE__),                                              \
+                           ::mundy::core::make_string_literal(MUNDY_LINE_STRING));                                    \
   } while (false);
 
 /// \def MUNDY_THROW_REQUIRE

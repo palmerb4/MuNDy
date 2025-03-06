@@ -205,8 +205,8 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
 
   /// \brief Get the valid mutable parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_mutable_params() {
-    static Teuchos::ParameterList default_parameter_list
-      = Teuchos::ParameterList().set("enforce_symmetry", true, "Enforce symmetry of the neighbor linkers.");
+    static Teuchos::ParameterList default_parameter_list =
+        Teuchos::ParameterList().set("enforce_symmetry", true, "Enforce symmetry of the neighbor linkers.");
     return default_parameter_list;
   }
 

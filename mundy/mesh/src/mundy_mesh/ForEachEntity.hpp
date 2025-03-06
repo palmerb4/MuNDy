@@ -37,32 +37,33 @@ namespace mesh {
 template <typename Mesh, typename AlgorithmPerEntity>
   requires(!std::is_base_of_v<stk::mesh::BulkData, Mesh>)
 inline void for_each_entity_run(Mesh &mesh, stk::topology::rank_t rank, const stk::mesh::Selector &selector,
-                         const AlgorithmPerEntity &functor) {
+                                const AlgorithmPerEntity &functor) {
   stk::mesh::for_each_entity_run(mesh, rank, selector, functor);
 }
 
 template <typename Mesh, typename AlgorithmPerEntity, typename EXEC_SPACE>
   requires(!std::is_base_of_v<stk::mesh::BulkData, Mesh>)
 inline void for_each_entity_run(Mesh &mesh, stk::topology::rank_t rank, const stk::mesh::Selector &selector,
-                         const AlgorithmPerEntity &functor, const EXEC_SPACE &exec_space) {
+                                const AlgorithmPerEntity &functor, const EXEC_SPACE &exec_space) {
   stk::mesh::for_each_entity_run(mesh, rank, selector, functor, exec_space);
 }
 
 template <typename ALGORITHM_TO_RUN_PER_ENTITY>
 inline void for_each_entity_run(const stk::mesh::BulkData &mesh, stk::topology::rank_t rank,
-                         const stk::mesh::Selector &selector, const ALGORITHM_TO_RUN_PER_ENTITY &functor) {
+                                const stk::mesh::Selector &selector, const ALGORITHM_TO_RUN_PER_ENTITY &functor) {
   stk::mesh::for_each_entity_run(mesh, rank, selector, functor);
 }
 
 template <typename ALGORITHM_TO_RUN_PER_ENTITY>
 inline void for_each_entity_run(const stk::mesh::BulkData &mesh, stk::topology::rank_t rank,
-                         const ALGORITHM_TO_RUN_PER_ENTITY &functor) {
+                                const ALGORITHM_TO_RUN_PER_ENTITY &functor) {
   stk::mesh::for_each_entity_run(mesh, rank, functor);
 }
 
 // template <typename ALGORITHM_TO_RUN_PER_ENTITY>
 // inline void for_each_entity_run_no_threads(const stk::mesh::BulkData &mesh, stk::topology::rank_t rank,
-//                                     const stk::mesh::Selector &selector, const ALGORITHM_TO_RUN_PER_ENTITY &functor) {
+//                                     const stk::mesh::Selector &selector, const ALGORITHM_TO_RUN_PER_ENTITY &functor)
+//                                     {
 //   stk::mesh::for_each_entity_run_no_threads(mesh, rank, selector, functor);
 // }
 

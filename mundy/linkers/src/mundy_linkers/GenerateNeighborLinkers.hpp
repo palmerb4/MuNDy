@@ -107,11 +107,10 @@ class GenerateNeighborLinkers
 };  // GenerateNeighborLinkers
 
 // Workaround due to CUDA not liking our meta factory registration
-static inline volatile const bool register_generate_neighbor_linkers_kernels_ =
-[]() {
+static inline volatile const bool register_generate_neighbor_linkers_kernels_ = []() {
   // Register our default kernels
- mundy::linkers::GenerateNeighborLinkers::OurTechniqueFactory::register_new_class<
-          mundy::linkers::generate_neighbor_linkers::techniques::STKSearch>("STK_SEARCH");
+  mundy::linkers::GenerateNeighborLinkers::OurTechniqueFactory::register_new_class<
+      mundy::linkers::generate_neighbor_linkers::techniques::STKSearch>("STK_SEARCH");
   return true;
 }();
 

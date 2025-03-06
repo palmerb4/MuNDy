@@ -37,7 +37,7 @@ namespace {
 template <size_t StrSize>
 struct RegistrationStringValueWrapper {
   using Type = std::string;
-  
+
   /// \brief Default constructor that initializes the string literal to an empty string.
   KOKKOS_INLINE_FUNCTION
   constexpr RegistrationStringValueWrapper() : value_{} {
@@ -151,7 +151,6 @@ std::string lit_to_string() {
   std::cout << StrLit << std::endl;
   return StrLit.to_string();
 }
-
 
 /// \brief Use a string literal as a non-type template parameter
 template <RegistrationStringValueWrapper StrLit>

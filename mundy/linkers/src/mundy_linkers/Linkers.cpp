@@ -39,11 +39,11 @@
 #include <stk_util/parallel/CommSparse.hpp>                     // for stk::CommSparse
 
 // Mundy
-#include <mundy_mesh/fmt_stk_types.hpp>                                     // adds fmt::format for stk types
 #include <mundy_agents/Agents.hpp>          // for mundy::agents::Agents
 #include <mundy_agents/RankedAssembly.hpp>  // for mundy::agents::RankedAssembly
 #include <mundy_core/StringLiteral.hpp>     // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_linkers/Linkers.hpp>        // for mundy::linkers::fixup_linker_node_sharing
+#include <mundy_mesh/fmt_stk_types.hpp>     // adds fmt::format for stk types
 #include <mundy_meta/FieldReqs.hpp>         // for mundy::meta::FieldReqs
 #include <mundy_meta/MeshReqs.hpp>          // for mundy::meta::MeshReqs
 #include <mundy_meta/PartReqs.hpp>          // for mundy::meta::PartReqs
@@ -56,7 +56,7 @@ void fixup_linker_entity_ghosting(stk::mesh::BulkData& bulk_data, const LinkedEn
                                   stk::mesh::Field<int>& linked_entity_owners_field,
                                   const stk::mesh::Selector& linker_selector) {
   MUNDY_THROW_REQUIRE(bulk_data.in_modifiable_state(), std::logic_error,
-                     "fixup_linker_entity_sharing: The mesh must be in a modification cycle.");
+                      "fixup_linker_entity_sharing: The mesh must be in a modification cycle.");
 
   // If the mesh is serial, then there's nothing to do.
   const int parallel_size = bulk_data.parallel_size();
@@ -171,12 +171,14 @@ void fixup_linker_entity_ghosting(stk::mesh::BulkData& bulk_data, const LinkedEn
       buf.unpack(entity_key).unpack(requester_proc);
 
       const stk::mesh::Entity entity = bulk_data.get_entity(entity_key);
-      MUNDY_THROW_ASSERT(bulk_data.is_valid(entity), std::logic_error,
-                  fmt::format("fixup_linker_entity_sharing: Rank {} received request for {} from {} but the entity is invalid.",
-                              parallel_rank, entity_key, requester_proc));
-      MUNDY_THROW_ASSERT(bulk_data.parallel_owner_rank(entity) == parallel_rank, std::logic_error,
-                        fmt::format("fixup_linker_entity_sharing: Rank {} received request for {} from {} but we do not own it.",
-                                    parallel_rank, entity_key, requester_proc));
+      MUNDY_THROW_ASSERT(
+          bulk_data.is_valid(entity), std::logic_error,
+          fmt::format("fixup_linker_entity_sharing: Rank {} received request for {} from {} but the entity is invalid.",
+                      parallel_rank, entity_key, requester_proc));
+      MUNDY_THROW_ASSERT(
+          bulk_data.parallel_owner_rank(entity) == parallel_rank, std::logic_error,
+          fmt::format("fixup_linker_entity_sharing: Rank {} received request for {} from {} but we do not own it.",
+                      parallel_rank, entity_key, requester_proc));
 
       // Receiving a request to ghost an entity we own.
       send_ghosts.emplace_back(entity, requester_proc);

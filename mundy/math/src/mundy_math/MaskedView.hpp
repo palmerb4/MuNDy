@@ -93,7 +93,7 @@ class MaskedAccessor<T, N, mask, Accessor, Ownership::Views> {
 
   /// \brief Element access operator
   /// \param[in] idx The index of the element.
-  KOKKOS_INLINE_FUNCTION const auto& operator[](size_t idx) const {
+  KOKKOS_INLINE_FUNCTION constexpr const auto& operator[](size_t idx) const {
     return accessor_[valid_indices_[idx]];
   }
 };  // class MaskedAccessor
@@ -146,7 +146,7 @@ class MaskedAccessor<T, N, mask, Accessor, Ownership::Owns> {
 
   /// \brief Element access operator
   /// \param[in] idx The index of the element.
-  KOKKOS_INLINE_FUNCTION const auto& operator[](size_t idx) const {
+  KOKKOS_INLINE_FUNCTION constexpr const auto& operator[](size_t idx) const {
     return accessor_[valid_indices_[idx]];
   }
 };  // class MaskedAccessor
@@ -174,22 +174,22 @@ using OwningMaskedAccessor = MaskedAccessor<T, N, mask, Accessor, Ownership::Own
 ///   auto masked_accessor = get_masked_view<T, N, mask>(accessor);
 /// \endcode
 template <typename T, size_t N, Kokkos::Array<bool, N> mask, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_masked_view(Accessor& accessor) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_masked_view(Accessor& accessor) {
   return MaskedView<T, N, mask, Accessor>(accessor);
 }
 
 template <typename T, size_t N, Kokkos::Array<bool, N> mask, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_masked_view(Accessor&& accessor) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_masked_view(Accessor&& accessor) {
   return MaskedView<T, N, mask, Accessor>(std::forward<Accessor>(accessor));
 }
 
 template <typename T, size_t N, Kokkos::Array<bool, N> mask, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_owning_masked_accessor(const Accessor& accessor) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_owning_masked_accessor(const Accessor& accessor) {
   return OwningMaskedAccessor<T, N, mask, Accessor>(accessor);
 }
 
 template <typename T, size_t N, Kokkos::Array<bool, N> mask, ValidAccessor<T> Accessor>
-KOKKOS_INLINE_FUNCTION auto get_owning_masked_accessor(Accessor&& accessor) {
+KOKKOS_INLINE_FUNCTION constexpr auto get_owning_masked_accessor(Accessor&& accessor) {
   return OwningMaskedAccessor<T, N, mask, Accessor>(std::forward<Accessor>(accessor));
 }
 //@}

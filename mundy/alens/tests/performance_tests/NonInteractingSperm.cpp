@@ -230,16 +230,17 @@ class SpermSimulation {
   void check_input_parameters() {
     debug_print("Checking input parameters.");
     MUNDY_THROW_REQUIRE(num_sperm_ > 0, std::invalid_argument, "num_sperm_ must be greater than 0.");
-    MUNDY_THROW_REQUIRE(num_nodes_per_sperm_ > 0, std::invalid_argument, "num_nodes_per_sperm_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(num_nodes_per_sperm_ > 0, std::invalid_argument,
+                        "num_nodes_per_sperm_ must be greater than 0.");
     MUNDY_THROW_REQUIRE(sperm_radius_ > 0, std::invalid_argument, "sperm_radius_ must be greater than 0.");
     MUNDY_THROW_REQUIRE(sperm_initial_segment_length_ > -1e-12, std::invalid_argument,
-                       "sperm_initial_segment_length_ must be greater than or equal to 0.");
+                        "sperm_initial_segment_length_ must be greater than or equal to 0.");
     MUNDY_THROW_REQUIRE(sperm_rest_segment_length_ > -1e-12, std::invalid_argument,
-                       "sperm_rest_segment_length_ must be greater than or equal to 0.");
+                        "sperm_rest_segment_length_ must be greater than or equal to 0.");
     MUNDY_THROW_REQUIRE(sperm_youngs_modulus_ > 0, std::invalid_argument,
-                       "sperm_youngs_modulus_ must be greater than 0.");
+                        "sperm_youngs_modulus_ must be greater than 0.");
     MUNDY_THROW_REQUIRE(sperm_poissons_ratio_ > 0, std::invalid_argument,
-                       "sperm_poissons_ratio_ must be greater than 0.");
+                        "sperm_poissons_ratio_ must be greater than 0.");
 
     MUNDY_THROW_REQUIRE(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
     MUNDY_THROW_REQUIRE(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
@@ -336,14 +337,14 @@ class SpermSimulation {
   stk::mesh::Field<FieldType> *fetch_field(const std::string &field_name, stk::topology::rank_t rank) {
     auto field_ptr = meta_data_ptr_->get_field<FieldType>(rank, field_name);
     MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
-                       std::string("Field ") + field_name + " not found in the mesh meta data.");
+                        std::string("Field ") + field_name + " not found in the mesh meta data.");
     return field_ptr;
   }
 
   stk::mesh::Part *fetch_part(const std::string &part_name) {
     auto part_ptr = meta_data_ptr_->get_part(part_name);
     MUNDY_THROW_REQUIRE(part_ptr != nullptr, std::invalid_argument,
-                       std::string("Part ") + part_name + " not found in the mesh meta data.");
+                        std::string("Part ") + part_name + " not found in the mesh meta data.");
     return part_ptr;
   }
 
@@ -378,7 +379,7 @@ class SpermSimulation {
     // Fetch the parts
     centerline_twist_springs_part_ptr_ = fetch_part("CENTERLINE_TWIST_SPRINGS");
     MUNDY_THROW_REQUIRE(centerline_twist_springs_part_ptr_->topology() == stk::topology::SHELL_TRI_3, std::logic_error,
-                       "CENTERLINE_TWIST_SPRINGS part must have SHELL_TRI_3 topology.");
+                        "CENTERLINE_TWIST_SPRINGS part must have SHELL_TRI_3 topology.");
   }
 
   void setup_io() {
@@ -567,7 +568,7 @@ class SpermSimulation {
         bulk_data_ptr_->declare_relation(spring, right_node, 2, perm, scratch1, scratch2, scratch3);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).topology() != stk::topology::INVALID_TOPOLOGY,
                            std::logic_error,
-                          fmt::format("The centerline twist spring with id {} has an invalid topology.", spring_id));
+                           fmt::format("The centerline twist spring with id {} has an invalid topology.", spring_id));
 
         // Populate the spring's data
         stk::mesh::field_data(*element_radius_field_ptr_, spring)[0] = sperm_radius_;
@@ -601,7 +602,7 @@ class SpermSimulation {
           // Share the first node with rank N - 1.
           stk::mesh::Entity node = get_node(start_seq_node_index);
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
-                             fmt::format("The node with id {} is not valid.", get_node_id(start_seq_node_index))); 
+                             fmt::format("The node with id {} is not valid.", get_node_id(start_seq_node_index)));
           bulk_data_ptr_->add_node_sharing(node, rank - 1);
 
           // Receive the last node from rank N - 1.
@@ -615,9 +616,9 @@ class SpermSimulation {
           stk::mesh::Entity first_node = get_node(start_seq_node_index);
           stk::mesh::Entity last_node = get_node(end_seq_node_index - 1);
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(first_node), std::logic_error,
-                           fmt::format("The node with id {} is not valid.", get_node_id(start_seq_node_index)));
+                             fmt::format("The node with id {} is not valid.", get_node_id(start_seq_node_index)));
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(last_node), std::logic_error,
-                           fmt::format("The node with id {} is not valid.", get_node_id(end_seq_node_index - 1))); 
+                             fmt::format("The node with id {} is not valid.", get_node_id(end_seq_node_index - 1)));
           bulk_data_ptr_->add_node_sharing(first_node, rank - 1);
           bulk_data_ptr_->add_node_sharing(last_node, rank + 1);
 
@@ -638,8 +639,7 @@ class SpermSimulation {
            i < end_seq_node_index + 1 * (rank < bulk_data_ptr_->parallel_size() - 1); ++i) {
         stk::mesh::Entity node = get_node(i);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
-                            fmt::format(
-                                "The node with id {} is not valid.", get_node_id(i)));
+                           fmt::format("The node with id {} is not valid.", get_node_id(i)));
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(node).member(*centerline_twist_springs_part_ptr_), std::logic_error,
                            "The node must be a member of the centerline twist part.");
 
@@ -664,17 +664,18 @@ class SpermSimulation {
         stk::mesh::Entity spring = get_centerline_twist_spring(i);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).member(*centerline_twist_springs_part_ptr_), std::logic_error,
                            "The centerline twist spring must be a member of the centerline twist part.");
-        MUNDY_THROW_ASSERT(centerline_twist_springs_part_ptr_->topology() == stk::topology::SHELL_TRI_3,
-                           std::logic_error,
-                           std::string("The centerline twist part must have SHELL_TRI_3 topology. Instead, it has topology ")
-                               + centerline_twist_springs_part_ptr_->topology());
+        MUNDY_THROW_ASSERT(
+            centerline_twist_springs_part_ptr_->topology() == stk::topology::SHELL_TRI_3, std::logic_error,
+            std::string("The centerline twist part must have SHELL_TRI_3 topology. Instead, it has topology ") +
+                centerline_twist_springs_part_ptr_->topology());
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).entity_rank() == stk::topology::ELEMENT_RANK,
                            std::logic_error,
-                           std::string("The centerline twist spring must have element rank. Instead, it has rank ")
-                               + bulk_data_ptr_->bucket(spring).entity_rank());
-        MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).topology() == stk::topology::SHELL_TRI_3, std::logic_error,
-                           std::string("The centerline twist spring must have SHELL_TRI_3 topology. Instead, it has topology ")
-                               + bulk_data_ptr_->bucket(spring).topology());
+                           std::string("The centerline twist spring must have element rank. Instead, it has rank ") +
+                               bulk_data_ptr_->bucket(spring).entity_rank());
+        MUNDY_THROW_ASSERT(
+            bulk_data_ptr_->bucket(spring).topology() == stk::topology::SHELL_TRI_3, std::logic_error,
+            std::string("The centerline twist spring must have SHELL_TRI_3 topology. Instead, it has topology ") +
+                bulk_data_ptr_->bucket(spring).topology());
       }
 
       {
@@ -1123,8 +1124,7 @@ class SpermSimulation {
 
           // Get the lower rank entities
           stk::mesh::Entity const *edge_nodes = bulk_data.begin_nodes(edge);
-          MUNDY_THROW_ASSERT(bulk_data.num_nodes(edge) >= 2, std::logic_error,
-                             "The edge must have at least 2 nodes.");
+          MUNDY_THROW_ASSERT(bulk_data.num_nodes(edge) >= 2, std::logic_error, "The edge must have at least 2 nodes.");
           const stk::mesh::Entity &node_im1 = edge_nodes[0];
           const stk::mesh::Entity &node_i = edge_nodes[1];
 
