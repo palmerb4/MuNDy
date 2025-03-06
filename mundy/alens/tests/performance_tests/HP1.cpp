@@ -1059,8 +1059,8 @@ class HP1 {
                  mundy::core::make_string_array(
                      "ELEMENT_RADIUS", "ELEMENT_RNG_COUNTER", "ELEMENT_REALIZED_BINDING_RATES",
                      "ELEMENT_REALIZED_UNBINDING_RATES", "ELEMENT_PERFORM_STATE_CHANGE", "EUCHROMATIN_STATE",
-                     "EUCHROMATIN_STATE_CHANGE_NEXT_TIME", "EUCHROMATIN_STATE_CHANGE_ELAPSED_TIME", "ELEMENT_CHAINID",
-                     "REQUIRES_ENDPOINT_CORRECTION"))
+                     "EUCHROMATIN_PERFORM_STATE_CHANGE", "EUCHROMATIN_STATE_CHANGE_NEXT_TIME",
+                     "EUCHROMATIN_STATE_CHANGE_ELAPSED_TIME", "ELEMENT_CHAINID", "REQUIRES_ENDPOINT_CORRECTION"))
             .set("coordinate_field_name", "NODE_COORDS")
             .set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES")
             .set("exodus_database_output_filename", output_filename_)
@@ -2337,23 +2337,27 @@ class HP1 {
                                               std::array<double, 1>{backbone_spring_r0_});
 
     // Initialize the EE springs (euchromatin activity)
-    mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *element_rng_field_ptr_,
-                                              std::array<unsigned, 1>{0});
-    mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *euchromatin_state_field_ptr_,
-                                              std::array<unsigned, 1>{0});
-    mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *euchromatin_perform_state_change_field_ptr_,
-                                              std::array<unsigned, 1>{0});
-    mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *euchromatin_state_change_next_time_field_ptr_,
-                                              std::array<double, 1>{0});
-    mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *euchromatin_state_change_elapsed_time_field_ptr_,
-                                              std::array<double, 1>{0});
+    if (!restart_performed_) {
+      mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *element_rng_field_ptr_,
+                                                std::array<unsigned, 1>{0});
+      mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *euchromatin_state_field_ptr_,
+                                                std::array<unsigned, 1>{0});
+      mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *euchromatin_perform_state_change_field_ptr_,
+                                                std::array<unsigned, 1>{0});
+      mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *euchromatin_state_change_next_time_field_ptr_,
+                                                std::array<double, 1>{0});
+      mundy::mesh::utils::fill_field_with_value(
+          *ee_springs_part_ptr_, *euchromatin_state_change_elapsed_time_field_ptr_, std::array<double, 1>{0});
+    }
 
     // Initialize HP1 springs
     mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_spring_constant_field_ptr_,
                                               std::array<double, 1>{crosslinker_spring_constant_});
     mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_spring_r0_field_ptr_,
                                               std::array<double, 1>{crosslinker_r0_});
-    mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_rng_field_ptr_, std::array<unsigned, 1>{0});
+    if (!restart_performed_) {
+      mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_rng_field_ptr_, std::array<unsigned, 1>{0});
+    }
     mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_radius_field_ptr_,
                                               std::array<double, 1>{crosslinker_cutoff_radius_});
 
@@ -3404,15 +3408,18 @@ class HP1 {
               elapsed_time[0] = 0.0;
             }
 
-#pragma omp critical
-            {
-              const unsigned previous_state = current_state[0] == 0u ? 1u : 0u;
-              std::cout << "Rank" << stk::parallel_machine_rank(MPI_COMM_WORLD)
-                        << " Detected euchromatin switching event object " << bulk_data.identifier(euchromatin_spring)
-                        << ", previous state: " << previous_state << ", current_state: " << current_state[0]
-                        << std::endl;
-              std::cout << "  next_time: " << next_time[0] << ", elapsed_time: " << elapsed_time[0] << std::endl;
-            }
+            // #pragma omp critical
+            //             {
+            //               const unsigned previous_state = current_state[0] == 0u ? 1u : 0u;
+            //               std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD)
+            //                         << " Detected euchromatin switching event object " <<
+            //                         bulk_data.identifier(euchromatin_spring)
+            //                         << ", previous state: " << previous_state << ", current_state: " <<
+            //                         current_state[0]
+            //                         << std::endl;
+            //               std::cout << "  next_time: " << next_time[0] << ", elapsed_time: " << elapsed_time[0] <<
+            //               std::endl;
+            //             }
           }
         });
     Kokkos::Profiling::popRegion();
@@ -3566,11 +3573,10 @@ class HP1 {
     }
 
     // Apply the RPY kernel from spheres to spheres
-    mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
-                                              sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
+    mundy::alens::periphery::apply_rpyc_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
+                                               sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
     // mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions,
-    // sphere_positions,
-    //                                              sphere_forces, sphere_velocities);
+    // sphere_positions, sphere_forces, sphere_velocities);
 
     // If enabled, apply the correction for the no-slip boundary condition
     if (enable_periphery_hydrodynamics_) {
@@ -3586,8 +3592,8 @@ class HP1 {
       Kokkos::deep_copy(surface_radii, 0.0);
 
       // Apply the RPY kernel from spheres to periphery
-      mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, surface_positions,
-                                                sphere_radii, surface_radii, sphere_forces, surface_velocities);
+      mundy::alens::periphery::apply_rpyc_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, surface_positions,
+                                                 sphere_radii, surface_radii, sphere_forces, surface_velocities);
       // mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions,
       //                                              surface_positions, sphere_forces, surface_velocities);
 
@@ -3599,7 +3605,7 @@ class HP1 {
           DeviceExecutionSpace(), viscosity, num_surface_nodes, num_spheres, surface_positions, sphere_positions,
           surface_normals, surface_weights, surface_forces, sphere_velocities);
 
-      // // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
+      // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
       // mundy::alens::periphery::apply_local_drag(DeviceExecutionSpace(), viscosity, sphere_velocities, sphere_forces,
       //                                           sphere_radii);
     }
@@ -4179,7 +4185,7 @@ class HP1 {
     if (enable_periphery_binding_ && !restart_performed_) {
       declare_and_initialize_periphery_bind_sites();
     }
-    if (enable_active_euchromatin_forces_) {
+    if (enable_active_euchromatin_forces_ && !restart_performed_) {
       initialize_euchromatin();
     }
 
@@ -4201,6 +4207,13 @@ class HP1 {
     if (enable_continuation_if_available_ && restart_performed_) {
       timestep_index_ = restart_timestep_index_;
       timestep_current_time_ = restart_timestep_index_ * timestep_size_;
+      // Force an update of the positions to pretend we are at the END of the restarted timestep
+      update_positions();
+      // Update the time for the euchromatin active forces
+      if (enable_active_euchromatin_forces_) update_euchromatin_state_time();
+      // Increment the index to prevent the off-by-1 error
+      timestep_index_ += 1;
+      timestep_current_time_ += timestep_size_;
     }
 
     // Check to see if we need to do anything for compressing the system.

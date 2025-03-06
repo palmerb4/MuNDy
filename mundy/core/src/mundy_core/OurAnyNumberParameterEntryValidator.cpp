@@ -18,6 +18,12 @@
 // **********************************************************************************************************************
 // @HEADER
 
+
+// Mundy
+#include <MundyCore_config.hpp>                                     // for HAVE_MUNDYCORE_*
+
+#ifdef HAVE_MUNDYCORE_TEUCHOS
+
 // C++ core
 #include <limits>     // for std::numeric_limits
 #include <sstream>    // for std::ostringstream
@@ -350,3 +356,5 @@ void OurAnyNumberParameterEntryValidator::throw_type_error(Teuchos::ParameterEnt
 }  // namespace core
 
 }  // namespace mundy
+
+#endif

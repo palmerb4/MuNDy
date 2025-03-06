@@ -27,3 +27,18 @@ tribits_add_executable_and_test(
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
   NUM_MPI_PROCS 1-4
 )
+
+tribits_copy_files_to_binary_dir(
+    UnitTestPeripheryCopyFiles
+    SOURCE_FILES
+    sphere_triangle_points_1280.dat
+    sphere_triangle_weights_1280.dat
+    sphere_triangle_normals_1280.dat
+    sphere_triangle_points_3840.dat
+    sphere_triangle_weights_3840.dat
+    sphere_triangle_normals_3840.dat
+    sphere_triangle_points_5120.dat
+    sphere_triangle_weights_5120.dat
+    sphere_triangle_normals_5120.dat
+    EXEDEPS UnitTestPeriphery
+    )

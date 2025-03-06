@@ -145,8 +145,8 @@ TEST(IOBroker, CreateNewInstanceIOAABB) {
   io_broker_ptr->print_field_roles();
 
   // Print out the mesh
-  stk::log_with_time_and_memory(MPI_COMM_WORLD, "Mesh dump");
-  stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr, std::cout);
+  // stk::log_with_time_and_memory(MPI_COMM_WORLD, "Mesh dump");
+  // stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr, std::cout);
 
   // Check that the ELEMENT_AABB is set to transient, TRANSIENT_NODE_COORDINATES is set to transient, and that
   // NODE_COORDS is set to MESH
@@ -213,6 +213,7 @@ TEST(IOBroker, WriteInitialConfigAABB) {
 
   // Get the sphere part
   stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERES");
+  ASSERT_TRUE(sphere_part_ptr != nullptr);
 
   // Create some fake data (based on UnitTestComputeAABB)
   bulk_data_ptr->modification_begin();
@@ -228,6 +229,8 @@ TEST(IOBroker, WriteInitialConfigAABB) {
       meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   stk::mesh::Field<double> *radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
+  ASSERT_TRUE(node_coord_field_ptr != nullptr);
+  ASSERT_TRUE(radius_field_ptr != nullptr);
 
   // Set the sphere's position.
   double sphere_position[3] = {1.0, 2.0, 3.0};
@@ -245,8 +248,8 @@ TEST(IOBroker, WriteInitialConfigAABB) {
   compute_aabb_ptr->execute(*sphere_part_ptr);
 
   // Print out the mesh
-  stk::log_with_time_and_memory(MPI_COMM_WORLD, "Mesh dump after ComputeAABB");
-  stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr, std::cout);
+  // stk::log_with_time_and_memory(MPI_COMM_WORLD, "Mesh dump after ComputeAABB");
+  // stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr, std::cout);
 
   // Print the entire IOBroker
   io_broker_ptr->print_io_broker();
@@ -259,10 +262,10 @@ TEST(IOBroker, WriteInitialConfigAABB) {
 
   // Close up everything
   io_broker_ptr->finalize_io_broker();
-
   // Verification of the database contents via direct IOSS access
   {
     Ioss::DatabaseIO *resultsDb = Ioss::IOFactory::create("exodus", restart_filename, Ioss::READ_MODEL, MPI_COMM_WORLD);
+    ASSERT_TRUE(resultsDb != nullptr);
     Ioss::Region results(resultsDb);
     // Should have a single step in the database
     EXPECT_EQ(results.get_property("state_count").get_int(), 1);
@@ -283,6 +286,7 @@ TEST(IOBroker, WriteInitialConfigAABB) {
 
     // Get the element_aabb information (element_block)
     Ioss::ElementBlock *eb = results.get_element_blocks()[0];
+    ASSERT_TRUE(eb != nullptr);
     EXPECT_EQ(1u, nb->field_count(Ioss::Field::TRANSIENT));
     EXPECT_TRUE(eb->field_exists("ELEMENT_AABB"));
 
@@ -632,8 +636,8 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
   io_broker_ptr->finalize_io_broker();
 
   // Note, this test doesn't do anything, but write out the restart filename
-  stk::log_with_time_and_memory(MPI_COMM_WORLD, "Final mesh state for Part1 of restart duology.");
-  stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr, std::cout);
+  // stk::log_with_time_and_memory(MPI_COMM_WORLD, "Final mesh state for Part1 of restart duology.");
+  // stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr, std::cout);
 }
 
 // Test if we can read back in the written mesh
