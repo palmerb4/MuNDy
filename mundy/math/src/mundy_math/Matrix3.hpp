@@ -52,6 +52,22 @@ using Matrix3View = Matrix<T, 3, 3, Accessor, Ownership::Views>;
 template <typename T, ValidAccessor<T> Accessor = Array<T, 9>>
 using OwningMatrix3 = Matrix<T, 3, 3, Accessor, Ownership::Owns>;
 
+/// \brief Get the lower trangular matrix of the Cholesky decomposition of a symmetric positive definite matrix
+/// \param A The symmetric positive definite matrix
+/// \return The lower triangular matrix of the Cholesky decomposition
+template <typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto cholesky(const Matrix3<T, Accessor, OwnershipType> &A) {
+  MUNDY_THROW_ASSERT(A(0, 0) > get_zero_tolerance<T>(), std::invalid_argument,
+                     "Matrix3 must be positive definite");
+  const T l11 = Kokkos::sqrt(A(0, 0));
+  const T l21 = A(1, 0) / l11;
+  const T l22 = Kokkos::sqrt(A(1, 1) - l21 * l21);
+  const T l31 = A(2, 0) / l11;
+  const T l32 = (A(2, 1) - l31 * l21) / l22;
+  const T l33 = Kokkos::sqrt(A(2, 2) - l31 * l31 - l32 * l32);
+  return Matrix3<T>(l11, 0.0, 0.0, l21, l22, 0.0, l31, l32, l33);
+}
+
 /// \brief (Implementation) Type trait to determine if a type is a Matrix3
 template <typename TypeToCheck>
 struct is_matrix3_impl : std::false_type {};

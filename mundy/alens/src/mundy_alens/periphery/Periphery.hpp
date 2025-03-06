@@ -66,6 +66,20 @@ namespace alens {
 
 namespace periphery {
 
+KOKKOS_INLINE_FUNCTION
+double quake_inv_sqrt(double number) {
+  double y = number;
+  double x2 = y * 0.5;
+  std::int64_t i = *(std::int64_t *)&y;
+  // The magic number is for doubles is from https://cs.uwaterloo.ca/~m32rober/rsqrt.pdf
+  i = 0x5fe6eb50c7b537a9 - (i >> 1);
+  y = *(double *)&i;
+  y = y * (1.5 - (x2 * y * y));  // 1st iteration
+  //      y  = y * ( 1.5 - ( x2 * y * y ) );   // 2nd iteration, this can be removed (left out of respect for Quake)
+  return y;
+}
+
+
 /// \brief Get the Gauss Legrandre-based quadrature weights, nodes, and normals for a sphere
 ///
 /// Point order: 0 at northpole, then 2p+2 points per circle. the last at south pole
@@ -714,7 +728,7 @@ void apply_stokes_kernel([[maybe_unused]] const ExecutionSpace &space,  //
     const double fz = source_forces(3 * s + 2);
 
     const double r2 = dx * dx + dy * dy + dz * dz;
-    const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(r2);
+    const double rinv = r2 < DOUBLE_ZERO ? 0.0 : quake_inv_sqrt(r2);
     const double rinv3 = rinv * rinv * rinv;
 
     const double inner_prod = fx * dx + fy * dy + fz * dz;
@@ -726,7 +740,7 @@ void apply_stokes_kernel([[maybe_unused]] const ExecutionSpace &space,  //
     vz_accum += scale_factor_rinv3 * (r2 * fz + dz * inner_prod);
   };
 
-  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<32>(space, num_target_points, num_source_points, target_velocities,
                                                    stokes_computation);
 }
 
@@ -790,7 +804,7 @@ void apply_weighted_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, 
     const double fz = source_forces(3 * s + 2) * source_weights(s);
 
     // const double r2 = dx * dx + dy * dy + dz * dz;
-    // const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(r2);
+    // const double rinv = r2 < DOUBLE_ZERO ? 0.0 : quake_inv_sqrt(r2);
     // const double rinv3 = rinv * rinv * rinv;
 
     // const double inner_prod = fx * dx + fy * dy + fz * dz;
@@ -802,7 +816,7 @@ void apply_weighted_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, 
     // vz_accum += scale_factor_rinv3 * (r2 * fz + dz * inner_prod);
 
     const double r2 = dx * dx + dy * dy + dz * dz;
-    const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(r2);
+    const double rinv = r2 < DOUBLE_ZERO ? 0.0 : quake_inv_sqrt(r2);
     const double rinv2 = rinv * rinv;
 
     const double inner_prod_rinv2 = (fx * dx + fy * dy + fz * dz) * rinv2;
@@ -814,7 +828,7 @@ void apply_weighted_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, 
     vz_accum += scale_factor_rinv * (fz + dz * inner_prod_rinv2);
   };
 
-  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<32>(space, num_target_points, num_source_points, target_velocities,
                                                    weighted_stokes_computation);
 }
 
@@ -887,14 +901,17 @@ void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space,  //
     const double fz = source_forces(3 * s + 2);
     const double a = source_radii(s);
 
-    const double a2_over_three = (1.0 / 3.0) * a * a;
+    constexpr double one_over_three = 1.0 / 3.0;
+    constexpr double one_over_six = 1.0 / 6.0;
+
+    const double a2_over_three = one_over_three * a * a;
     const double r2 = dx * dx + dy * dy + dz * dz;
-    const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(r2);
+    const double rinv = r2 < DOUBLE_ZERO ? 0.0 : quake_inv_sqrt(r2);
     const double rinv3 = rinv * rinv * rinv;
     const double rinv5 = rinv * rinv * rinv3;
     const double fdotr = fx * dx + fy * dy + fz * dz;
 
-    const double three_fdotr_rinv5 = 3 * fdotr * rinv5;
+    const double three_fdotr_rinv5 = 3.0 * fdotr * rinv5;
     const double cx = fx * rinv3 - three_fdotr_rinv5 * dx;
     const double cy = fy * rinv3 - three_fdotr_rinv5 * dy;
     const double cz = fz * rinv3 - three_fdotr_rinv5 * dz;
@@ -912,13 +929,13 @@ void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space,  //
     const double lap2 = 2.0 * scale_factor * cz;
 
     // Apply the result
-    const double lap_coeff = target_radii(t) * target_radii(t) / 6.0;
+    const double lap_coeff = one_over_six * target_radii(t) * target_radii(t);
     vx_accum += v0 + lap_coeff * lap0;
     vy_accum += v1 + lap_coeff * lap1;
     vz_accum += v2 + lap_coeff * lap2;
   };
 
-  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<32>(space, num_target_points, num_source_points, target_velocities,
                                                    rpy_computation);
 }
 
@@ -1002,7 +1019,7 @@ void apply_stokes_double_layer_kernel_ss([[maybe_unused]] const ExecutionSpace &
 
     // Compute rinv5. If r is zero, set rinv5 to zero, effectively setting the diagonal of K to zero.
     const double dr2 = dx * dx + dy * dy + dz * dz;
-    const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(dr2);
+    const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : quake_inv_sqrt(dr2);
     const double rinv2 = rinv * rinv;
     const double rinv5 = rinv * rinv2 * rinv2;
 
@@ -1037,7 +1054,7 @@ void apply_stokes_double_layer_kernel_ss([[maybe_unused]] const ExecutionSpace &
     vz_accum += dz * coeff;
   };
 
-  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<32>(space, num_target_points, num_source_points, target_velocities,
                                                    stokes_double_layer_computation);
 }
 
@@ -1120,7 +1137,7 @@ void apply_stokes_double_layer_kernel([[maybe_unused]] const ExecutionSpace &spa
 
     // Compute rinv5. If r is zero, set rinv5 to zero, effectively setting the diagonal of K to zero.
     const double dr2 = dx * dx + dy * dy + dz * dz;
-    const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(dr2);
+    const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : quake_inv_sqrt(dr2);
     const double rinv2 = rinv * rinv;
     const double rinv5 = rinv * rinv2 * rinv2;
 
@@ -1146,7 +1163,7 @@ void apply_stokes_double_layer_kernel([[maybe_unused]] const ExecutionSpace &spa
     vz_accum += dz * coeff;
   };
 
-  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<32>(space, num_target_points, num_source_points, target_velocities,
                                                    stokes_double_layer_contribution);
 }
 
@@ -1259,7 +1276,7 @@ void fill_stokes_double_layer_matrix([[maybe_unused]] const ExecutionSpace &spac
 
         // Compute rinv5. If r is zero, set rinv5 to zero, effectively setting the diagonal of K to zero.
         const double dr2 = dx * dx + dy * dy + dz * dz;
-        const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / std::sqrt(dr2);
+        const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : quake_inv_sqrt(dr2);
         const double rinv2 = rinv * rinv;
         const double rinv5 = rinv * rinv2 * rinv2;
 
@@ -1501,7 +1518,7 @@ void add_complementary_kernel([[maybe_unused]] const ExecutionSpace &space,     
     vz_accum += normal_t2 * scaled_normal_dot_force;
   };
 
-  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<32>(space, num_target_points, num_source_points, target_velocities,
                                                    complementary_contribution);
 }
 
@@ -1668,7 +1685,7 @@ void apply_skfie([[maybe_unused]] const ExecutionSpace &space,          //
 
     // Compute rinv5. If r is zero, set rinv5 to zero, effectively setting the diagonal of K to zero.
     const double dr2 = dx * dx + dy * dy + dz * dz;
-    const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(dr2);
+    const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : quake_inv_sqrt(dr2);
     const double rinv2 = rinv * rinv;
     const double rinv5 = rinv * rinv2 * rinv2;
 
@@ -1699,7 +1716,7 @@ void apply_skfie([[maybe_unused]] const ExecutionSpace &space,          //
     vz_accum += dz * coeff + scaled_normal_dot_force;
   };
 
-  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<32>(space, num_target_points, num_source_points, target_velocities,
                                                    skfie_contribution);
 }
 

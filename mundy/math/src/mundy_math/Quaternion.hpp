@@ -1681,6 +1681,31 @@ KOKKOS_INLINE_FUNCTION constexpr auto slerp(const Quaternion<U, Accessor1, Owner
 //   return qm;
 // }
 
+/// \brief Rotate a quaternion by an angular velocity omega dt
+///
+/// Delong, JCP, 2015, Appendix A eq1, not linearized
+///
+/// \param q The quaternion to rotate
+/// \param omega The angular velocity
+/// \param dt The time
+template <ValidQuaternionType QuaternionType, ValidVectorType VectorType>
+KOKKOS_INLINE_FUNCTION constexpr void rotate_quaternion(QuaternionType &quat, const VectorType &omega,
+                                                        const double &dt) {
+  const double w = norm(omega);
+  if (w < get_zero_tolerance<double>()) {
+    // Omega is zero, no rotation
+    return;
+  }
+  const double winv = 1.0 / w;
+  const double sw = Kokkos::sin(0.5 * w * dt);
+  const double cw = Kokkos::cos(0.5 * w * dt);
+  const double s = quat.w();
+  const auto p = quat.vector();
+  const auto xyz = s * sw * omega * winv + cw * p + sw * winv * cross(omega, p);
+  quat.w() = s * cw - dot(omega, p) * sw * winv;
+  quat.vector() = xyz;
+  quat.normalize();
+}
 //@}
 
 //! \name Non-member constructors and converters

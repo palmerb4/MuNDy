@@ -37,6 +37,7 @@
 #include <mundy_math/Array.hpp>         // for mundy::math::Array
 #include <mundy_math/Tolerance.hpp>     // for mundy::math::get_zero_tolerance
 #include <mundy_math/Vector.hpp>        // for mundy::math::Vector
+#include <mundy_math/Matrix3.hpp>       // for mundy::math::Matrix3
 
 namespace mundy {
 

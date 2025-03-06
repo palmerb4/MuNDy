@@ -403,17 +403,15 @@ static_assert(ValidEllipsoidType<Ellipsoid<float>> && ValidEllipsoidType<const E
 //@{
 
 /// \brief Equality operator
-KOKKOS_FUNCTION
 template <ValidEllipsoidType EllipsoidType1, ValidEllipsoidType EllipsoidType2>
-bool operator==(const EllipsoidType1& ellipsoid1, const EllipsoidType2& ellipsoid2) {
+KOKKOS_FUNCTION bool operator==(const EllipsoidType1& ellipsoid1, const EllipsoidType2& ellipsoid2) {
   return (ellipsoid1.center() == ellipsoid2.center()) && (ellipsoid1.orientation() == ellipsoid2.orientation()) &&
          (ellipsoid1.radii() == ellipsoid2.radii());
 }
 
 /// \brief Inequality operator
-KOKKOS_FUNCTION
 template <ValidEllipsoidType EllipsoidType1, ValidEllipsoidType EllipsoidType2>
-bool operator!=(const EllipsoidType1& ellipsoid1, const EllipsoidType2& ellipsoid2) {
+KOKKOS_FUNCTION bool operator!=(const EllipsoidType1& ellipsoid1, const EllipsoidType2& ellipsoid2) {
   return (ellipsoid1.center() != ellipsoid2.center()) || (ellipsoid1.orientation() != ellipsoid2.orientation()) ||
          (ellipsoid1.radii() != ellipsoid2.radii());
 }

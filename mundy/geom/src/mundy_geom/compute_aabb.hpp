@@ -43,9 +43,8 @@ namespace mundy {
 namespace geom {
 
 /// @brief Compute the axis-aligned bounding box of a point
-KOKKOS_FUNCTION
 template <ValidPointType PointType>
-AABB<typename PointType::scalar_t> compute_aabb(const PointType& point) {
+KOKKOS_FUNCTION AABB<typename PointType::scalar_t> compute_aabb(const PointType& point) {
   using scalar_t = typename PointType::scalar_t;
   const scalar_t x = point[0];
   const scalar_t y = point[1];
@@ -54,9 +53,8 @@ AABB<typename PointType::scalar_t> compute_aabb(const PointType& point) {
 }
 
 /// @brief Compute the axis-aligned bounding box of a line segment
-KOKKOS_FUNCTION
 template <ValidLineSegmentType LineSegmentType>
-AABB<typename LineSegmentType::scalar_t> compute_aabb(const LineSegmentType& line_segment) {
+KOKKOS_FUNCTION AABB<typename LineSegmentType::scalar_t> compute_aabb(const LineSegmentType& line_segment) {
   using scalar_t = typename LineSegmentType::scalar_t;
   const auto& start = line_segment.start();
   const auto& end = line_segment.end();
@@ -70,9 +68,8 @@ AABB<typename LineSegmentType::scalar_t> compute_aabb(const LineSegmentType& lin
 }
 
 /// @brief Compute the axis-aligned bounding box of a sphere
-KOKKOS_FUNCTION
 template <ValidSphereType SphereType>
-AABB<typename SphereType::scalar_t> compute_aabb(const SphereType& sphere) {
+KOKKOS_FUNCTION AABB<typename SphereType::scalar_t> compute_aabb(const SphereType& sphere) {
   using scalar_t = typename SphereType::scalar_t;
   constexpr mundy::math::Vector3<scalar_t> ones{static_cast<scalar_t>(1), static_cast<scalar_t>(1),
                                                 static_cast<scalar_t>(1)};
@@ -82,9 +79,8 @@ AABB<typename SphereType::scalar_t> compute_aabb(const SphereType& sphere) {
 }
 
 /// @brief Compute the axis-aligned bounding box of an ellipsoid
-KOKKOS_FUNCTION
 template <ValidEllipsoidType EllipsoidType>
-AABB<typename EllipsoidType::scalar_t> compute_aabb(const EllipsoidType& ellipsoid) {
+KOKKOS_FUNCTION AABB<typename EllipsoidType::scalar_t> compute_aabb(const EllipsoidType& ellipsoid) {
   using scalar_t = typename EllipsoidType::scalar_t;
   using point_t = Point<scalar_t>;
   const auto& center = ellipsoid.center();
@@ -106,9 +102,8 @@ AABB<typename EllipsoidType::scalar_t> compute_aabb(const EllipsoidType& ellipso
 }
 
 /// @brief Compute the axis-aligned bounding box of a spherocylinder
-KOKKOS_FUNCTION
 template <ValidSpherocylinderType SpherocylinderType>
-AABB<typename SpherocylinderType::scalar_t> compute_aabb(const SpherocylinderType& spherocylinder) {
+KOKKOS_FUNCTION AABB<typename SpherocylinderType::scalar_t> compute_aabb(const SpherocylinderType& spherocylinder) {
   using scalar_t = typename SpherocylinderType::scalar_t;
   using point_t = Point<scalar_t>;
   const auto& center = spherocylinder.center();
@@ -131,9 +126,8 @@ AABB<typename SpherocylinderType::scalar_t> compute_aabb(const SpherocylinderTyp
 }
 
 /// @brief Compute the axis-aligned bounding box of a spherocylinder segment
-KOKKOS_FUNCTION
 template <ValidSpherocylinderSegmentType SegmentType>
-AABB<typename SegmentType::scalar_t> compute_aabb(const SegmentType& segment) {
+KOKKOS_FUNCTION AABB<typename SegmentType::scalar_t> compute_aabb(const SegmentType& segment) {
   using scalar_t = typename SegmentType::scalar_t;
   const auto& start = segment.start();
   const auto& end = segment.end();
