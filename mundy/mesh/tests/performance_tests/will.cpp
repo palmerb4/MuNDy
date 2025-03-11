@@ -18,18 +18,6 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/*
-Needs:
-  - Map surface node arclength to location/tangent
-  - Brownian diffusion
-  - Bind
-
-
-
-
-
-*/
-
 // Openrand
 #include <openrand/philox.h>  // for openrand::Philox
 
@@ -52,6 +40,10 @@ Needs:
 
 // Mundy
 #include <mundy_core/throw_assert.hpp>     // for MUNDY_THROW_ASSERT
+#include <mundy_geom/distance.hpp>         // for mundy::geom::distance
+#include <mundy_geom/primitives.hpp>       // for mundy::geom::Spherocylinder
+#include <mundy_math/Quaternion.hpp>       // for mundy::math::Quaternion
+#include <mundy_math/Vector3.hpp>          // for mundy::math::Vector3
 #include <mundy_mesh/Aggregate.hpp>        // for mundy::mesh::Aggregate
 #include <mundy_mesh/BulkData.hpp>         // for mundy::mesh::BulkData
 #include <mundy_mesh/DeclareEntities.hpp>  // for mundy::mesh::DeclareEntitiesHelper
@@ -301,6 +293,7 @@ class eval_mobility {
 
   KOKKOS_INLINE_FUNCTION
   void operator()(const auto& rod_view) const {
+    // TODO(palmerb4): Update with real drag coefficients
     double drag_para = 1.0;
     double drag_perp = 1.0;
     double drag_rot = 1.0;
@@ -456,6 +449,142 @@ class reconcile_surface_nodes {
   using surface_node_agg_ngp_t = decltype(mesh::get_updated_ngp_aggregate(std::declval<SurfaceNodeAgg>()));
   rod_agg_ngp_t ngp_rod_agg_;
   surface_node_agg_ngp_t ngp_surface_node_agg_;
+};
+
+//! \name Temporary N^2 contact
+//@{
+
+Kokkos::View<stk::mesh::FastMeshIndex*, stk::ngp::ExecSpace> get_local_entity_indices(
+    const stk::mesh::BulkData& bulk_data, stk::mesh::EntityRank rank, stk::mesh::Selector selector) {
+  std::vector<stk::mesh::Entity> local_entities;
+  stk::mesh::get_entities(bulk_data, rank, selector, local_entities);
+
+  Kokkos::View<stk::mesh::FastMeshIndex*, stk::ngp::ExecSpace> mesh_indices("mesh_indices", local_entities.size());
+  Kokkos::View<stk::mesh::FastMeshIndex*, stk::ngp::ExecSpace>::HostMirror host_mesh_indices =
+      Kokkos::create_mirror_view(Kokkos::WithoutInitializing, mesh_indices);
+
+  for (size_t i = 0; i < local_entities.size(); ++i) {
+    const stk::mesh::MeshIndex& mesh_index = bulk_data.mesh_index(local_entities[i]);
+    host_mesh_indices(i) = stk::mesh::FastMeshIndex{mesh_index.bucket->bucket_id(), mesh_index.bucket_ordinal};
+  }
+
+  Kokkos::deep_copy(mesh_indices, host_mesh_indices);
+  return mesh_indices;
+}
+
+class apply_hertzian_contact {
+ public:
+  apply_hertzian_contact(const double youngs_modulus, const double poisson_ratio)
+      : youngs_modulus_(youngs_modulus), poisson_ratio_(poisson_ratio) {
+  }
+
+  void apply_to(auto& rod_agg, const stk::mesh::Selector& subset_selector) {
+    static_assert(rod_agg.topology() == stk::topology::PARTICLE, "Expected the rods to be particles.");
+
+    auto ngp_rod_agg = mesh::get_updated_ngp_aggregate(rod_agg);
+    ngp_rod_agg.template sync_to_device<COORDS, TANGENT, RADIUS, LENGTH, FORCE, TORQUE>();
+
+    auto ngp_rod_entities = get_local_entity_indices(rod_agg.bulk_data(), rod_agg.rank(), subset_selector);
+    impl_run(ngp_rod_entities, ngp_rod_agg);
+
+    ngp_rod_agg.template modify_on_device<FORCE, TORQUE>();
+  }
+
+  void apply_to(auto& rod_agg) {
+    static_assert(rod_agg.topology() == stk::topology::PARTICLE, "Expected the rods to be particles.");
+
+    auto ngp_rod_agg = mesh::get_updated_ngp_aggregate(rod_agg);
+    ngp_rod_agg.template sync_to_device<COORDS, TANGENT, RADIUS, LENGTH, FORCE, TORQUE>();
+
+    auto ngp_rod_entities = get_local_entity_indices(rod_agg.bulk_data(), rod_agg.rank(), rod_agg.selector());
+    impl_run(ngp_rod_entities, ngp_rod_agg);
+
+    ngp_rod_agg.template modify_on_device<FORCE, TORQUE>();
+  }
+
+ private:
+  void impl_run(Kokkos::View<stk::mesh::FastMeshIndex*, stk::ngp::ExecSpace>& ngp_rod_entities, auto& ngp_rod_agg) {
+    // Get the entities we want to act on
+    const size_t num_rods = ngp_rod_entities.extent(0);
+    const double effective_youngs_modulus =
+        (youngs_modulus_ * youngs_modulus_) / (youngs_modulus_ - youngs_modulus_ * poisson_ratio_ * poisson_ratio_ +
+                                               youngs_modulus_ - youngs_modulus_ * poisson_ratio_ * poisson_ratio_);
+    Kokkos::parallel_for(
+        "apply_hertzian_contact", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_rods, num_rods}),
+        KOKKOS_LAMBDA(const size_t t, const size_t s) {
+          if (s >= t) {
+            return;  // skip self interaction and duplication
+          }
+          auto rod1_fast_mesh_index = ngp_rod_entities(t);
+          auto rod2_fast_mesh_index = ngp_rod_entities(s);
+
+          auto rod1_view = ngp_rod_agg.get_view(rod1_fast_mesh_index);
+          auto rod2_view = ngp_rod_agg.get_view(rod2_fast_mesh_index);
+
+          // The signed separation distance is the distance between the centerline of the two spherocylinders minus the
+          // sum of their radii
+          auto rod1_coords = get<COORDS>(rod1_view, 0 /* node data*/);
+          auto rod2_coords = get<COORDS>(rod2_view, 0);
+          auto rod1_tangent = get<TANGENT>(rod1_view, 0);
+          auto rod2_tangent = get<TANGENT>(rod2_view, 0);
+          double rod1_radius = get<RADIUS>(rod1_view)[0];
+          double rod2_radius = get<RADIUS>(rod2_view)[0];
+          double rod1_length = get<LENGTH>(rod1_view)[0];
+          double rod2_length = get<LENGTH>(rod2_view)[0];
+          geom::LineSegment<double> rod1_centerline{rod1_coords - 0.5 * rod1_length * rod1_tangent,
+                                                    rod1_coords + 0.5 * rod1_length * rod1_tangent};
+          geom::LineSegment<double> rod2_centerline{rod2_coords - 0.5 * rod2_length * rod2_tangent,
+                                                    rod2_coords + 0.5 * rod2_length * rod2_tangent};
+
+          geom::Point<double> rod1_centerline_contact_point, rod2_centerline_contact_point;
+          double rod1_contact_point_arch_length, rod2_contact_point_arch_length;
+          math::Vector3<double> rod1_to_rod2_centerline_sep;
+          const double signed_sep_dist =
+              geom::distance(rod1_centerline, rod2_centerline,                                //
+                             rod1_centerline_contact_point, rod2_centerline_contact_point,    //
+                             rod1_contact_point_arch_length, rod2_contact_point_arch_length,  //
+                             rod1_to_rod2_centerline_sep) -
+              rod1_radius - rod2_radius;
+
+          if (signed_sep_dist < 0.0) {
+            const double effective_radius = (rod1_radius * rod2_radius) / (rod1_radius + rod2_radius);
+            constexpr double four_thirds = 4.0 / 3.0;
+            const double force_mag = four_thirds * effective_youngs_modulus * Kokkos::sqrt(effective_radius) *
+                                     Kokkos::pow(-signed_sep_dist, 1.5);
+
+            // Mind the signs. rod1 to rod2 is normal to the rod1 and contact forces act along the negative normal
+            auto rod1_force = get<FORCE>(rod1_view, 0);
+            auto rod2_force = get<FORCE>(rod2_view, 0);
+            auto rod1_torque = get<TORQUE>(rod1_view, 0);
+            auto rod2_torque = get<TORQUE>(rod2_view, 0);
+
+            auto rod1_to_rod2_normal = rod1_to_rod2_centerline_sep / math::norm(rod1_to_rod2_centerline_sep);
+
+            auto local_rod1_force = -force_mag * rod1_to_rod2_normal;
+            auto local_rod2_force = force_mag * rod1_to_rod2_normal;
+            auto local_rod1_torque = math::cross(rod1_centerline_contact_point - rod1_coords,  //
+                                                 -force_mag * rod1_to_rod2_normal);
+            auto local_rod2_torque = math::cross(rod2_centerline_contact_point - rod2_coords,  //
+                                                 force_mag * rod1_to_rod2_normal);
+            Kokkos::atomic_add(&rod1_force[0], local_rod1_force[0]);
+            Kokkos::atomic_add(&rod1_force[1], local_rod1_force[1]);
+            Kokkos::atomic_add(&rod1_force[2], local_rod1_force[2]);
+            Kokkos::atomic_add(&rod2_force[0], local_rod2_force[0]);
+            Kokkos::atomic_add(&rod2_force[1], local_rod2_force[1]);
+            Kokkos::atomic_add(&rod2_force[2], local_rod2_force[2]);
+           
+            Kokkos::atomic_add(&rod1_torque[0], local_rod1_torque[0]);
+            Kokkos::atomic_add(&rod1_torque[1], local_rod1_torque[1]);
+            Kokkos::atomic_add(&rod1_torque[2], local_rod1_torque[2]);
+            Kokkos::atomic_add(&rod2_torque[0], local_rod2_torque[0]);
+            Kokkos::atomic_add(&rod2_torque[1], local_rod2_torque[1]);
+            Kokkos::atomic_add(&rod2_torque[2], local_rod2_torque[2]);
+          }
+        });
+  }
+
+  double youngs_modulus_;
+  double poisson_ratio_;
 };
 
 void run_main() {
@@ -690,18 +819,20 @@ void run_main() {
   size_t num_timesteps = 100;
   size_t io_frequency = 10;
   double dt = 0.1;
-  double brownian_kbt = 1.0;
+  double brownian_kbt = 0.0;
+  double hertz_youngs_modulus = 1.0;
+  double hertz_poisson_ratio = 0.5;
 
   double rod_radius = 0.5;
   double rod_length = 20;
-  math::Quaternion<double> rod_orient1 = math::euler_to_quat(0.0, 15.0 / 180.0 * M_PI, 0.0);
-  math::Quaternion<double> rod_orient2 = math::euler_to_quat(0.0, -15.0 / 180.0 * M_PI, 0.0);
+  math::Quaternion<double> rod_orient1 = math::euler_to_quat(0.0, 2.5 * M_PI / 180, 0.0);
+  math::Quaternion<double> rod_orient2 = math::euler_to_quat(0.0, -2.5 * M_PI / 180, 0.0);
   math::Vector3<double> rod_tangent1 = rod_orient1 * math::Vector3<double>(0.0, 0.0, 1.0);
   math::Vector3<double> rod_tangent2 = rod_orient2 * math::Vector3<double>(0.0, 0.0, 1.0);
-  double init_rod_sep = 2.0;
+  double init_rod_sep = 1.0 * (2.0 * rod_radius);
 
-  double spring_constant = 1.0;
-  double ang_spring_constant = 1.0;
+  double spring_constant = 0.0;
+  double ang_spring_constant = 0.0;
   double rest_length = 2.0;
   double rest_cos_angle = 0.0;
 
@@ -836,14 +967,15 @@ void run_main() {
     std::cout << "Computing spring forces" << std::endl;
     eval_prc1_force().apply_to(prc1_agg);
 
+    // Compute Hertzian contact forces
+    apply_hertzian_contact(hertz_youngs_modulus, hertz_poisson_ratio).apply_to(rod_agg);
+
     // Compute map surface forces to center forces
     std::cout << "Mapping spring surface forces to center forces" << std::endl;
     map_surface_force_to_com_force(link_data, rod_agg, prc1_head_agg).apply_to(slink_agg);
 
     // Map center forces to center velocity
     eval_mobility().apply_to(rod_agg);
-
-
 
     // Write to file
     if (timestep_index % io_frequency == 0) {
@@ -872,6 +1004,7 @@ void run_main() {
     reconcile_surface_nodes(link_data, rod_agg, prc1_head_agg).apply_to(slink_agg);
   }
 }
+//@}
 
 }  // namespace mundy
 

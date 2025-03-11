@@ -422,7 +422,7 @@ void apply_hertzian_contact_between_spherocylinders(
           target_force += normal_force_magnitude_scaled * source_to_target_centerline_sep;
           source_torque += mundy::math::cross(source_centerline_contact_point - source_coords,  //
                                               -normal_force_magnitude_scaled * source_to_target_centerline_sep);
-          target_torque += mundy::math::cross(source_centerline_contact_point - target_coords,  //
+          target_torque += mundy::math::cross(target_centerline_contact_point - target_coords,  //
                                               normal_force_magnitude_scaled * source_to_target_centerline_sep);
         }
       });
