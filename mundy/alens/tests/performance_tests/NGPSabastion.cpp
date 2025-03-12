@@ -430,31 +430,6 @@ void apply_hertzian_contact_between_spherocylinders(
   node_forces.modify_on_device();
 }
 
-/// \brief Rotate a quaternion by omega dt
-///
-/// Delong, JCP, 2015, Appendix A eq1, not linearized
-///
-/// \param q The quaternion to rotate (this is the quaternion that takes zhat to the tangent of the spherocylinder)
-/// \param omega The angular velocity
-/// \param dt The time
-template <mundy::math::ValidQuaternionType QuaternionType, mundy::math::ValidVectorType VectorType>
-void rotate_quaternion(QuaternionType &quat, const VectorType &omega, const double &dt) {
-  const double w = mundy::math::norm(omega);
-  if (w < mundy::math::get_zero_tolerance<double>()) {
-    // Omega is zero, no rotation
-    return;
-  }
-  const double winv = 1.0 / w;
-  const double sw = Kokkos::sin(0.5 * w * dt);
-  const double cw = Kokkos::cos(0.5 * w * dt);
-  const double s = quat.w();
-  const auto p = quat.vector();
-  const auto xyz = s * sw * omega * winv + cw * p + sw * winv * mundy::math::cross(omega, p);
-  quat.w() = s * cw - mundy::math::dot(omega, p) * sw * winv;
-  quat.vector() = xyz;
-  quat.normalize();
-}
-
 void compute_local_drag_mobility(stk::mesh::NgpMesh &ngp_mesh, const double viscosity,
                                  const stk::mesh::Selector &spherocylinders, stk::mesh::NgpField<double> &elem_radius,
                                  stk::mesh::NgpField<double> &elem_length,
@@ -524,7 +499,7 @@ void move_spherocylinders(const stk::mesh::NgpMesh &ngp_mesh, const double dt, s
         auto omega = mundy::mesh::vector3_field_data(elem_angular_velocity, sp_index);
 
         center += dt * vel;
-        rotate_quaternion(orientation, omega, dt);
+        mundy::math::rotate_quaternion(orientation, omega, dt);
       });
 
   node_coords.modify_on_device();

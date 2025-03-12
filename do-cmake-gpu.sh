@@ -19,7 +19,7 @@ export CUDA_MANAGED_FORCE_DEVICE_ALLOC=1
 # will not be run
 
 cmake \
--DCMAKE_BUILD_TYPE=${BUILD_TYPE:-RELEASE} \
+-DCMAKE_BUILD_TYPE=${BUILD_TYPE:-DEBUG} \
 -DCMAKE_CXX_COMPILER=${OMPI_CXX} \
 -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR:-$HOME/envs/MundyScratch} \
 -DCMAKE_CXX_FLAGS="-O3 -march=native -Wall -Wextra -Wdouble-promotion -Wconversion -lmpi" \
@@ -34,6 +34,7 @@ cmake \
 -DKokkos_ENABLE_CUDA_RELOCATABLE_DEVICE_CODE=OFF \
 -DMundy_ENABLE_MundyCore=ON \
 -DMundy_ENABLE_MundyMath=ON \
+-DMundy_ENABLE_MundyGeom=ON \
 -DMundy_ENABLE_MundyMesh=ON \
 -DMundy_ENABLE_MundyMeta=OFF \
 -DMundy_ENABLE_MundyAgents=OFF \

@@ -59,11 +59,7 @@ namespace {
 /// - Validating the links and their connected entities.
 /// - Running parallel operations on links.
 /// - Synchronizing link data between host and device.
-TEST(UnitTestLinkData, BasicUsage) {
-  if (stk::parallel_machine_size(MPI_COMM_WORLD) != 1) {
-    GTEST_SKIP();
-  }
-
+void basic_usage_test() {
   using stk::mesh::Entity;
   using stk::mesh::EntityId;
   using stk::mesh::EntityRank;
@@ -303,11 +299,15 @@ TEST(UnitTestLinkData, BasicUsage) {
                              });
 }
 
-TEST(UnitTestLinkData, Requests) {
+TEST(UnitTestLinkData, BasicUsage) {
   if (stk::parallel_machine_size(MPI_COMM_WORLD) != 1) {
     GTEST_SKIP();
   }
 
+  basic_usage_test();
+}
+
+void requests_test() {
   using stk::mesh::Entity;
   using stk::mesh::EntityId;
   using stk::mesh::EntityRank;
@@ -449,6 +449,14 @@ TEST(UnitTestLinkData, Requests) {
   for (unsigned i = 0; i < a_links.size() / 2; ++i) {
     EXPECT_EQ(a_links[i], a_links_after_destruction[i]);
   }
+}
+
+TEST(UnitTestLinkData, Requests) {
+  if (stk::parallel_machine_size(MPI_COMM_WORLD) != 1) {
+    GTEST_SKIP();
+  }
+
+  requests_test();
 }
 
 }  // namespace

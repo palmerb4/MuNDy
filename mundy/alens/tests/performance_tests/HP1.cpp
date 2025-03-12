@@ -2845,7 +2845,7 @@ class HP1 {
                                element_corner_displacement[5] * element_corner_displacement[5];
 
           if (dr2_corner0 >= skin_distance2_over4 || dr2_corner1 >= skin_distance2_over4) {
-            local_update_neighbor_list_int = 1;
+            local_update_neighbor_list_int = 1;  // TODO(palmerb4): This is not thread safe. Use a reduction over a logical or
           }
         });
 
@@ -3877,7 +3877,7 @@ class HP1 {
         [&euchromatin_state, &node_coord_field, &node_force_field, &active_force_sigma](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &euchromatin_spring) {
           // We are not going to increment the elapsed time ourselves, but rely on someone outside of this loop to do
-          // that at the end of a timestpe, in order to keep it consistent with the total elapsed time in the system.
+          // that at the end of a timestep, in order to keep it consistent with the total elapsed time in the system.
           unsigned *current_state = stk::mesh::field_data(euchromatin_state, euchromatin_spring);
 
           if (current_state[0] == 1u) {
@@ -3897,26 +3897,6 @@ class HP1 {
             const double right_node_force[3] = {active_force_sigma / std::sqrt(nsqr) * nvec[0],
                                                 active_force_sigma / std::sqrt(nsqr) * nvec[1],
                                                 active_force_sigma / std::sqrt(nsqr) * nvec[2]};
-
-            // #pragma omp critical
-            //             {
-            //               std::cout << "Rank " << bulk_data.parallel_rank() << " Euchromatin spring "
-            //                         << bulk_data.identifier(euchromatin_spring) << " is active." << std::endl;
-            //               std::cout << "  node1: " << bulk_data.identifier(node1) << " node2: " <<
-            //               bulk_data.identifier(node2)
-            //                         << std::endl;
-            //               std::cout << "  node1 coordinates: " << node1_coord[0] << " " << node1_coord[1] << " " <<
-            //               node1_coord[2]
-            //                         << std::endl;
-            //               std::cout << "  node2 coordinates: " << node2_coord[0] << " " << node2_coord[1] << " " <<
-            //               node2_coord[2]
-            //                         << std::endl;
-            //               std::cout << "  nvec: " << nvec[0] << " " << nvec[1] << " " << nvec[2] << std::endl;
-            //               std::cout << "  nsqr: " << nsqr << std::endl;
-            //               std::cout << "  right_node_force: " << right_node_force[0] << " " << right_node_force[1] <<
-            //               " "
-            //                         << right_node_force[2] << std::endl;
-            //             }
 
             // Add the force dipole to the nodes.
             double *node1_force = stk::mesh::field_data(node_force_field, node1);

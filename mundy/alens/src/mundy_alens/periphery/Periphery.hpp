@@ -48,6 +48,7 @@ a single GPU.
 #include <sstream>
 #include <string>
 #include <vector>
+#include <numeric>
 
 // Kokkos and Kokkos-Kernels
 #include <KokkosBlas.hpp>
@@ -78,7 +79,6 @@ double quake_inv_sqrt(double number) {
   //      y  = y * ( 1.5 - ( x2 * y * y ) );   // 2nd iteration, this can be removed (left out of respect for Quake)
   return y;
 }
-
 
 /// \brief Get the Gauss Legrandre-based quadrature weights, nodes, and normals for a sphere
 ///

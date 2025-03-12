@@ -380,7 +380,8 @@ template <typename RodAgg, typename SurfaceNodeAgg>
 class reconcile_surface_nodes {
  public:
   reconcile_surface_nodes(mesh::LinkData& link_data, RodAgg& rod_agg, SurfaceNodeAgg& surface_node_agg)
-      : link_data_(link_data), rod_agg_(rod_agg), surface_node_agg_(surface_node_agg) {
+      : link_data_(link_data), rod_agg_(rod_agg), surface_node_agg_(surface_node_agg), ngp_rod_agg_{},
+        ngp_surface_node_agg_{} {
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -502,8 +503,7 @@ class apply_hertzian_contact {
     ngp_rod_agg.template modify_on_device<FORCE, TORQUE>();
   }
 
- private:
-  void impl_run(Kokkos::View<stk::mesh::FastMeshIndex*, stk::ngp::ExecSpace>& ngp_rod_entities, auto& ngp_rod_agg) {
+  void impl_run(Kokkos::View<stk::mesh::FastMeshIndex*, stk::ngp::ExecSpace>& ngp_rod_entities, auto ngp_rod_agg) {
     // Get the entities we want to act on
     const size_t num_rods = ngp_rod_entities.extent(0);
     const double effective_youngs_modulus =
@@ -572,7 +572,7 @@ class apply_hertzian_contact {
             Kokkos::atomic_add(&rod2_force[0], local_rod2_force[0]);
             Kokkos::atomic_add(&rod2_force[1], local_rod2_force[1]);
             Kokkos::atomic_add(&rod2_force[2], local_rod2_force[2]);
-           
+
             Kokkos::atomic_add(&rod1_torque[0], local_rod1_torque[0]);
             Kokkos::atomic_add(&rod1_torque[1], local_rod1_torque[1]);
             Kokkos::atomic_add(&rod1_torque[2], local_rod1_torque[2]);
@@ -583,6 +583,7 @@ class apply_hertzian_contact {
         });
   }
 
+ private:
   double youngs_modulus_;
   double poisson_ratio_;
 };

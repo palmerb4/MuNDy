@@ -277,11 +277,26 @@ TEST(UnitTestAggregate, BasicUsage) {
   });
 }
 
-TEST(UnitTestAggregate, CanonicalExample) {
-  if (stk::parallel_machine_size(MPI_COMM_WORLD) != 1) {
-    GTEST_SKIP();
+struct a_non_lambda_functor {
+  template <typename SphereView>
+  KOKKOS_INLINE_FUNCTION
+  void operator()(SphereView& sphere_view) const {
+    auto c = sphere_view.template get<CENTER>(0);
+    auto r = sphere_view.template get<COLLISION_RADIUS>();
+    c[0] += 1.0;
+    r += 1.0;
   }
+};
 
+void run_some_ngp_stuff(auto& ngp_sphere_data) {
+  // Use a custom scope to restrict what the lambda copies
+  double dt = 0.001;
+  ngp_sphere_data.template sync_to_device<CENTER, COLLISION_RADIUS>();
+  ngp_sphere_data.template for_each(a_non_lambda_functor{});
+  ngp_sphere_data.template modify_on_device<CENTER, COLLISION_RADIUS>();
+}
+
+void run_canonical_test() {
   // Setup
   stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_spatial_dimension(3);
@@ -366,6 +381,16 @@ TEST(UnitTestAggregate, CanonicalExample) {
     c += dt * v;
   });
   ngp_sphere_data.modify_on_device<CENTER>();
+
+  run_some_ngp_stuff(ngp_sphere_data);
+}
+
+TEST(UnitTestAggregate, CanonicalExample) {
+  if (stk::parallel_machine_size(MPI_COMM_WORLD) != 1) {
+    GTEST_SKIP();
+  }
+
+  run_canonical_test();
 }
 
 }  // namespace
