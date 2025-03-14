@@ -874,33 +874,22 @@ KOKKOS_FUNCTION static constexpr bool all_have_rank_impl(const core::tuple<Compo
   return all_have_rank_recurse_impl<rank>(core::get<Components>(tuple)...);
 }
 
-template <typename Functor, typename InputType>
-struct ExplicitFunctor {
-  Functor functor;
-
-  KOKKOS_FUNCTION
-  void operator()(InputType& input) const {
-    functor(input);
-  }
-};
-
 /// \brief A helper class for wrapping a functor(view) with an operator()(FastMeshIndex)
 template <typename NgpAggregateType, typename FunctorType>
 class NgpFunctorWrapper {
  public:
-  NgpFunctorWrapper(NgpAggregateType agg, const FunctorType& functor) : agg_(agg), explicit_functor_{functor} {
+  NgpFunctorWrapper(NgpAggregateType agg, const FunctorType& functor) : agg_(agg), functor_{functor} {
   }
 
   KOKKOS_FUNCTION
   void operator()(stk::mesh::FastMeshIndex entity_index) const {
-    entity_view_t view = agg_.get_view(entity_index);
-    explicit_functor_(view);
+    auto view = agg_.get_view(entity_index);
+    functor_(view);
   }
 
  private:
-  using entity_view_t = decltype(std::declval<NgpAggregateType>().get_view(std::declval<stk::mesh::FastMeshIndex>()));
   NgpAggregateType agg_;
-  ExplicitFunctor<FunctorType, entity_view_t> explicit_functor_;
+  FunctorType functor_;
 };  // NgpFunctorWrapper
 
 }  // namespace impl
@@ -1431,24 +1420,26 @@ class NgpAggregate {
   /// \brief Apply a functor on the EntityView of each entity in the current data aggregate that is also in the given
   /// subset selector
   template <typename Functor>
-  void for_each(const stk::mesh::Selector& subset_selector, const Functor& f) const {
+  inline void for_each(const stk::mesh::Selector& subset_selector, const Functor& f) const {
     // Only loop over the set intersection of the agg's selector and the subset selector
     using our_t = NgpAggregate<OurTopology, OurRank, NgpComponents...>;
     our_t agg = *this;
 
+    auto local_ngp_mesh = agg.ngp_mesh();
     impl::NgpFunctorWrapper<our_t, Functor> wrapper(agg, f);
     stk::mesh::Selector sel = agg.selector() & subset_selector;
-    stk::mesh::for_each_entity_run(agg.ngp_mesh(), agg.rank(), sel, wrapper);
+    stk::mesh::for_each_entity_run(local_ngp_mesh, agg.rank(), sel, wrapper);
   }
 
   /// \brief Apply a functor on the EntityView of each entity in the current data aggregate
   template <typename Functor>
-  void for_each(const Functor& f) const {
+  inline void for_each(const Functor& f) const {
     using our_t = NgpAggregate<OurTopology, OurRank, NgpComponents...>;
     our_t agg = *this;
 
+    auto local_ngp_mesh = agg.ngp_mesh();
     impl::NgpFunctorWrapper<our_t, Functor> wrapper(agg, f);
-    stk::mesh::for_each_entity_run(agg.ngp_mesh(), agg.rank(), agg.selector(), wrapper);
+    stk::mesh::for_each_entity_run(local_ngp_mesh, agg.rank(), agg.selector(), wrapper);
   }
 
  private:

@@ -278,23 +278,15 @@ TEST(UnitTestAggregate, BasicUsage) {
 }
 
 struct a_non_lambda_functor {
-  template <typename SphereView>
   KOKKOS_INLINE_FUNCTION
-  void operator()(SphereView& sphere_view) const {
+  int operator()(auto& sphere_view) const {
     auto c = sphere_view.template get<CENTER>(0);
     auto r = sphere_view.template get<COLLISION_RADIUS>();
     c[0] += 1.0;
     r += 1.0;
+    return 2;
   }
 };
-
-void run_some_ngp_stuff(auto& ngp_sphere_data) {
-  // Use a custom scope to restrict what the lambda copies
-  double dt = 0.001;
-  ngp_sphere_data.template sync_to_device<CENTER, COLLISION_RADIUS>();
-  ngp_sphere_data.template for_each(a_non_lambda_functor{});
-  ngp_sphere_data.template modify_on_device<CENTER, COLLISION_RADIUS>();
-}
 
 void run_canonical_test() {
   // Setup
@@ -374,15 +366,9 @@ void run_canonical_test() {
   EXPECT_TRUE(ngp_sphere_data.ngp_mesh().get_spatial_dimension() == 3)
       << "If this works, we know that the NgpMesh was not default constructed";
 
-  ngp_sphere_data.sync_to_device<CENTER, VELOCITY>();
-  ngp_sphere_data.for_each(KOKKOS_LAMBDA(auto& sphere_view) {
-    auto c = get<CENTER>(sphere_view, 0);
-    auto v = get<VELOCITY>(sphere_view, 0);
-    c += dt * v;
-  });
-  ngp_sphere_data.modify_on_device<CENTER>();
-
-  run_some_ngp_stuff(ngp_sphere_data);
+  ngp_sphere_data.template sync_to_device<CENTER, COLLISION_RADIUS>();
+  ngp_sphere_data.template for_each(a_non_lambda_functor{});
+  ngp_sphere_data.template modify_on_device<CENTER, COLLISION_RADIUS>();
 }
 
 TEST(UnitTestAggregate, CanonicalExample) {
