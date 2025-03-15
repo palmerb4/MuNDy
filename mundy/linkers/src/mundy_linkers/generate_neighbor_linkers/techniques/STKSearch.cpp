@@ -47,7 +47,7 @@
 #include <stk_mesh/base/NgpForEachEntity.hpp>
 #include <stk_mesh/base/NgpMesh.hpp>
 #include <stk_search/BoundingBox.hpp>           // for stk::search::Box
-#include <stk_search/BoxIdent.hpp>              // for stk::search::IdentProcIntersection
+// #include <stk_search/BoxIdent.hpp>              // for stk::search::IdentProcIntersection
 #include <stk_search/CoarseSearch.hpp>          // for stk::search::coarse_search
 #include <stk_search/SearchMethod.hpp>          // for stk::search::KDTREE
 #include <stk_util/parallel/CommNeighbors.hpp>  // for stk::CommNeighbors

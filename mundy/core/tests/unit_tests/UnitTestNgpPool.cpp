@@ -54,21 +54,20 @@ void run_simple_test() {
 
   // Insert some values into the pool
   int value = 42;
-  Kokkos::parallel_for("Fill pool", capacity, KOKKOS_LAMBDA(const size_t i) { 
-    pool.add(value); 
-    MUNDY_THROW_REQUIRE(pool.size() == i + 1, std::runtime_error, "Size should increment by 1");
-    MUNDY_THROW_REQUIRE(pool.capacity() == capacity, std::runtime_error, "Capacity should be unchanged");
-  });
-  Kokkos::fence();
+  for (size_t i = 0; i < capacity; ++i) {
+    pool.add_host(value);
+    EXPECT_EQ(pool.size_host(), i + 1) << "Failed on iteration " << i;
+    EXPECT_EQ(pool.capacity_host(), capacity);
+  }
+  pool.modify_on_host();
 
   // Acquire all the values from the pool
   // In the end, the pool should be empty, but it's capacity should be unchanged.
-  Kokkos::parallel_for("Acquire pool", capacity, KOKKOS_LAMBDA(const size_t i) {
-    MUNDY_THROW_REQUIRE(pool.acquire() == value, std::runtime_error, "Acquire should be 42");
-    MUNDY_THROW_REQUIRE(pool.size() == capacity - i - 1, std::runtime_error, "Size should decrement by 1");
-    MUNDY_THROW_REQUIRE(pool.capacity() == capacity, std::runtime_error, "Capacity should be unchanged");
-  }); 
-  Kokkos::fence();
+  for (size_t i = 0; i < capacity; ++i) {
+    EXPECT_EQ(pool.acquire_host(), value) << "Failed on iteration " << i;
+    EXPECT_EQ(pool.size_host(), capacity - i - 1) << "Size should decrement by 1";
+    EXPECT_EQ(pool.capacity_host(), capacity) << "Capacity should be unchanged";
+  }
 }
 
 TEST(NgpPoolTest, Simple) {

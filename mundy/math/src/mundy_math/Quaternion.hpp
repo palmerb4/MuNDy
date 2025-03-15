@@ -1737,10 +1737,10 @@ KOKKOS_INLINE_FUNCTION constexpr Quaternion<T> rotation_matrix_to_quaternion(
   Quaternion<T> quat;
 
   // Computing the quaternion components
-  quat.w() = std::sqrt(std::max(T(0), T(1) + rot_mat(0, 0) + rot_mat(1, 1) + rot_mat(2, 2))) / T(2);
-  quat.x() = std::sqrt(std::max(T(0), T(1) + rot_mat(0, 0) - rot_mat(1, 1) - rot_mat(2, 2))) / T(2);
-  quat.y() = std::sqrt(std::max(T(0), T(1) - rot_mat(0, 0) + rot_mat(1, 1) - rot_mat(2, 2))) / T(2);
-  quat.z() = std::sqrt(std::max(T(0), T(1) - rot_mat(0, 0) - rot_mat(1, 1) + rot_mat(2, 2))) / T(2);
+  quat.w() = Kokkos::sqrt(Kokkos::max(T(0), T(1) + rot_mat(0, 0) + rot_mat(1, 1) + rot_mat(2, 2))) / T(2);
+  quat.x() = Kokkos::sqrt(Kokkos::max(T(0), T(1) + rot_mat(0, 0) - rot_mat(1, 1) - rot_mat(2, 2))) / T(2);
+  quat.y() = Kokkos::sqrt(Kokkos::max(T(0), T(1) - rot_mat(0, 0) + rot_mat(1, 1) - rot_mat(2, 2))) / T(2);
+  quat.z() = Kokkos::sqrt(Kokkos::max(T(0), T(1) - rot_mat(0, 0) - rot_mat(1, 1) + rot_mat(2, 2))) / T(2);
 
   // Correcting the signs
   quat.x() = std::copysign(quat[1], rot_mat(2, 1) - rot_mat(1, 2));
