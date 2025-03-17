@@ -233,7 +233,7 @@ void basic_usage_test() {
           // Check the connected entities
           for (unsigned link_ordinal = 0; link_ordinal < 3; ++link_ordinal) {
             // TODO(palmerb4): Test that these are set via some device-compatable map.
-            [[maybe_unused]] FastMeshIndex linked_entity = ngp_link_data.get_linked_entity(linker_index, link_ordinal);
+            [[maybe_unused]] FastMeshIndex linked_entity = ngp_link_data.get_linked_entity_index(linker_index, link_ordinal);
             [[maybe_unused]] EntityId linked_entity_id = ngp_link_data.get_linked_entity_id(linker_index, link_ordinal);
             [[maybe_unused]] EntityRank linked_entity_rank =
                 ngp_link_data.get_linked_entity_rank(linker_index, link_ordinal);
@@ -245,9 +245,9 @@ void basic_usage_test() {
     for_each_link_run(
         ngp_link_data, link_part_b, KOKKOS_LAMBDA(const FastMeshIndex& linker_index) {
           // Get the linked entities and swap their order
-          FastMeshIndex linked_entity_0 = ngp_link_data.get_linked_entity(linker_index, 0);
-          FastMeshIndex linked_entity_1 = ngp_link_data.get_linked_entity(linker_index, 1);
-          FastMeshIndex linked_entity_2 = ngp_link_data.get_linked_entity(linker_index, 2);
+          FastMeshIndex linked_entity_0 = ngp_link_data.get_linked_entity_index(linker_index, 0);
+          FastMeshIndex linked_entity_1 = ngp_link_data.get_linked_entity_index(linker_index, 1);
+          FastMeshIndex linked_entity_2 = ngp_link_data.get_linked_entity_index(linker_index, 2);
 
           EntityRank entity_0_rank = ngp_link_data.get_linked_entity_rank(linker_index, 0);
           EntityRank entity_1_rank = ngp_link_data.get_linked_entity_rank(linker_index, 1);

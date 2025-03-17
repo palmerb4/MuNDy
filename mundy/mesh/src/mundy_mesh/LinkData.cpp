@@ -146,6 +146,27 @@ LinkData declare_link_data(BulkData &bulk_data, LinkMetaData link_meta_data) {
   return LinkData(bulk_data, link_meta_data);
 }
 
+void LinkData::modify_on_host() {
+  auto ngp_link_data = get_updated_ngp_data(*this);
+  ngp_link_data.modify_on_host();
+}
+
+void LinkData::modify_on_device() {
+  auto ngp_link_data = get_updated_ngp_data(*this);
+  ngp_link_data.modify_on_device();
+}
+
+void LinkData::sync_to_host() {
+  auto ngp_link_data = get_updated_ngp_data(*this);
+  ngp_link_data.sync_to_host();
+}
+
+void LinkData::sync_to_device() {
+  auto ngp_link_data = get_updated_ngp_data(*this);
+  ngp_link_data.sync_to_device();
+}
+
+
 }  // namespace mesh
 
 }  // namespace mundy

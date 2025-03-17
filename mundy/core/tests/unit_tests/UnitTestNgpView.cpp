@@ -138,7 +138,7 @@ TEST(NgpViewTest, Functionality) {
 
   // Specify the layout of a 2D view. The fact that this is 2D is expressed by the type**
   // Use a 2D view
-  NgpView<int**, Kokkos::LayoutRight> ngp_view2("ngp_view2", 10, 3);
+  NgpView<int**, Kokkos::LayoutLeft> ngp_view2("ngp_view2", 10, 3);
   auto h_view2 = ngp_view2.view_host();
   for (size_t i = 0; i < 10; ++i) {
     for (size_t j = 0; j < 3; ++j) {
@@ -149,11 +149,11 @@ TEST(NgpViewTest, Functionality) {
   // Construct from existing device and host views
   auto an_existing_device_view = ngp_view2.view_device();
   auto an_existing_host_view = ngp_view2.view_host();
-  NgpView<int**, Kokkos::LayoutRight> ngp_view3(an_existing_device_view, an_existing_host_view);
+  NgpView<int**, Kokkos::LayoutLeft> ngp_view3(an_existing_device_view, an_existing_host_view);
 
   // For power users, if you really want to use our NgpView with a different memory space, you can do so.
   // Just use NgpViewT directly.
-  NgpViewT<int**, Kokkos::LayoutRight, stk::ngp::ExecSpace> ngp_view4("ngp_view4", 10, 3);
+  NgpViewT<int**, Kokkos::LayoutLeft, stk::ngp::ExecSpace> ngp_view4("ngp_view4", 10, 3);
 }
 
 }  // namespace

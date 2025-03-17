@@ -285,6 +285,14 @@ class NgpPoolT {
     ngp_capacity_.modify_on_device();
   }
 
+  /// \brief Abstract method for marking the pool as modified.
+  template <typename Space>
+  inline void modify_on() {
+    pool_.template modify_on<Space>();
+    ngp_size_.template modify_on<Space>();
+    ngp_capacity_.template modify_on<Space>();
+  }
+
   /// \brief Synchronize the host pool to the device pool if needed.
   ///
   /// If the device pool has been modified more recently than the host pool,
@@ -305,6 +313,14 @@ class NgpPoolT {
     ngp_capacity_.sync_to_device();
   }
 
+  /// \brief Abstract method for synchronizing the pool.
+  template <typename Space>
+  inline void sync_to() {
+    pool_.template sync_to<Space>();
+    ngp_size_.template sync_to<Space>();
+    ngp_capacity_.template sync_to<Space>();
+  }
+
   /// \brief Return if we need to sync to the host.
   inline bool need_sync_to_host() const {
     return pool_.need_sync_to_host() || ngp_size_.need_sync_to_host() || ngp_capacity_.need_sync_to_host();
@@ -313,6 +329,13 @@ class NgpPoolT {
   /// \brief Return if we need to sync to the device.
   inline bool need_sync_to_device() const {
     return pool_.need_sync_to_device() || ngp_size_.need_sync_to_device() || ngp_capacity_.need_sync_to_device();
+  }
+
+  /// \brief Abstract method for checking if we need to sync.
+  template <typename Space>
+  inline bool need_sync_to() const {
+    return pool_.template need_sync_to<Space>() || ngp_size_.template need_sync_to<Space>() ||
+           ngp_capacity_.template need_sync_to<Space>();
   }
   //@}
 };  // NgpPoolT

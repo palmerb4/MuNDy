@@ -1015,6 +1015,21 @@ class LinkData {
     return stk::mesh::Entity(stk::mesh::field_data(linked_es_field, linker)[link_ordinal]);
   }
 
+  /// \brief Get the linked entity index for a given linker and link ordinal.
+  ///
+  /// \param linker [in] The linker (must be valid and of the correct rank).
+  /// \param link_ordinal [in] The ordinal of the linked entity.
+  inline stk::mesh::FastMeshIndex get_linked_entity_index(const stk::mesh::Entity &linker, unsigned link_ordinal) const {
+    MUNDY_THROW_ASSERT(link_meta_data_.link_rank() == bulk_data_.entity_rank(linker), std::invalid_argument,
+                       "Linker is not of the correct rank.");
+    MUNDY_THROW_ASSERT(bulk_data_.is_valid(linker), std::invalid_argument, "Linker is not valid.");
+
+    auto &linked_e_bucket_ids_field = link_meta_data_.linked_entity_bucket_ids_field();
+    auto &linked_e_bucket_ords_field = link_meta_data_.linked_entity_bucket_ords_field();
+    return stk::mesh::FastMeshIndex(stk::mesh::field_data(linked_e_bucket_ids_field, linker)[link_ordinal],
+                                    stk::mesh::field_data(linked_e_bucket_ords_field, linker)[link_ordinal]);
+  }
+
   /// \brief Get the linked entity id for a given linker and link ordinal.
   ///
   /// \param linker [in] The linker (must be valid and of the correct rank).
@@ -1115,6 +1130,11 @@ class LinkData {
       bulk_data_.modification_end();
     }
   }
+
+  void modify_on_host();
+  void modify_on_device();
+  void sync_to_host();
+  void sync_to_device();
   //@}
 
  protected:
@@ -1381,7 +1401,16 @@ class NgpLinkData {
   /// \param linker_index [in] The index of the linker.
   /// \param link_ordinal [in] The ordinal of the linked entity.
   KOKKOS_INLINE_FUNCTION
-  stk::mesh::FastMeshIndex get_linked_entity(const stk::mesh::FastMeshIndex &linker_index,
+  stk::mesh::Entity get_linked_entity(const stk::mesh::FastMeshIndex &linker_index,
+                                             unsigned link_ordinal) const {
+    return stk::mesh::Entity(ngp_linked_entities_field_(linker_index, link_ordinal));
+  }
+
+  /// \brief Get the linked entity fast mesh index for a given linker and link ordinal.
+  /// \param linker_index [in] The index of the linker.
+  /// \param link_ordinal [in] The ordinal of the linked entity.
+  KOKKOS_INLINE_FUNCTION
+  stk::mesh::FastMeshIndex get_linked_entity_index(const stk::mesh::FastMeshIndex &linker_index,
                                              unsigned link_ordinal) const {
     return stk::mesh::FastMeshIndex(ngp_linked_entity_bucket_ids_field_(linker_index, link_ordinal),
                                     ngp_linked_entity_bucket_ords_field_(linker_index, link_ordinal));
