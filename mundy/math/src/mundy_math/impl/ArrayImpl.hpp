@@ -17,40 +17,46 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MATH_MINIMIZE_HPP_
-#define MUNDY_MATH_MINIMIZE_HPP_
+#ifndef MUNDY_MATH_IMPL_ARRAYIMPL_HPP_
+#define MUNDY_MATH_IMPL_ARRAYIMPL_HPP_
 
-// External
+// External libs
 #include <Kokkos_Core.hpp>
 
-// C++ core
-#include <algorithm>
-#include <array>
-#include <cassert>
+// C++ core libs
 #include <cmath>
+#include <concepts>
+#include <initializer_list>
 #include <iostream>
-
-// Mundy
-#include <mundy_math/Vector.hpp>  // for mundy::math::Vector
-#include <mundy_math/impl/minimize_impl.hpp>
+#include <type_traits>
 
 namespace mundy {
 
 namespace math {
 
-template <size_t max_size, size_t N, typename CostFunctionType>
-KOKKOS_FUNCTION double find_min_using_approximate_derivatives(
-    const CostFunctionType& cost_func, Vector<double, N>& x,
-    const double min_alowable_cost = -Kokkos::Experimental::infinity_v<double>, const double min_objective_delta = 1e-7,
-    const double derivative_eps = 1e-7) {
-  auto stop_strategy = impl::objective_delta_stop_strategy(min_objective_delta);
-  auto search_strategy = impl::lbfgs_search_strategy<max_size, N>();
-  return impl::find_min_using_approximate_derivatives<max_size, N>(search_strategy, stop_strategy, cost_func, x,
-                                                                   min_alowable_cost, derivative_eps);
+/// \brief A simplistic array type with a fixed size and type
+template <typename T, size_t N>
+class Array;
+
+namespace impl {
+
+/// \brief Deep copy implementation for Array
+template <size_t... Is, typename T, size_t N>
+KOKKOS_INLINE_FUNCTION constexpr void deep_copy_impl(std::index_sequence<Is...>, Array<T, N>& array,
+                                                     const Array<T, N>& other) {
+  ((array[Is] = other[Is]), ...);
 }
+
+/// \brief Fill implementation for Array
+template <size_t... Is, typename T, size_t N>
+KOKKOS_INLINE_FUNCTION constexpr void fill_impl(std::index_sequence<Is...>, Array<T, N>& array, const T& value) {
+  ((array[Is] = value), ...);
+}
+
+}  // namespace impl
 
 }  // namespace math
 
 }  // namespace mundy
 
-#endif  // MUNDY_MATH_MINIMIZE_HPP_
+#endif  // MUNDY_MATH_IMPL_ARRAYIMPL_HPP_

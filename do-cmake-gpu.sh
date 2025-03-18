@@ -22,7 +22,7 @@ cmake \
 -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-DEBUG} \
 -DCMAKE_CXX_COMPILER=${OMPI_CXX} \
 -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR:-$HOME/envs/MundyScratch} \
--DCMAKE_CXX_FLAGS="-O3 -march=native -Wall -Wextra -Wdouble-promotion -Wconversion -lmpi" \
+-DCMAKE_CXX_FLAGS="-O3 -march=native -Wall -Wextra -Wdouble-promotion -Wconversion -lmpi -lcuda" \
 -DTPL_ENABLE_MPI=ON \
 -DTPL_ENABLE_CUDA=ON \
 -DMPI_BASE_DIR=${OPENMPI_BASE} \

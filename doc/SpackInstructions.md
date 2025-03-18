@@ -42,9 +42,18 @@ git clone --depth=2 --branch=releases/v0.23 https://github.com/spack/spack.git ~
 . ~/spack/share/spack/setup-env.sh
 spack env create tril16_gpu
 spack env activate tril16_gpu
-spack add kokkos+openmp+cuda+cuda_constexpr+cuda_lambda+cuda_relocatable_device_code~cuda_uvm~shared+wrapper cuda_arch=90
-spack add magma+cuda cuda_arch=90
- spack add trilinos@16.0.0%gcc@11.4.0+belos~boost+exodus+hdf5+kokkos+openmp++cuda+cuda_rdc+stk+zoltan+zoltan2~shared~uvm+wrapper cuda_arch=90 cxxstd=17
+spack external find cuda
+spack external find cmake
+spack external find openmpi
+spack external find openblas
+spack external find hdf5
+spack external find hwloc
+
+
+
+spack add kokkos+openmp+cuda+cuda_constexpr+cuda_lambda+cuda_relocatable_device_code~cuda_uvm~shared+wrapper cuda_arch=90 ^cuda@12.3.107
+spack add magma+cuda cuda_arch=90 ^cuda@12.3.107
+spack add trilinos@16.0.0%gcc@11.4.0+belos~boost+exodus+hdf5+kokkos+openmp++cuda+cuda_rdc+stk+zoltan+zoltan2~shared~uvm+wrapper cuda_arch=90 cxxstd=17 ^cuda@12.3.107 ^openblas@0.3.26
 ```
 
 

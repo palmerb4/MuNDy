@@ -3555,6 +3555,12 @@ class HP1 {
     Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_velocities("sphere_velocities",
                                                                                     num_spheres * 3);
 
+    auto sphere_positions_host = Kokkos::create_mirror_view(sphere_positions);
+    auto sphere_radii_host = Kokkos::create_mirror_view(sphere_radii);
+    auto sphere_forces_host = Kokkos::create_mirror_view(sphere_forces);
+    auto sphere_velocities_host = Kokkos::create_mirror_view(sphere_velocities);
+
+
 #pragma omp parallel for
     for (size_t i = 0; i < num_spheres; i++) {
       stk::mesh::Entity sphere_element = sphere_elements[i];
@@ -3565,12 +3571,17 @@ class HP1 {
       const double *sphere_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, sphere_node);
 
       for (size_t j = 0; j < 3; j++) {
-        sphere_positions(i * 3 + j) = sphere_position[j];
-        sphere_forces(i * 3 + j) = sphere_force[j];
-        sphere_velocities(i * 3 + j) = sphere_velocity[j];
+        sphere_positions_host(i * 3 + j) = sphere_position[j];
+        sphere_forces_host(i * 3 + j) = sphere_force[j];
+        sphere_velocities_host(i * 3 + j) = sphere_velocity[j];
       }
-      sphere_radii(i) = *sphere_radius;
+      sphere_radii_host(i) = *sphere_radius;
     }
+
+    Kokkos::deep_copy(sphere_positions, sphere_positions_host);
+    Kokkos::deep_copy(sphere_radii, sphere_radii_host);
+    Kokkos::deep_copy(sphere_forces, sphere_forces_host);
+    Kokkos::deep_copy(sphere_velocities, sphere_velocities_host);
 
     // Apply the RPY kernel from spheres to spheres
     mundy::alens::periphery::apply_rpyc_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
@@ -3611,6 +3622,8 @@ class HP1 {
     }
 
     // Copy the sphere forces and velocities back to STK fields
+    Kokkos::deep_copy(sphere_forces_host, sphere_forces);
+    Kokkos::deep_copy(sphere_velocities_host, sphere_velocities);
 #pragma omp parallel for
     for (size_t i = 0; i < num_spheres; i++) {
       stk::mesh::Entity sphere_element = sphere_elements[i];
@@ -3619,8 +3632,8 @@ class HP1 {
       double *sphere_hydro_velocity = stk::mesh::field_data(*node_velocity_hydro_field_ptr_, sphere_node);
 
       for (size_t j = 0; j < 3; j++) {
-        sphere_force[j] = sphere_forces(i * 3 + j);
-        sphere_hydro_velocity[j] = sphere_velocities(i * 3 + j);
+        sphere_force[j] = sphere_forces_host(i * 3 + j);
+        sphere_hydro_velocity[j] = sphere_velocities_host(i * 3 + j);
       }
     }
     Kokkos::Profiling::popRegion();
