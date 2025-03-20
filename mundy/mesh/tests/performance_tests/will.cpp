@@ -89,7 +89,6 @@ struct IS_BOUND {};
 
 namespace mundy {
 
-
 Kokkos::View<stk::mesh::FastMeshIndex*, stk::ngp::ExecSpace> get_local_entity_indices(
     const stk::mesh::BulkData& bulk_data, stk::mesh::EntityRank rank, stk::mesh::Selector selector) {
   std::vector<stk::mesh::Entity> local_entities;
@@ -509,6 +508,8 @@ S: Singly bound (either left or right)
 */
 
 struct HookeanCrosslinkerEnergy {
+  double screening_length;
+
   KOKKOS_INLINE_FUNCTION
   double operator()(const auto& crosslinker_view, const auto& rod_view, const double arclength,
                     unsigned side /* 0 for left, 1 for right*/) const {
@@ -551,6 +552,8 @@ struct HookeanCrosslinkerEnergy {
 };
 
 struct HookeanPlusAngularCrosslinkerEnergy {
+  double screening_length;
+
   KOKKOS_INLINE_FUNCTION
   double operator()(const auto& crosslinker_view, const auto& rod_view, const double arclength,
                     const unsigned side /* 0 for left, 1 for right*/) const {
@@ -562,6 +565,8 @@ struct HookeanPlusAngularCrosslinkerEnergy {
     double k_ang = get<ANG_SPRING_CONSTANT>(crosslinker_view)[0];
     double cos_theta0 = get<REST_COS_ANGLE>(crosslinker_view)[0];
     const auto other_tangent = get<TANGENT>(crosslinker_view, !side);
+    std::cout << "other_tangent: " << other_tangent << std::endl;
+    std::cout << "cos_theta0: " << cos_theta0 << std::endl;
 
     // Get the rod data
     const auto rod_coords = get<COORDS>(rod_view, 0);
@@ -573,17 +578,23 @@ struct HookeanPlusAngularCrosslinkerEnergy {
 
     const auto spring_r = other_spring_coords - to_bind_spring_coords;
     const double spring_length = math::norm(spring_r);
-    const auto spring_tangent = spring_r / spring_length;
+
+    const bool spring_is_zero_length = spring_length < math::get_zero_tolerance<double>();
+    const auto spring_tangent = spring_is_zero_length ? math::Vector3<double>(0., 0., 0.) : spring_r / spring_length;
 
     const double cos_theta_other = math::dot(other_tangent, spring_tangent);
     const double cos_theta_to_bind = math::dot(rod_tangent, spring_tangent);
 
     const double linear_spring_energy = 0.5 * k_lin * (spring_length - l0) * (spring_length - l0);
     const double other_ang_spring_energy =
-        0.5 * k_ang * (cos_theta_other - cos_theta0) * (cos_theta_other - cos_theta0);
+        spring_is_zero_length * 0.5 * k_ang * (cos_theta_other - cos_theta0) * (cos_theta_other - cos_theta0);
     const double to_bind_ang_spring_energy =
-        0.5 * k_ang * (cos_theta_to_bind - cos_theta0) * (cos_theta_to_bind - cos_theta0);
-    return linear_spring_energy + other_ang_spring_energy + to_bind_ang_spring_energy;
+        spring_is_zero_length * 0.5 * k_ang * (cos_theta_to_bind - cos_theta0) * (cos_theta_to_bind - cos_theta0);
+
+    const double screening_energy =
+        math::norm(other_spring_coords - get<COORDS>(crosslinker_view, !side)) / screening_length;
+
+    return linear_spring_energy + other_ang_spring_energy + to_bind_ang_spring_energy + screening_energy;
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -603,16 +614,21 @@ struct HookeanPlusAngularCrosslinkerEnergy {
 
     const auto spring_r = right_spring_coords - left_spring_coords;
     const double spring_length = math::norm(spring_r);
-    const auto spring_tangent = spring_r / spring_length;
+    const bool spring_is_zero_length = spring_length < math::get_zero_tolerance<double>();
+    const auto spring_tangent = spring_is_zero_length ? math::Vector3<double>(0., 0., 0.) : spring_r / spring_length;
 
     const double cos_theta_left = math::dot(left_tangent, spring_tangent);
     const double cos_theta_right = math::dot(right_tangent, spring_tangent);
 
     const double linear_spring_energy = 0.5 * k_lin * (spring_length - l0) * (spring_length - l0);
-    const double left_ang_spring_energy = 0.5 * k_ang * (cos_theta_left - cos_theta0) * (cos_theta_left - cos_theta0);
+    const double left_ang_spring_energy =
+        spring_is_zero_length * 0.5 * k_ang * (cos_theta_left - cos_theta0) * (cos_theta_left - cos_theta0);
     const double right_ang_spring_energy =
-        0.5 * k_ang * (cos_theta_right - cos_theta0) * (cos_theta_right - cos_theta0);
-    return linear_spring_energy + left_ang_spring_energy + right_ang_spring_energy;
+        spring_is_zero_length * 0.5 * k_ang * (cos_theta_right - cos_theta0) * (cos_theta_right - cos_theta0);
+
+    const double screening_energy = 0;
+
+    return linear_spring_energy + left_ang_spring_energy + right_ang_spring_energy + screening_energy;
   }
 };
 
@@ -633,9 +649,10 @@ class kmc_unbound_to_single_bound {
     auto ngp_mesh = ngp_crosslinker_agg.ngp_mesh();
 
     using indices_view_t = Kokkos::View<stk::mesh::FastMeshIndex*, stk::ngp::ExecSpace>;
-    indices_view_t crosslinker_indices =
-        get_local_entity_indices(ngp_crosslinker_agg.bulk_data(), ngp_crosslinker_agg.rank(), ngp_crosslinker_agg.selector());
-    indices_view_t rod_indices = get_local_entity_indices(ngp_crosslinker_agg.bulk_data(), ngp_rod_agg.rank(), ngp_rod_agg.selector());
+    indices_view_t crosslinker_indices = get_local_entity_indices(
+        ngp_crosslinker_agg.bulk_data(), ngp_crosslinker_agg.rank(), ngp_crosslinker_agg.selector());
+    indices_view_t rod_indices =
+        get_local_entity_indices(ngp_crosslinker_agg.bulk_data(), ngp_rod_agg.rank(), ngp_rod_agg.selector());
 
     // Get the entities we want to act on
     const size_t num_crosslinkers = crosslinker_indices.extent(0);
@@ -651,6 +668,8 @@ class kmc_unbound_to_single_bound {
     // TODO(palmerb4): LinkPartition is only CPU for now, we don't have an NPP version.
     //   It's still thread safe, but not Kokkos.
 
+    std::cout << "num_crosslinkers: " << num_crosslinkers << std::endl;
+
     Kokkos::parallel_for(
         "apply_kmc_unbound_to_doubly", range_policy_t(0, num_crosslinkers), KOKKOS_LAMBDA(const size_t c) {
           auto crosslinker_fast_mesh_index = crosslinker_indices(c);
@@ -662,6 +681,9 @@ class kmc_unbound_to_single_bound {
           double z_total_left = 0.0;
           double z_total_right = 0.0;
           double old_energy = energy_func(crosslinker_view);
+          std::cout << "left_binding_rate: " << left_binding_rate << " right_binding_rate: " << right_binding_rate
+                    << std::endl;
+          std::cout << "old_energy: " << old_energy << std::endl;
 
           for (size_t r = 0; r < num_rods; ++r) {
             auto rod_fast_mesh_index = rod_indices(r);
@@ -675,11 +697,16 @@ class kmc_unbound_to_single_bound {
               double new_left_energy = energy_func(crosslinker_view, rod_view, arclength, 0 /* left side */);
               double new_right_energy = energy_func(crosslinker_view, rod_view, arclength, 1 /* right side */);
 
+              std::cout << "arclength: " << arclength << " new_left_energy: " << new_left_energy
+                        << " new_right_energy: " << new_right_energy << std::endl;
+
               // Compute the Boltzmann weight using the change in energy
               double delta_left_energy = new_left_energy - old_energy;
               double delta_right_energy = new_right_energy - old_energy;
               double z_left = dt_ * left_binding_rate * Kokkos::exp(-delta_left_energy / kbt_);
               double z_right = dt_ * right_binding_rate * Kokkos::exp(-delta_right_energy / kbt_);
+
+              std::cout << "z_left: " << z_left << " z_right: " << z_right << std::endl;
               z_total_left += z_left;
               z_total_right += z_right;
             }
@@ -693,6 +720,8 @@ class kmc_unbound_to_single_bound {
           crosslinker_counter[0]++;
 
           double probability_of_binding = 1.0 - Kokkos::exp(-z_total_left - z_total_right);
+          std::cout << "z_total_left: " << z_total_left << " z_total_right: " << z_total_right << std::endl;
+          std::cout << "probability_of_binding: " << probability_of_binding << " u01: " << rand_u01 << std::endl;
           if (rand_u01 < probability_of_binding) {
             if (rand_u01 > z_total_left) {
               // Bind to the right
@@ -716,10 +745,12 @@ class kmc_unbound_to_single_bound {
 
                   if (rand_u01 < z_total_right) {
                     // Bind to this rod at this bind site
+                    std::cout << "Binding to right" << std::endl;
                     get<ARCLENGTH>(crosslinker_view, 1) = arclength;
                     get<IS_BOUND>(crosslinker_view, 1) = true;
-                    link_partition.request_link(ngp_mesh.get_entity(stk::topology::ELEM_RANK, rod_fast_mesh_index),
-                                                ngp_mesh.get_nodes(stk::topology::ELEM_RANK, crosslinker_fast_mesh_index)[1]);
+                    link_partition.request_link(
+                        ngp_mesh.get_entity(stk::topology::ELEM_RANK, rod_fast_mesh_index),
+                        ngp_mesh.get_nodes(stk::topology::ELEM_RANK, crosslinker_fast_mesh_index)[1]);
                   }
                 }
               }
@@ -744,10 +775,12 @@ class kmc_unbound_to_single_bound {
 
                   if (rand_u01 < z_total_left) {
                     // Bind to this rod at this bind site
+                    std::cout << "Binding to left" << std::endl;
                     get<ARCLENGTH>(crosslinker_view, 0) = arclength;
                     get<IS_BOUND>(crosslinker_view, 0) = true;
-                    link_partition.request_link(ngp_mesh.get_entity(stk::topology::ELEM_RANK, rod_fast_mesh_index),
-                                                ngp_mesh.get_nodes(stk::topology::ELEM_RANK, crosslinker_fast_mesh_index)[0]);
+                    link_partition.request_link(
+                        ngp_mesh.get_entity(stk::topology::ELEM_RANK, rod_fast_mesh_index),
+                        ngp_mesh.get_nodes(stk::topology::ELEM_RANK, crosslinker_fast_mesh_index)[0]);
                   }
                 }
               }
@@ -1142,7 +1175,7 @@ void run_main() {
 
   // Hard code the system params
   // Sim params
-  size_t num_timesteps = 100;
+  size_t num_timesteps = 1;
   size_t io_frequency = 10;
   double dt = 0.1;
 
@@ -1163,16 +1196,17 @@ void run_main() {
   double init_rod_sep = 1.0 * (2.0 * rod_radius);
 
   // Spring params
-  double spring_constant = 0.0;
-  double ang_spring_constant = 0.0;
+  double spring_constant = 1.0;
+  double ang_spring_constant = 1.0;
   double rest_length = 2.0;
   double rest_cos_angle = 0.0;
 
   // Dynamic spring params
   double binding_unbinding_kbt = 1.0;
-  double binding_rate = 0.01;
-  double unbinding_rate = 0.01;
-  double bind_site_spacing = rod_length / 100.0;
+  double binding_rate = 1.0;
+  double unbinding_rate = 1.0;
+  double bind_site_spacing = rod_length / 10.0;
+  double screening_length = 0.2;
 
   // Fill the declare entities helper
   DeclareEntitiesHelper dec_helper;
@@ -1218,34 +1252,38 @@ void run_main() {
   mt2.owning_proc(0)  //
       .id(2)          //
       .topology(stk::topology::PARTICLE)
-      .add_part(&rod_part)                                       //
-      .nodes({2})                                                //
-      .add_field_data<double>(&elem_length_field, {rod_length})  //
-      .add_field_data<double>(&elem_radius_field, {rod_radius})  //
-      .add_field_data<double>(&elem_bind_site_spacing_field, {bind_site_spacing}) //
+      .add_part(&rod_part)                                                         //
+      .nodes({2})                                                                  //
+      .add_field_data<double>(&elem_length_field, {rod_length})                    //
+      .add_field_data<double>(&elem_radius_field, {rod_radius})                    //
+      .add_field_data<double>(&elem_bind_site_spacing_field, {bind_site_spacing})  //
       .add_field_data<size_t>(&elem_rng_counter_field, {0});
 
   // Declare the PRC1
   auto prc1_node1 = dec_helper.create_node();
   prc1_node1
-      .owning_proc(0)                                                     //
-      .id(3)                                                              // 1 indexed
-      .add_field_data<double>(&node_arclength_field, {0.5 * rod_length})  //
-      .add_field_data<double>(&node_force_field, {0.0, 0.0, 0.0})         //
-      .add_field_data<double>(&node_torque_field, {0.0, 0.0, 0.0})        //
-      .add_field_data<unsigned>(&node_is_bound_field, {1})                //
-      .add_field_data<double>(&node_binding_rate_field, {binding_rate})   //
+      .owning_proc(0)                                                                                    //
+      .id(3)                                                                                             // 1 indexed
+      .add_field_data<double>(&node_arclength_field, {0.5 * rod_length})                                 //
+      .add_field_data<double>(&node_coords_field, {0.0, 0.0, 0.0})                                       //
+      .add_field_data<double>(&node_tangent_field, {rod_tangent1[0], rod_tangent1[1], rod_tangent1[2]})  //
+      .add_field_data<double>(&node_force_field, {0.0, 0.0, 0.0})                                        //
+      .add_field_data<double>(&node_torque_field, {0.0, 0.0, 0.0})                                       //
+      .add_field_data<unsigned>(&node_is_bound_field, {0})                                               //
+      .add_field_data<double>(&node_binding_rate_field, {binding_rate})                                  //
       .add_field_data<double>(&node_unbinding_rate_field, {unbinding_rate});
 
   auto prc1_node2 = dec_helper.create_node();
   prc1_node2
-      .owning_proc(0)                                                     //
-      .id(4)                                                              // 1 indexed
-      .add_field_data<double>(&node_arclength_field, {0.5 * rod_length})  //
-      .add_field_data<double>(&node_force_field, {0.0, 0.0, 0.0})         //
-      .add_field_data<double>(&node_torque_field, {0.0, 0.0, 0.0})        //
-      .add_field_data<unsigned>(&node_is_bound_field, {1})                //
-      .add_field_data<double>(&node_binding_rate_field, {binding_rate})   //
+      .owning_proc(0)                                                                                    //
+      .id(4)                                                                                             // 1 indexed
+      .add_field_data<double>(&node_arclength_field, {0.5 * rod_length})                                 //
+      .add_field_data<double>(&node_coords_field, {init_rod_sep, 0.0, 0.0})                              //
+      .add_field_data<double>(&node_tangent_field, {rod_tangent2[0], rod_tangent2[1], rod_tangent2[2]})  //
+      .add_field_data<double>(&node_force_field, {0.0, 0.0, 0.0})                                        //
+      .add_field_data<double>(&node_torque_field, {0.0, 0.0, 0.0})                                       //
+      .add_field_data<unsigned>(&node_is_bound_field, {0})                                               //
+      .add_field_data<double>(&node_binding_rate_field, {binding_rate})                                  //
       .add_field_data<double>(&node_unbinding_rate_field, {unbinding_rate});
 
   auto prc1_elem = dec_helper.create_element();
@@ -1258,9 +1296,8 @@ void run_main() {
       .add_field_data<double>(&elem_rest_length_field, {rest_length})                  //
       .add_field_data<double>(&elem_spring_constant_field, {spring_constant})          //
       .add_field_data<double>(&elem_ang_spring_constant_field, {ang_spring_constant})  //
-      .add_field_data<double>(&elem_rest_cos_angle_field, {rest_cos_angle}) //
+      .add_field_data<double>(&elem_rest_cos_angle_field, {rest_cos_angle})            //
       .add_field_data<size_t>(&elem_rng_counter_field, {0});
-
 
   // Declare the entities
   dec_helper.check_consistency(bulk_data);
@@ -1269,32 +1306,32 @@ void run_main() {
   bulk_data.modification_end();
 
   // Add the links
-  stk::mesh::PartVector locally_owned_link_parts = {&slink_part, &meta_data.locally_owned_part()};
-  stk::mesh::Entity e_mt1 = bulk_data.get_entity(ELEM_RANK, 1);
-  stk::mesh::Entity e_mt2 = bulk_data.get_entity(ELEM_RANK, 2);
-  stk::mesh::Entity e_prc1_head1 = bulk_data.get_entity(NODE_RANK, 3);
-  stk::mesh::Entity e_prc1_head2 = bulk_data.get_entity(NODE_RANK, 4);
-  MUNDY_THROW_REQUIRE(bulk_data.is_valid(e_mt1) && bulk_data.is_valid(e_mt2) && bulk_data.is_valid(e_prc1_head1) &&
-                          bulk_data.is_valid(e_prc1_head2),
-                      std::runtime_error, "Invalid entities for link creation");
-  auto& partition = link_data.get_partition(link_data.get_partition_key(locally_owned_link_parts));
-  partition.increase_request_link_capacity(2);
-  partition.request_link(e_mt1, e_prc1_head1);
-  partition.request_link(e_mt2, e_prc1_head2);
-  link_data.process_requests();
+  // stk::mesh::PartVector locally_owned_link_parts = {&slink_part, &meta_data.locally_owned_part()};
+  // stk::mesh::Entity e_mt1 = bulk_data.get_entity(ELEM_RANK, 1);
+  // stk::mesh::Entity e_mt2 = bulk_data.get_entity(ELEM_RANK, 2);
+  // stk::mesh::Entity e_prc1_head1 = bulk_data.get_entity(NODE_RANK, 3);
+  // stk::mesh::Entity e_prc1_head2 = bulk_data.get_entity(NODE_RANK, 4);
+  // MUNDY_THROW_REQUIRE(bulk_data.is_valid(e_mt1) && bulk_data.is_valid(e_mt2) && bulk_data.is_valid(e_prc1_head1) &&
+  //                         bulk_data.is_valid(e_prc1_head2),
+  //                     std::runtime_error, "Invalid entities for link creation");
+  // auto& partition = link_data.get_partition(link_data.get_partition_key(locally_owned_link_parts));
+  // partition.increase_request_link_capacity(2);
+  // partition.request_link(e_mt1, e_prc1_head1);
+  // partition.request_link(e_mt2, e_prc1_head2);
+  // link_data.process_requests();
 
   // Check the links
-  stk::mesh::EntityVector e_links;
-  stk::mesh::get_entities(bulk_data, NODE_RANK, slink_part, e_links);
-  MUNDY_THROW_ASSERT(e_links.size() == 2, std::runtime_error, "Expected 2 links");
-  MUNDY_THROW_ASSERT(bulk_data.is_valid(e_links[0]), std::runtime_error, "Link 1 is not valid");
-  MUNDY_THROW_ASSERT(bulk_data.is_valid(e_links[1]), std::runtime_error, "Link 2 is not valid");
-  MUNDY_THROW_ASSERT(bulk_data.bucket(e_links[0]).member(slink_part), std::runtime_error,
-                     "Link 1 is not in slink_part");
-  MUNDY_THROW_ASSERT(bulk_data.bucket(e_links[1]).member(slink_part), std::runtime_error,
-                     "Link 2 is not in slink_part");
-  MUNDY_THROW_ASSERT(bulk_data.bucket(e_links[0]).member(meta_data.locally_owned_part()), std::runtime_error,
-                     "Link 1 is not in locally owned part");
+  // stk::mesh::EntityVector e_links;
+  // stk::mesh::get_entities(bulk_data, NODE_RANK, slink_part, e_links);
+  // MUNDY_THROW_ASSERT(e_links.size() == 2, std::runtime_error, "Expected 2 links");
+  // MUNDY_THROW_ASSERT(bulk_data.is_valid(e_links[0]), std::runtime_error, "Link 1 is not valid");
+  // MUNDY_THROW_ASSERT(bulk_data.is_valid(e_links[1]), std::runtime_error, "Link 2 is not valid");
+  // MUNDY_THROW_ASSERT(bulk_data.bucket(e_links[0]).member(slink_part), std::runtime_error,
+  //                    "Link 1 is not in slink_part");
+  // MUNDY_THROW_ASSERT(bulk_data.bucket(e_links[1]).member(slink_part), std::runtime_error,
+  //                    "Link 2 is not in slink_part");
+  // MUNDY_THROW_ASSERT(bulk_data.bucket(e_links[0]).member(meta_data.locally_owned_part()), std::runtime_error,
+  //                    "Link 1 is not in locally owned part");
 
   // Reconcile the surface node positions/tangents using their arclengths
   reconcile_surface_nodes(link_data, rod_agg, prc1_head_agg).apply_to(slink_agg);
@@ -1310,9 +1347,9 @@ void run_main() {
 
     // Binding/unbinding first
     std::cout << "Binding/unbinding" << std::endl;
-    kmc_unbound_to_single_bound(dt, binding_unbinding_kbt, link_data, slink_part).apply_to(
-      prc1_agg, rod_agg, HookeanPlusAngularCrosslinkerEnergy{});
-      
+    kmc_unbound_to_single_bound(dt, binding_unbinding_kbt, link_data, slink_part)
+        .apply_to(prc1_agg, rod_agg, HookeanPlusAngularCrosslinkerEnergy{screening_length});
+
     // Compute Brownian motions
     std::cout << "Applying Brownian motion" << std::endl;
     apply_brownian_motion(dt, brownian_kbt).apply_to(rod_agg);
