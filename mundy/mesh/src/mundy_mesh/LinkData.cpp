@@ -59,7 +59,7 @@ LinkPartition::LinkPartition(LinkData &link_data, const PartitionKey &key, unsig
       key_(key),
       link_rank_(link_meta_data_.link_rank()),
       dimensionality_(dimensionality),
-      bucket_to_linked_conn_(),
+      bucket_to_linked_conn_ptr_(std::make_shared<BucketToLinkedConn>()),
       link_requests_size_view_("link_requests_size_view"),
       link_requests_capacity_view_("link_requests_capacity_view"),
       requested_links_("requested_links", 0, dimensionality) {

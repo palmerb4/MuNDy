@@ -511,11 +511,11 @@ class LinkPartition {
   /// \brief No default constructor.
   LinkPartition() = delete;
 
-  /// \brief No copy or move constructors/operators.
-  LinkPartition(const LinkPartition &) = delete;
-  LinkPartition(LinkPartition &&) = delete;
-  LinkPartition &operator=(const LinkPartition &) = delete;
-  LinkPartition &operator=(LinkPartition &&) = delete;
+  /// \brief Default copy/move constructors/operators.
+  LinkPartition(const LinkPartition &) = default;
+  LinkPartition(LinkPartition &&) = default;
+  LinkPartition &operator=(const LinkPartition &) = default;
+  LinkPartition &operator=(LinkPartition &&) = default;
 
   /// \brief Canonical constructor.
   LinkPartition(LinkData &link_data, const PartitionKey &key, unsigned dimensionality);
@@ -597,7 +597,7 @@ class LinkPartition {
   /// \param linked_entities [in] Any number of entities to link.
   template <typename... LinkedEntities>
     requires(std::is_same_v<std::decay_t<LinkedEntities>, stk::mesh::Entity> && ...)
-  void request_link(LinkedEntities &&...linked_entities) {
+  void request_link(LinkedEntities &&...linked_entities) const {
     MUNDY_THROW_ASSERT(link_dimensionality() == sizeof...(linked_entities), std::invalid_argument,
                        "The number of linked entities must match the link dimensionality.");
 
@@ -672,7 +672,7 @@ class LinkPartition {
   /// @return
   inline bool host_bucket_conn_connects_to(const stk::mesh::Bucket &bucket) const {
     stk::mesh::Bucket *bucket_ptr = const_cast<stk::mesh::Bucket *>(&bucket);
-    return bucket_to_linked_conn_.find(bucket_ptr) != bucket_to_linked_conn_.end();
+    return bucket_to_linked_conn_ptr_->find(bucket_ptr) != bucket_to_linked_conn_ptr_->end();
   }
 
   /// \brief Get all links in the current partition that connect to the given entity in the host bucket conn.
@@ -683,7 +683,7 @@ class LinkPartition {
     stk::mesh::Bucket &bucket = bulk_data_.bucket(entity);
     stk::mesh::Ordinal bucket_ordinal = bulk_data_.bucket_ordinal(entity);
     return host_bucket_conn_connects_to(bucket)
-               ? bucket_to_linked_conn_.at(&bucket).get_connected_entities(bucket_ordinal)
+               ? bucket_to_linked_conn_ptr_->at(&bucket).get_connected_entities(bucket_ordinal)
                : ConnectedEntities();
   }
 
@@ -802,7 +802,7 @@ class LinkPartition {
 
   /// \brief Unrole the entities into the requested links view.
   template <size_t... Is, typename... LinkedEntities>
-  void insert_request(std::index_sequence<Is...>, size_t request_index, LinkedEntities &&...linked_entities) {
+  void insert_request(std::index_sequence<Is...>, size_t request_index, LinkedEntities &&...linked_entities) const {
     ((requested_links_(request_index, Is) = std::forward<LinkedEntities>(linked_entities)), ...);
   }
 
@@ -831,7 +831,7 @@ class LinkPartition {
   unsigned dimensionality_;
 
   // Host-bucketized-crs connectivity. Used for tracking many small serial changes during mesh modification
-  BucketToLinkedConn bucket_to_linked_conn_;
+  std::shared_ptr<BucketToLinkedConn> bucket_to_linked_conn_ptr_;
 
   // Stuff for requests
   using size_t_view = Kokkos::View<size_t, typename stk::ngp::HostExecSpace::memory_space>;

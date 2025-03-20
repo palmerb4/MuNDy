@@ -1194,6 +1194,9 @@ class Aggregate {
   const stk::mesh::BulkData& bulk_data() const {
     return bulk_data_;
   }
+  const stk::mesh::MetaData& mesh_meta_data() const {
+    return bulk_data_.mesh_meta_data();
+  }
   const stk::mesh::Selector& selector() const {
     return selector_;
   }
@@ -1354,6 +1357,14 @@ class NgpAggregate {
   KOKKOS_INLINE_FUNCTION
   const stk::mesh::NgpMesh& ngp_mesh() const {
     return ngp_mesh_;
+  }
+
+  const stk::mesh::BulkData& bulk_data() const {
+    return ngp_mesh_.get_bulk_on_host();
+  }
+
+  const stk::mesh::MetaData& mesh_meta_data() const {
+    return ngp_mesh_.get_bulk_on_host().mesh_meta_data();
   }
 
   const stk::mesh::Selector& selector() const {
