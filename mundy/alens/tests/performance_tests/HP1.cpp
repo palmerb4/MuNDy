@@ -530,9 +530,9 @@ class HP1 {
 
   void set_backbone_collision_params(const Teuchos::ParameterList &param_list) {
     const std::string backbone_collision_type_string = param_list.get<std::string>("backbone_collision_type");
+    backbone_excluded_volume_radius_ = param_list.get<double>("backbone_excluded_volume_radius");
     if (backbone_collision_type_string == "HERTZIAN") {
       backbone_collision_type_ = COLLISION_TYPE::HERTZIAN;
-      backbone_excluded_volume_radius_ = param_list.get<double>("backbone_excluded_volume_radius");
       backbone_youngs_modulus_ = param_list.get<double>("backbone_youngs_modulus");
       backbone_poissons_ratio_ = param_list.get<double>("backbone_poissons_ratio");
     } else if (backbone_collision_type_string == "WCA") {
@@ -957,8 +957,8 @@ class HP1 {
         std::cout << std::endl;
         std::cout << "BACKBONE COLLISION:" << std::endl;
         std::cout << "  backbone_collision_type: " << backbone_collision_type_ << std::endl;
+        std::cout << "  excluded_volume_radius (if used): " << backbone_excluded_volume_radius_ << std::endl;
         if (backbone_collision_type_ == COLLISION_TYPE::HERTZIAN) {
-          std::cout << "  excluded_volume_radius (if used): " << backbone_excluded_volume_radius_ << std::endl;
           std::cout << "  youngs_modulus: " << backbone_youngs_modulus_ << std::endl;
           std::cout << "  poissons_ratio: " << backbone_poissons_ratio_ << std::endl;
         } else if (backbone_collision_type_ == COLLISION_TYPE::WCA) {
