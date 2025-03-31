@@ -177,10 +177,10 @@ void SpherocylinderSegmentSpherocylinderSegmentWCA::execute(
         const stk::mesh::Entity &right_spherocylinder_segment_element = bulk_data.get_entity(key_t_ptr[1]);
 
         MUNDY_THROW_ASSERT(bulk_data.is_valid(left_spherocylinder_segment_element), std::invalid_argument,
-                           "SpherocylinderSegmentSpherocylinderSegmentHertzianContact: "
+                           "SpherocylinderSegmentSpherocylinderSegmentWCA: "
                            "left_spherocylinder_segment_element entity is not valid.");
         MUNDY_THROW_ASSERT(bulk_data.is_valid(right_spherocylinder_segment_element), std::invalid_argument,
-                           "SpherocylinderSegmentSpherocylinderSegmentHertzianContact: "
+                           "SpherocylinderSegmentSpherocylinderSegmentWCA: "
                            "right_spherocylinder_segment_element entity is not valid.");
 
         const double left_radius = stk::mesh::field_data(element_radius_field, left_spherocylinder_segment_element)[0];
