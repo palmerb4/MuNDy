@@ -133,12 +133,15 @@ class apply_brownian_motion {
     double radius = get<RADIUS>(rod_view)[0];
     double length = get<LENGTH>(rod_view)[0];
 
-    // RFD from Delong, JCP, 2015
     // Slender fiber has 0 rot drag about the long axis, regularize with identity rot mobility
-    const double inv_drag_para = 1.0;
-    const double inv_drag_perp = 1.0;
-    const double inv_drag_rot = 1.0;
-
+    constexpr double pi = Kokkos::numbers::pi_v<double>;
+    const double viscosity = 1;
+    const double p =(length + 2 * radius)/(2*radius) ;
+    const double inv_drag_perp = 4 * pi * viscosity / (Kokkos::log(p) + 0.839 + 0.185/p + 0.233/(p*p)) ;
+    const double inv_drag_para = 2 * pi * viscosity / (Kokkos::log(p) - 0.207 + 0.98/p - 0.133/(p*p)) ;
+    const double inv_drag_rot = (pi * viscosity * p*p/3 )/(Kokkos::log(p) - 0.662 + 0.917/p - 0.053/(p*p));
+    
+    // RFD from Delong, JCP, 2015
     auto tangent = quat * math::Vector3<double>(0.0, 0.0, 1.0);
 
     auto n_mat = (inv_drag_para - inv_drag_perp) * math::outer_product(tangent, tangent) +
@@ -334,11 +337,6 @@ class eval_mobility {
 
   KOKKOS_INLINE_FUNCTION
   void operator()(const auto& rod_view) const {
-    // TODO(palmerb4): Update with real drag coefficients
-    double drag_para = 1.0;
-    double drag_perp = 1.0;
-    double drag_rot = 1.0;
-
     // Center node data:
     auto force = get<FORCE>(rod_view, 0);
     auto torque = get<TORQUE>(rod_view, 0);
@@ -350,11 +348,19 @@ class eval_mobility {
     double length = get<LENGTH>(rod_view)[0];
     double radius = get<RADIUS>(rod_view)[0];
 
+    // Slender fiber has 0 rot drag about the long axis, regularize with identity rot mobility
+    constexpr double pi = Kokkos::numbers::pi_v<double>;
+    const double viscosity = 1;
+    const double p =(length + 2 * radius)/(2*radius) ;
+    const double inv_drag_perp = 4 * pi * viscosity / (Kokkos::log(p) + 0.839 + 0.185/p + 0.233/(p*p)) ;
+    const double inv_drag_para = 2 * pi * viscosity / (Kokkos::log(p) - 0.207 + 0.98/p - 0.133/(p*p)) ;
+    const double inv_drag_rot = (pi * viscosity * p*p/3 )/(Kokkos::log(p) - 0.662 + 0.917/p - 0.053/(p*p));
+
     // Note, += is safe here without atomic under the assumption that no two particles share a node
     auto force_para = math::dot(force, tangent) * tangent;
     auto force_perp = force - force_para;
-    velocity += 1.0 / drag_para * force_para + 1.0 / drag_perp * force_perp;
-    omega += 1.0 / drag_rot * torque;
+    velocity += inv_drag_para * force_para + inv_drag_perp * force_perp;
+    omega += inv_drag_rot * torque;
   }
 
   void apply_to(auto& rod_agg, const stk::mesh::Selector& subset_selector) {
