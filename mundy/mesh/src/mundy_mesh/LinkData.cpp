@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2024 Flatiron Institute
+//                                       Copyright 2025 Michigan State University
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -94,7 +94,7 @@ void LinkPartition::process_link_requests_fully_consistent_single_process() {
     add_parts[i] = &link_meta_data_.mesh_meta_data().get_part(key_[i]);
   }
 
-  size_t num_requested_links = link_requests_size_view_();
+  size_t num_requested_links = request_link_size();
   stk::mesh::EntityIdVector new_link_ids;
   stk::mesh::EntityVector new_link_entities;
   new_link_ids.reserve(num_requested_links);
